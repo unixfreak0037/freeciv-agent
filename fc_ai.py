@@ -3,15 +3,77 @@
 import asyncio
 import os
 import sys
+import signal
 
 from fc_client.client import FreeCivClient
 
+
 async def main() -> int:
+    """
+    Main entry point for the FreeCiv AI client.
+
+    Implements an event-driven architecture with:
+    - Continuous packet reading loop
+    - Signal handling for clean shutdown (SIGINT, SIGTERM)
+    - Graceful connection cleanup
+    """
+    shutdown_event = asyncio.Event()
     client = FreeCivClient()
-    await client.connect("192.168.86.33", 6556)
-    await client.join_game("ai-user")
-    await client.disconnect()
+
+    # Setup signal handlers for clean shutdown
+    def signal_handler(signum):
+        """Handle Unix signals by setting shutdown event"""
+        sig_name = signal.Signals(signum).name
+        print(f"\nReceived {sig_name}, shutting down gracefully...")
+        shutdown_event.set()
+
+    # Get the running event loop
+    loop = asyncio.get_running_loop()
+
+    # Register signal handlers with the event loop
+    # Handle SIGTERM availability for cross-platform compatibility
+    signals = [signal.SIGINT]
+    if hasattr(signal, 'SIGTERM'):
+        signals.append(signal.SIGTERM)
+
+    for sig in signals:
+        loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
+
+    try:
+        # Connect to server
+        await client.connect("192.168.86.33", 6556)
+
+        # Start packet reader task (runs in background)
+        await client.start_packet_reader(shutdown_event)
+
+        # Send join request packet
+        await client.send_join_request("ai-user")
+
+        # Wait for join to succeed (with timeout)
+        try:
+            success = await client.wait_for_join(timeout=10.0)
+            if not success and not shutdown_event.is_set():
+                # Only print timeout if shutdown wasn't already triggered by packet reader
+                print("Failed to join game (timeout)")
+                shutdown_event.set()
+        except asyncio.TimeoutError:
+            if not shutdown_event.is_set():
+                print("Join timeout")
+                shutdown_event.set()
+
+        # Main loop - wait for shutdown event
+        if not shutdown_event.is_set():
+            print("Connected. Waiting for events... (Ctrl+C to stop)")
+            await shutdown_event.wait()
+
+    finally:
+        # Clean up
+        print("Shutting down...")
+        await client.stop_and_disconnect()
+        print("Disconnected cleanly")
+
     return os.EX_OK
+
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))
