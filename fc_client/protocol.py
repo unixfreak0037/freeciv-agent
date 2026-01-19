@@ -1,4 +1,4 @@
-import socket
+import asyncio
 import struct
 from typing import Tuple
 
@@ -16,15 +16,13 @@ VERSION_LABEL = "-dev"
 CAPABILITY = "+Freeciv.Devel-3.4-2025.Nov.29"
 
 
-def _recv_exact(sock: socket.socket, num_bytes: int) -> bytes:
-    """Read exactly num_bytes from socket, handling partial reads."""
-    data = b''
-    while len(data) < num_bytes:
-        chunk = sock.recv(num_bytes - len(data))
-        if not chunk:
-            raise ConnectionError("Socket closed while reading data")
-        data += chunk
-    return data
+async def _recv_exact(reader: asyncio.StreamReader, num_bytes: int) -> bytes:
+    """Read exactly num_bytes from stream, handling partial reads."""
+    try:
+        data = await reader.readexactly(num_bytes)
+        return data
+    except asyncio.IncompleteReadError:
+        raise ConnectionError("Socket closed while reading data")
 
 
 # Data type encoding functions
@@ -114,24 +112,24 @@ def encode_server_join_req(username: str) -> bytes:
     return encode_packet(PACKET_SERVER_JOIN_REQ, payload)
 
 
-def read_packet(sock: socket.socket) -> Tuple[int, bytes]:
+async def read_packet(reader: asyncio.StreamReader) -> Tuple[int, bytes]:
     """
-    Read a packet from the socket.
+    Read a packet from the stream.
 
     Returns:
         Tuple of (packet_type, payload_data)
     """
     # Read 2-byte length field (big-endian)
-    length_bytes = _recv_exact(sock, 2)
+    length_bytes = await _recv_exact(reader, 2)
     packet_length = struct.unpack('>H', length_bytes)[0]
 
     # Read 1-byte packet type
-    type_bytes = _recv_exact(sock, 1)
+    type_bytes = await _recv_exact(reader, 1)
     packet_type = struct.unpack('B', type_bytes)[0]
 
     # Read remaining payload (length includes the 2-byte header + 1-byte type)
     payload_length = packet_length - 3
-    payload = _recv_exact(sock, payload_length) if payload_length > 0 else b''
+    payload = await _recv_exact(reader, payload_length) if payload_length > 0 else b''
 
     return packet_type, payload
 
