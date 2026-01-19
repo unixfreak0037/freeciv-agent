@@ -81,6 +81,14 @@ def decode_uint32(data: bytes, offset: int) -> Tuple[int, int]:
     value = struct.unpack('>I', data[offset:offset+4])[0]
     return value, offset + 4
 
+def encode_packet(packet_type: int, payload: bytes) -> bytes:
+    """
+    Encode a packet with a header.
+    """
+    packet_length = len(payload) + 3  # 2 bytes length + 1 byte type + payload
+    length_header = struct.pack('>H', packet_length)
+    return length_header + struct.pack('B', packet_type) + payload
+
 
 def encode_server_join_req(username: str) -> bytes:
     """
@@ -103,11 +111,7 @@ def encode_server_join_req(username: str) -> bytes:
                encode_uint32(PATCH_VERSION))
 
     # Build complete packet with header
-    packet_type = struct.pack('B', PACKET_SERVER_JOIN_REQ)
-    packet_length = len(payload) + 3  # 2 bytes length + 1 byte type + payload
-    length_header = struct.pack('>H', packet_length)
-
-    return length_header + packet_type + payload
+    return encode_packet(PACKET_SERVER_JOIN_REQ, payload)
 
 
 def read_packet(sock: socket.socket) -> Tuple[int, bytes]:
