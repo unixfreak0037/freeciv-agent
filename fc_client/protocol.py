@@ -27,6 +27,61 @@ def _recv_exact(sock: socket.socket, num_bytes: int) -> bytes:
     return data
 
 
+# Data type encoding functions
+
+def encode_string(value: str) -> bytes:
+    """Encode a STRING as null-terminated UTF-8 bytes."""
+    return value.encode('utf-8') + b'\x00'
+
+
+def encode_bool(value: bool) -> bytes:
+    """Encode a BOOL as a single byte (0 or 1)."""
+    return struct.pack('B', 1 if value else 0)
+
+
+def encode_uint32(value: int) -> bytes:
+    """Encode a UINT32 as 4 bytes in big-endian format."""
+    return struct.pack('>I', value)
+
+
+# Data type decoding functions
+
+def decode_string(data: bytes, offset: int) -> Tuple[str, int]:
+    """
+    Decode a null-terminated STRING from bytes.
+
+    Returns:
+        Tuple of (string_value, new_offset)
+    """
+    end = data.find(b'\x00', offset)
+    if end == -1:
+        raise ValueError("Null terminator not found in string")
+    string = data[offset:end].decode('utf-8')
+    return string, end + 1
+
+
+def decode_bool(data: bytes, offset: int) -> Tuple[bool, int]:
+    """
+    Decode a BOOL from bytes.
+
+    Returns:
+        Tuple of (bool_value, new_offset)
+    """
+    value = data[offset] != 0
+    return value, offset + 1
+
+
+def decode_uint32(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode a UINT32 from bytes (big-endian).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = struct.unpack('>I', data[offset:offset+4])[0]
+    return value, offset + 4
+
+
 def encode_server_join_req(username: str) -> bytes:
     """
     Encode a PACKET_SERVER_JOIN_REQ packet.
@@ -39,19 +94,13 @@ def encode_server_join_req(username: str) -> bytes:
     - UINT32 minor_version
     - UINT32 patch_version
     """
-    # Encode strings as null-terminated bytes
-    username_bytes = username.encode('utf-8') + b'\x00'
-    capability_bytes = CAPABILITY.encode('utf-8') + b'\x00'
-    version_label_bytes = VERSION_LABEL.encode('utf-8') + b'\x00'
-
-    # Encode version numbers as UINT32 big-endian
-    major_bytes = struct.pack('>I', MAJOR_VERSION)
-    minor_bytes = struct.pack('>I', MINOR_VERSION)
-    patch_bytes = struct.pack('>I', PATCH_VERSION)
-
     # Build packet payload (without header)
-    payload = (username_bytes + capability_bytes + version_label_bytes +
-               major_bytes + minor_bytes + patch_bytes)
+    payload = (encode_string(username) +
+               encode_string(CAPABILITY) +
+               encode_string(VERSION_LABEL) +
+               encode_uint32(MAJOR_VERSION) +
+               encode_uint32(MINOR_VERSION) +
+               encode_uint32(PATCH_VERSION))
 
     # Build complete packet with header
     packet_type = struct.pack('B', PACKET_SERVER_JOIN_REQ)
@@ -95,26 +144,13 @@ def decode_server_join_reply(payload: bytes) -> dict:
     """
     offset = 0
 
-    # Parse BOOL you_can_join (1 byte)
-    you_can_join = payload[offset] != 0
-    offset += 1
+    # Parse BOOL you_can_join
+    you_can_join, offset = decode_bool(payload, offset)
 
-    # Helper function to read null-terminated string
-    def read_string(data: bytes, start: int) -> Tuple[str, int]:
-        end = data.find(b'\x00', start)
-        if end == -1:
-            raise ValueError("Null terminator not found in string")
-        string = data[start:end].decode('utf-8')
-        return string, end + 1
-
-    # Parse message
-    message, offset = read_string(payload, offset)
-
-    # Parse capability
-    capability, offset = read_string(payload, offset)
-
-    # Parse challenge_file
-    challenge_file, offset = read_string(payload, offset)
+    # Parse STRING fields
+    message, offset = decode_string(payload, offset)
+    capability, offset = decode_string(payload, offset)
+    challenge_file, offset = decode_string(payload, offset)
 
     return {
         'you_can_join': you_can_join,
