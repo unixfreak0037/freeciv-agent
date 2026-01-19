@@ -8,12 +8,13 @@ responsible for decoding the payload and updating client state as needed.
 
 from typing import TYPE_CHECKING
 from . import protocol
+from .game_state import GameState
 
 if TYPE_CHECKING:
     from .client import FreeCivClient
 
 
-async def handle_processing_started(client: 'FreeCivClient', payload: bytes) -> None:
+async def handle_processing_started(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
     Handle PACKET_PROCESSING_STARTED.
 
@@ -23,7 +24,7 @@ async def handle_processing_started(client: 'FreeCivClient', payload: bytes) -> 
     print("Received PROCESSING_STARTED packet")
 
 
-async def handle_processing_finished(client: 'FreeCivClient', payload: bytes) -> None:
+async def handle_processing_finished(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
     Handle PACKET_PROCESSING_FINISHED.
 
@@ -33,7 +34,7 @@ async def handle_processing_finished(client: 'FreeCivClient', payload: bytes) ->
     print("Received PROCESSING_FINISHED packet")
 
 
-async def handle_server_join_reply(client: 'FreeCivClient', payload: bytes) -> None:
+async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
     Handle PACKET_SERVER_JOIN_REPLY.
 
@@ -53,7 +54,21 @@ async def handle_server_join_reply(client: 'FreeCivClient', payload: bytes) -> N
         client._shutdown_event.set()
 
 
-async def handle_unknown_packet(client: 'FreeCivClient', packet_type: int, payload: bytes) -> None:
+async def handle_server_info(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_SERVER_INFO.
+
+    Updates game_state.server_info with server version information.
+    """
+    server_info = protocol.decode_server_info(payload)
+    game_state.server_info = server_info
+
+    print(f"Server version: {server_info['version_label']} "
+          f"({server_info['major_version']}.{server_info['minor_version']}."
+          f"{server_info['patch_version']}-{server_info['emerg_version']})")
+
+
+async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.
 

@@ -3,14 +3,16 @@ import traceback
 from typing import Optional, Dict, Callable, Awaitable
 from . import protocol
 from . import handlers
+from .game_state import GameState
 
 class FreeCivClient:
     reader: Optional[asyncio.StreamReader]
     writer: Optional[asyncio.StreamWriter]
     _shutdown_event: Optional[asyncio.Event]
     _join_successful: asyncio.Event
-    _packet_handlers: Dict[int, Callable[['FreeCivClient', bytes], Awaitable[None]]]
+    _packet_handlers: Dict[int, Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]]
     _packet_reader_task: Optional[asyncio.Task]
+    game_state: Optional[GameState]
 
     def __init__(self):
         self.reader = None
@@ -19,19 +21,21 @@ class FreeCivClient:
         self._join_successful = asyncio.Event()
         self._packet_handlers = {}
         self._packet_reader_task = None
+        self.game_state = None
 
         # Register packet handlers
         self.register_handler(protocol.PACKET_PROCESSING_STARTED, handlers.handle_processing_started)
         self.register_handler(protocol.PACKET_PROCESSING_FINISHED, handlers.handle_processing_finished)
         self.register_handler(protocol.PACKET_SERVER_JOIN_REPLY, handlers.handle_server_join_reply)
+        self.register_handler(protocol.PACKET_SERVER_INFO, handlers.handle_server_info)
 
-    def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', bytes], Awaitable[None]]) -> None:
+    def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
         """
         Register a packet handler function for a specific packet type.
 
         Args:
             packet_type: The packet type number to handle
-            handler: Async function that takes (client, payload) and processes the packet
+            handler: Async function that takes (client, game_state, payload) and processes the packet
         """
         self._packet_handlers[packet_type] = handler
 
@@ -48,6 +52,7 @@ class FreeCivClient:
         """
         self.reader, self.writer = await asyncio.open_connection(host, port)
         print(f"Connected to {host}:{port}")
+        self.game_state = GameState()
         return True
 
     async def send_join_request(self, username: str) -> None:
@@ -121,10 +126,10 @@ class FreeCivClient:
 
             if handler:
                 # Call the registered handler
-                await handler(self, payload)
+                await handler(self, self.game_state, payload)
             else:
                 # Call unknown packet handler
-                await handlers.handle_unknown_packet(self, packet_type, payload)
+                await handlers.handle_unknown_packet(self, self.game_state, packet_type, payload)
 
         except Exception as e:
             print(f"Error in packet handler for type {packet_type}: {e}")

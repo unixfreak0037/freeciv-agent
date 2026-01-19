@@ -7,6 +7,7 @@ PACKET_PROCESSING_STARTED = 0
 PACKET_PROCESSING_FINISHED = 1
 PACKET_SERVER_JOIN_REQ = 4
 PACKET_SERVER_JOIN_REPLY = 5
+PACKET_SERVER_INFO = 29
 
 # Version constants
 MAJOR_VERSION = 3
@@ -159,4 +160,32 @@ def decode_server_join_reply(payload: bytes) -> dict:
         'message': message,
         'capability': capability,
         'challenge_file': challenge_file
+    }
+
+
+def decode_server_info(payload: bytes) -> dict:
+    """
+    Decode PACKET_SERVER_INFO packet.
+
+    Packet structure (from packets.def line 705):
+    - STRING version_label[48]
+    - UINT32 major_version
+    - UINT32 minor_version
+    - UINT32 patch_version
+    - UINT32 emerg_version
+    """
+    offset = 0
+
+    version_label, offset = decode_string(payload, offset)
+    major_version, offset = decode_uint32(payload, offset)
+    minor_version, offset = decode_uint32(payload, offset)
+    patch_version, offset = decode_uint32(payload, offset)
+    emerg_version, offset = decode_uint32(payload, offset)
+
+    return {
+        'version_label': version_label,
+        'major_version': major_version,
+        'minor_version': minor_version,
+        'patch_version': patch_version,
+        'emerg_version': emerg_version
     }
