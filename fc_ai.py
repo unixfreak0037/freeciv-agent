@@ -1,11 +1,26 @@
 #!/usr/bin/env python3
 
+import argparse
 import asyncio
 import os
 import sys
 import signal
 
 from fc_client.client import FreeCivClient
+
+
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="FreeCiv AI client")
+    parser.add_argument(
+        '--debug-packets',
+        metavar='DIR',
+        nargs='?',
+        const='packets',  # Default when --debug-packets provided without arg
+        default=None,     # Default when --debug-packets not provided
+        help='Enable packet debugging to DIR (default: packets)'
+    )
+    return parser.parse_args()
 
 
 async def main() -> int:
@@ -17,8 +32,17 @@ async def main() -> int:
     - Signal handling for clean shutdown (SIGINT, SIGTERM)
     - Graceful connection cleanup
     """
+    # Parse command-line arguments
+    args = parse_args()
+
     shutdown_event = asyncio.Event()
-    client = FreeCivClient()
+
+    # Create client with optional packet debugging
+    try:
+        client = FreeCivClient(debug_packets_dir=args.debug_packets)
+    except FileExistsError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return os.EX_USAGE  # Exit code 64
 
     # Setup signal handlers for clean shutdown
     def signal_handler(signum):

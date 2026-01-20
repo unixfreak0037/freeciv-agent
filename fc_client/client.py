@@ -4,6 +4,7 @@ from typing import Optional, Dict, Callable, Awaitable
 from . import protocol
 from . import handlers
 from .game_state import GameState
+from .packet_debugger import PacketDebugger
 
 class FreeCivClient:
     reader: Optional[asyncio.StreamReader]
@@ -13,8 +14,10 @@ class FreeCivClient:
     _packet_handlers: Dict[int, Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]]
     _packet_reader_task: Optional[asyncio.Task]
     game_state: Optional[GameState]
+    _packet_debugger: Optional[PacketDebugger]
+    _use_two_byte_type: bool
 
-    def __init__(self):
+    def __init__(self, debug_packets_dir: Optional[str] = None):
         self.reader = None
         self.writer = None
         self._shutdown_event = None
@@ -22,6 +25,14 @@ class FreeCivClient:
         self._packet_handlers = {}
         self._packet_reader_task = None
         self.game_state = None
+        self._use_two_byte_type = False  # Start with 1-byte type, switch after JOIN_REPLY
+
+        # Initialize packet debugger if requested
+        if debug_packets_dir:
+            self._packet_debugger = PacketDebugger(debug_packets_dir)
+            print(f"Packet debugging enabled: {debug_packets_dir}/")
+        else:
+            self._packet_debugger = None
 
         # Register packet handlers
         self.register_handler(protocol.PACKET_PROCESSING_STARTED, handlers.handle_processing_started)
@@ -70,6 +81,11 @@ class FreeCivClient:
 
         # Encode and send JOIN_REQ packet
         join_req_packet = protocol.encode_server_join_req(username)
+
+        # Debug: Write outbound packet
+        if self._packet_debugger:
+            self._packet_debugger.write_outbound_packet(join_req_packet)
+
         self.writer.write(join_req_packet)
         await self.writer.drain()
         print(f"Sent JOIN_REQ for user '{username}'")
@@ -92,8 +108,16 @@ class FreeCivClient:
         """
         try:
             while not self._shutdown_event.is_set():
-                # Read next packet
-                packet_type, payload = await protocol.read_packet(self.reader)
+                # Read next packet (now returns 3-tuple including raw bytes)
+                packet_type, payload, raw_packet = await protocol.read_packet(
+                    self.reader,
+                    use_two_byte_type=self._use_two_byte_type
+                )
+
+                # Debug: Write inbound packet
+                if self._packet_debugger:
+                    self._packet_debugger.write_inbound_packet(raw_packet)
+
                 print(f"Received packet type: {packet_type}")
 
                 # Dispatch to handler

@@ -7,7 +7,11 @@ PACKET_PROCESSING_STARTED = 0
 PACKET_PROCESSING_FINISHED = 1
 PACKET_SERVER_JOIN_REQ = 4
 PACKET_SERVER_JOIN_REPLY = 5
+PACKET_CHAT_MSG = 25
 PACKET_SERVER_INFO = 29
+PACKET_GAME_LOAD = 155
+PACKET_RULESET_DESCRIPTION_PART = 247
+PACKET_RULESET_SUMMARY = 251
 
 # Version constants
 MAJOR_VERSION = 3
@@ -113,26 +117,40 @@ def encode_server_join_req(username: str) -> bytes:
     return encode_packet(PACKET_SERVER_JOIN_REQ, payload)
 
 
-async def read_packet(reader: asyncio.StreamReader) -> Tuple[int, bytes]:
+async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = False) -> Tuple[int, bytes, bytes]:
     """
     Read a packet from the stream.
 
+    Args:
+        reader: The stream reader
+        use_two_byte_type: If True, read 2 bytes for packet type (after JOIN_REPLY accepted)
+
     Returns:
-        Tuple of (packet_type, payload_data)
+        Tuple of (packet_type, payload_data, raw_packet_bytes)
+        where raw_packet_bytes includes the complete packet with header
     """
     # Read 2-byte length field (big-endian)
     length_bytes = await _recv_exact(reader, 2)
     packet_length = struct.unpack('>H', length_bytes)[0]
 
-    # Read 1-byte packet type
-    type_bytes = await _recv_exact(reader, 1)
-    packet_type = struct.unpack('B', type_bytes)[0]
+    # Read packet type (1 or 2 bytes depending on connection state)
+    if use_two_byte_type:
+        type_bytes = await _recv_exact(reader, 2)
+        packet_type = struct.unpack('>H', type_bytes)[0]
+        header_size = 4  # 2 bytes length + 2 bytes type
+    else:
+        type_bytes = await _recv_exact(reader, 1)
+        packet_type = struct.unpack('B', type_bytes)[0]
+        header_size = 3  # 2 bytes length + 1 byte type
 
-    # Read remaining payload (length includes the 2-byte header + 1-byte type)
-    payload_length = packet_length - 3
+    # Read remaining payload
+    payload_length = packet_length - header_size
     payload = await _recv_exact(reader, payload_length) if payload_length > 0 else b''
 
-    return packet_type, payload
+    # Construct complete raw packet for debugging
+    raw_packet = length_bytes + type_bytes + payload
+
+    return packet_type, payload, raw_packet
 
 
 def decode_server_join_reply(payload: bytes) -> dict:

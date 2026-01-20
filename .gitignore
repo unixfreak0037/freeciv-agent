@@ -3,3 +3,4 @@ freeciv/
 *.pyc
 __pycache__/
 *.swp
+packets/

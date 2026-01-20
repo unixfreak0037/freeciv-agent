@@ -46,6 +46,11 @@ async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameStat
 
     if data['you_can_join']:
         print(f"Join successful: {data['message']}")
+
+        # CRITICAL: Switch to 2-byte packet type format after successful join
+        # The FreeCiv protocol switches from UINT8 to UINT16 packet types after JOIN_REPLY
+        client._use_two_byte_type = True
+
         # Signal that join was successful
         client._join_successful.set()
     else:
