@@ -12,3 +12,4 @@ class GameState:
     def __init__(self):
         """Initialize a new game state with default values."""
         self.server_info = None
+        self.chat_history = []  # List of chat message dicts with timestamps

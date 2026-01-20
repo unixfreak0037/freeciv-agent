@@ -5,6 +5,7 @@ from . import protocol
 from . import handlers
 from .game_state import GameState
 from .packet_debugger import PacketDebugger
+from .delta_cache import DeltaCache
 
 class FreeCivClient:
     reader: Optional[asyncio.StreamReader]
@@ -16,6 +17,7 @@ class FreeCivClient:
     game_state: Optional[GameState]
     _packet_debugger: Optional[PacketDebugger]
     _use_two_byte_type: bool
+    _delta_cache: DeltaCache
 
     def __init__(self, debug_packets_dir: Optional[str] = None):
         self.reader = None
@@ -26,6 +28,7 @@ class FreeCivClient:
         self._packet_reader_task = None
         self.game_state = None
         self._use_two_byte_type = False  # Start with 1-byte type, switch after JOIN_REPLY
+        self._delta_cache = DeltaCache()  # Cache for delta protocol
 
         # Initialize packet debugger if requested
         if debug_packets_dir:
@@ -39,6 +42,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_PROCESSING_FINISHED, handlers.handle_processing_finished)
         self.register_handler(protocol.PACKET_SERVER_JOIN_REPLY, handlers.handle_server_join_reply)
         self.register_handler(protocol.PACKET_SERVER_INFO, handlers.handle_server_info)
+        self.register_handler(protocol.PACKET_CHAT_MSG, handlers.handle_chat_msg)
 
     def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
         """
@@ -198,6 +202,9 @@ class FreeCivClient:
         Returns:
             True if disconnection successful
         """
+        # Clear delta cache on disconnect
+        self._delta_cache.clear_all()
+
         if self.writer:
             self.writer.close()
             await self.writer.wait_closed()

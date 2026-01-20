@@ -1,6 +1,11 @@
 import asyncio
 import struct
-from typing import Tuple
+from typing import Tuple, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .delta_cache import DeltaCache
+
+from .packet_specs import PACKET_SPECS, PacketSpec
 
 # Packet type constants
 PACKET_PROCESSING_STARTED = 0
@@ -83,6 +88,29 @@ def decode_uint32(data: bytes, offset: int) -> Tuple[int, int]:
     """
     value = struct.unpack('>I', data[offset:offset+4])[0]
     return value, offset + 4
+
+
+def decode_sint16(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode SINT16 (big-endian signed 16-bit).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = struct.unpack('>h', data[offset:offset+2])[0]
+    return value, offset + 2
+
+
+def decode_sint32(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode SINT32 (big-endian signed 32-bit).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = struct.unpack('>i', data[offset:offset+4])[0]
+    return value, offset + 4
+
 
 def encode_packet(packet_type: int, payload: bytes) -> bytes:
     """
@@ -207,3 +235,195 @@ def decode_server_info(payload: bytes) -> dict:
         'patch_version': patch_version,
         'emerg_version': emerg_version
     }
+
+
+def decode_chat_msg(payload: bytes) -> dict:
+    """
+    DEPRECATED: Use decode_delta_packet() for proper delta protocol support.
+
+    Legacy decoder for PACKET_CHAT_MSG that uses length-based guessing
+    to handle omitted fields. This approach is unreliable and doesn't
+    properly implement the delta protocol.
+
+    Use decode_delta_packet() with PACKET_SPECS[PACKET_CHAT_MSG] instead.
+
+    Packet structure (from packets.def line 676):
+    - STRING message[MAX_LEN_MSG]  # 1537 bytes max
+    - TILE tile                     # SINT32 (4 bytes)
+    - EVENT event                   # sint16 (2 bytes)
+    - TURN turn                     # SINT16 (2 bytes)
+    - PHASE phase                   # SINT16 (2 bytes) - may be omitted via delta encoding
+    - CONNECTION conn_id            # SINT16 (2 bytes) - may be omitted via delta encoding
+
+    Note: FreeCiv uses delta encoding for this packet, so phase and conn_id
+    may be omitted if unchanged from previous values.
+
+    Returns dictionary with keys:
+      message, tile, event, turn, phase, conn_id
+    """
+    offset = 0
+
+    message, offset = decode_string(payload, offset)
+    tile, offset = decode_sint32(payload, offset)
+    event, offset = decode_sint16(payload, offset)
+    turn, offset = decode_sint16(payload, offset)
+
+    # Phase and conn_id may be omitted via delta encoding
+    if len(payload) - offset >= 4:
+        phase, offset = decode_sint16(payload, offset)
+        conn_id, offset = decode_sint16(payload, offset)
+    else:
+        # Use defaults when fields are omitted
+        phase = 0
+        conn_id = -1
+
+    return {
+        'message': message,
+        'tile': tile,
+        'event': event,
+        'turn': turn,
+        'phase': phase,
+        'conn_id': conn_id
+    }
+
+
+# ============================================================================
+# Delta Protocol Support
+# ============================================================================
+
+def read_bitvector(data: bytes, offset: int, num_bits: int) -> Tuple[int, int]:
+    """
+    Read a bitvector from payload.
+
+    The bitvector is used in delta encoding to indicate which fields are present
+    in the packet. Each bit corresponds to a non-key field (bit 0 = first field,
+    bit 1 = second field, etc.). A bit value of 1 means the field is included
+    in the payload.
+
+    Args:
+        data: Payload bytes
+        offset: Starting offset in the payload
+        num_bits: Number of bits in bitvector (equal to number of non-key fields)
+
+    Returns:
+        Tuple of (bitvector_as_int, new_offset)
+        bitvector_as_int is an integer where bit positions can be tested with (value & (1 << bit_index))
+    """
+    num_bytes = (num_bits + 7) // 8  # Ceiling division
+    bitvector_bytes = data[offset:offset + num_bytes]
+    bitvector = int.from_bytes(bitvector_bytes, 'big')
+    return bitvector, offset + num_bytes
+
+
+def is_bit_set(bitvector: int, bit_index: int) -> bool:
+    """Check if a specific bit is set in bitvector.
+
+    Args:
+        bitvector: Integer representation of the bitvector
+        bit_index: Zero-based index of the bit to check (0 = LSB)
+
+    Returns:
+        True if the bit is set (1), False otherwise (0)
+    """
+    return (bitvector & (1 << bit_index)) != 0
+
+
+def _decode_field(data: bytes, offset: int, type_name: str) -> Tuple[Any, int]:
+    """Decode a single field based on its type.
+
+    Args:
+        data: Payload bytes
+        offset: Current offset in the payload
+        type_name: FreeCiv type name ('STRING', 'SINT32', etc.)
+
+    Returns:
+        Tuple of (decoded_value, new_offset)
+
+    Raises:
+        ValueError: If type_name is not supported
+    """
+    if type_name == 'STRING':
+        return decode_string(data, offset)
+    elif type_name == 'SINT32':
+        return decode_sint32(data, offset)
+    elif type_name == 'SINT16':
+        return decode_sint16(data, offset)
+    elif type_name == 'UINT32':
+        return decode_uint32(data, offset)
+    elif type_name == 'BOOL':
+        return decode_bool(data, offset)
+    else:
+        raise ValueError(f"Unsupported field type: {type_name}")
+
+
+def decode_delta_packet(
+    payload: bytes,
+    packet_spec: PacketSpec,
+    delta_cache: 'DeltaCache'
+) -> dict:
+    """
+    Generic delta decoder for any packet with delta support.
+
+    This decoder implements FreeCiv's delta protocol:
+    1. Read key fields (always present, not in bitvector)
+    2. Read bitvector indicating which non-key fields are present
+    3. For each non-key field:
+       - If bit is set: read new value from payload
+       - If bit is clear: use cached value from previous packet
+    4. Update cache with complete packet
+
+    Args:
+        payload: Raw packet payload (after header)
+        packet_spec: Packet specification from PACKET_SPECS
+        delta_cache: Delta cache instance for this connection
+
+    Returns:
+        Complete field dictionary with all values (from payload or cache)
+    """
+    offset = 0
+    fields = {}
+
+    # Step 1: Read key fields (always present, always transmitted)
+    key_values = []
+    for field_spec in packet_spec.key_fields:
+        value, offset = _decode_field(payload, offset, field_spec.type_name)
+        fields[field_spec.name] = value
+        key_values.append(value)
+
+    key_tuple = tuple(key_values)
+
+    # Step 2: Read bitvector (if packet has non-key fields)
+    if packet_spec.num_bitvector_bits > 0:
+        bitvector, offset = read_bitvector(
+            payload, offset, packet_spec.num_bitvector_bits
+        )
+    else:
+        bitvector = 0
+
+    # Step 3: Get cached packet (or use defaults if no cache exists)
+    cached = delta_cache.get_cached_packet(packet_spec.packet_type, key_tuple)
+    if cached is None:
+        # No cached packet - use default values for all non-key fields
+        cached = {
+            field.name: field.default_value
+            for field in packet_spec.non_key_fields
+        }
+
+    # Step 4: Read non-key fields based on bitvector
+    for bit_index, field_spec in enumerate(packet_spec.non_key_fields):
+        if field_spec.is_bool:
+            # Boolean header-folding optimization: the bit value IS the field value
+            # No separate byte is transmitted for boolean fields
+            fields[field_spec.name] = is_bit_set(bitvector, bit_index)
+        elif is_bit_set(bitvector, bit_index):
+            # Field changed - read new value from payload
+            value, offset = _decode_field(payload, offset, field_spec.type_name)
+            fields[field_spec.name] = value
+        else:
+            # Field unchanged - use cached value
+            fields[field_spec.name] = cached[field_spec.name]
+
+    # Step 5: Update cache with complete packet
+    delta_cache.update_cache(packet_spec.packet_type, key_tuple, fields)
+
+    return fields

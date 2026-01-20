@@ -1,0 +1,143 @@
+"""Packet specifications for FreeCiv protocol.
+
+This module defines the structure of FreeCiv network packets in a declarative way,
+similar to the packets.def file in the FreeCiv source code. These specifications
+are used by the delta protocol decoder to properly handle packets.
+"""
+
+from dataclasses import dataclass
+from typing import List, Any, Dict
+
+
+@dataclass
+class FieldSpec:
+    """Specification for a single packet field.
+
+    Attributes:
+        name: Field name (e.g., 'message', 'tile', 'event')
+        type_name: FreeCiv type name ('STRING', 'SINT32', 'SINT16', 'BOOL', 'UINT32', etc.)
+        is_key: True if this is a key field (always transmitted, not in bitvector)
+        is_bool: True if this is a boolean field (uses header folding optimization)
+        default_value: Default value to use when field is not in cache
+    """
+    name: str
+    type_name: str
+    is_key: bool = False
+    is_bool: bool = False
+    default_value: Any = None
+
+    def __post_init__(self):
+        """Set default value based on type if not provided."""
+        if self.default_value is None:
+            if self.type_name == 'STRING':
+                self.default_value = ""
+            elif self.type_name == 'BOOL':
+                self.default_value = False
+                self.is_bool = True  # Auto-detect bool fields
+            elif 'SINT' in self.type_name:
+                self.default_value = -1
+            else:
+                self.default_value = 0
+
+
+@dataclass
+class PacketSpec:
+    """Complete specification for a packet type.
+
+    Attributes:
+        packet_type: Numeric packet type (e.g., 25 for PACKET_CHAT_MSG)
+        name: Human-readable packet name
+        has_delta: True if this packet supports delta encoding
+        fields: List of field specifications in order
+    """
+    packet_type: int
+    name: str
+    has_delta: bool
+    fields: List[FieldSpec]
+
+    @property
+    def key_fields(self) -> List[FieldSpec]:
+        """Return only the key fields (always transmitted)."""
+        return [f for f in self.fields if f.is_key]
+
+    @property
+    def non_key_fields(self) -> List[FieldSpec]:
+        """Return only the non-key fields (delta encoded)."""
+        return [f for f in self.fields if not f.is_key]
+
+    @property
+    def num_bitvector_bits(self) -> int:
+        """Number of bits needed in the bitvector."""
+        return len(self.non_key_fields)
+
+    @property
+    def num_bitvector_bytes(self) -> int:
+        """Number of bytes needed to store the bitvector."""
+        return (self.num_bitvector_bits + 7) // 8  # Ceiling division
+
+
+# Packet specifications registry
+# Maps packet_type -> PacketSpec
+PACKET_SPECS: Dict[int, PacketSpec] = {}
+
+
+# ============================================================================
+# PACKET DEFINITIONS
+# ============================================================================
+# These definitions are based on freeciv/common/networking/packets.def
+# and should be kept in sync with the server's protocol version.
+
+# PACKET_CHAT_MSG = 25
+# From packets.def:
+#   PACKET_CHAT_MSG = 25; sc, lsend
+#     STRING message[MAX_LEN_MSG];
+#     TILE tile;           # SINT32
+#     EVENT event;         # SINT16
+#     TURN turn;           # SINT16
+#     PHASE phase;         # SINT16
+#     CONNECTION conn_id;  # SINT16
+PACKET_SPECS[25] = PacketSpec(
+    packet_type=25,
+    name="PACKET_CHAT_MSG",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='message', type_name='STRING'),
+        FieldSpec(name='tile', type_name='SINT32'),
+        FieldSpec(name='event', type_name='SINT16'),
+        FieldSpec(name='turn', type_name='SINT16'),
+        FieldSpec(name='phase', type_name='SINT16'),
+        FieldSpec(name='conn_id', type_name='SINT16'),
+    ]
+)
+
+
+# Add more packet specifications as needed following this pattern:
+# PACKET_SPECS[<packet_num>] = PacketSpec(
+#     packet_type=<packet_num>,
+#     name="PACKET_<NAME>",
+#     has_delta=True/False,
+#     fields=[
+#         FieldSpec(name='<field>', type_name='<TYPE>', is_key=True/False),
+#         ...
+#     ]
+# )
+
+
+def get_packet_spec(packet_type: int) -> PacketSpec:
+    """Get packet specification by type number.
+
+    Args:
+        packet_type: The numeric packet type
+
+    Returns:
+        PacketSpec for the given type
+
+    Raises:
+        KeyError: If packet type is not defined
+    """
+    if packet_type not in PACKET_SPECS:
+        raise KeyError(
+            f"No specification found for packet type {packet_type}. "
+            f"Available types: {sorted(PACKET_SPECS.keys())}"
+        )
+    return PACKET_SPECS[packet_type]
