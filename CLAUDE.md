@@ -54,11 +54,39 @@ The source code for freeciv is located in the `freeciv` directory. It is made av
     - `async connect()`: Establishes TCP connection using `asyncio.open_connection()`
     - `async disconnect()`: Closes connection gracefully with `writer.close()` and `await writer.wait_closed()`
     - `async join_game()`: Sends JOIN_REQ packet and waits for server response with timeout handling
+    - `async _packet_reader_loop()`: Background task that continuously reads and dispatches packets
+    - Event-based packet dispatch system with handler registration
+    - Dynamic protocol version switching (1-byte → 2-byte packet types after JOIN_REPLY)
+    - Signal handling (SIGINT/SIGTERM) for graceful shutdown
   - **protocol.py**: Protocol encoding/decoding functions
-    - `async read_packet()`: Reads packets from `asyncio.StreamReader`
+    - `async read_packet()`: Reads packets from `asyncio.StreamReader` with protocol version support
     - `async _recv_exact()`: Ensures exact number of bytes are read using `reader.readexactly()`
+    - `decode_delta_packet()`: Decodes delta-compressed packets using bitvectors and cache
+    - `read_bitvector()`, `is_bit_set()`: Bitvector utilities for delta protocol
+    - `_decode_field()`: Generic field decoder for all FreeCiv data types
     - Synchronous encoding functions: `encode_packet()`, `encode_server_join_req()`, etc.
-    - Synchronous decoding functions: `decode_server_join_reply()`, etc.
+    - Synchronous decoding functions: `decode_server_join_reply()`, `decode_server_info()`, `decode_chat_msg_packet()`, etc.
+  - **handlers.py**: Packet handler functions registered for different packet types
+    - `handle_processing_started()`, `handle_processing_finished()`: Capability negotiation handlers
+    - `handle_server_join_reply()`: Handles join response and switches protocol version
+    - `handle_server_info()`: Processes server information and updates game state
+    - `handle_chat_msg()`: Handles chat messages from server and other players
+    - `handle_unknown_packet()`: Default handler for unimplemented packet types
+  - **packet_specs.py**: Declarative packet specification system
+    - `FieldSpec`: Defines structure of individual packet fields (name, type, size)
+    - `PacketSpec`: Complete packet specification with type number and field list
+    - Centralized packet definitions for SERVER_INFO (25) and CHAT_MSG (29)
+  - **delta_cache.py**: Delta protocol cache for bandwidth optimization
+    - `DeltaCache`: Manages cached packet data keyed by (packet_type, key_value)
+    - Stores previous packet field values for delta decoding
+    - Cache cleared on disconnect to maintain consistency
+  - **game_state.py**: Game state tracking
+    - `GameState`: Tracks server_info dict and chat_history list
+    - Updated by packet handlers as game progresses
+  - **packet_debugger.py**: Optional packet capture utility for debugging
+    - `PacketDebugger`: Captures raw packets to files for analysis
+    - Enabled via `--debug-packets` command-line flag
+    - Saves inbound/outbound packets to numbered files
 
 ### FreeCiv Protocol
 
@@ -76,29 +104,37 @@ The project has a working async network client that can connect to FreeCiv serve
 **Completed:**
 1. ✅ Async network architecture using `asyncio` with StreamReader/StreamWriter
 2. ✅ TCP connection to FreeCiv servers
-3. ✅ Basic packet encoding/decoding for JOIN_REQ and JOIN_REPLY packets
-4. ✅ Successful game join with username "ai-user"
-5. ✅ Timeout handling for network operations
-6. ✅ Graceful connection cleanup
+3. ✅ Packet encoding/decoding for JOIN_REQ, JOIN_REPLY, SERVER_INFO, CHAT_MSG packets
+4. ✅ Delta protocol support for bandwidth optimization
+5. ✅ Successful game join with username "ai-user"
+6. ✅ Timeout handling for network operations
+7. ✅ Graceful connection cleanup with signal handling (SIGINT/SIGTERM)
+8. ✅ Event-driven packet processing with handler registration system
+9. ✅ Basic game state tracking (server info, chat history)
+10. ✅ Packet debugger utility for network protocol analysis
 
 **To Do:**
-1. **Protocol Implementation**: Implement encoding/decoding for all packet types defined in `packets.def`
-2. **Game State Management**: Track game state, players, cities, units, etc.
+1. **Protocol Implementation**: Implement encoding/decoding for remaining ~515 packet types defined in `packets.def`
+2. **Game State Management**: Expand tracking to include players, cities, units, map tiles, etc.
 3. **AI Strategy**: Implement AI decision-making logic for game actions
-4. **Turn Management**: Handle turn-based game loop
+4. **Turn Management**: Handle turn-based game loop and action submission
+5. **Action Encoding**: Implement packet encoding for player actions (move unit, build, etc.)
 
 ## Dependencies
 
 **Runtime Dependencies:**
 - Python 3.7+ (for `asyncio` support)
-- No external packages required - uses Python standard library
+- No external packages required - uses Python standard library only
 
 **Development/Testing:**
-- Consider `pytest-asyncio` for testing async functions
+- `black` - Code formatter for consistent style
+- `pytest` - Testing framework
+- `pytest-asyncio` - Support for testing async functions
+- `pytest-cov` - Code coverage reporting
 
 ## Async Programming Requirements
 
-**CRITICAL: All I/O operations in this project MUST use async/await patterns.**
+**All network I/O operations in this project MUST use async/await patterns.**
 
 ### Guidelines
 
@@ -130,13 +166,234 @@ except asyncio.TimeoutError:
     print("Operation timed out")
 ```
 
+## Event-Driven Architecture
+
+The client uses an event-driven architecture with async packet processing:
+
+### Main Event Loop
+
+The main loop follows this sequence:
+1. **Connect**: Establish TCP connection to FreeCiv server
+2. **Start Reader Task**: Launch `_packet_reader_loop()` as a background asyncio task
+3. **Join Game**: Send JOIN_REQ packet and wait for JOIN_REPLY
+4. **Wait for Shutdown**: Block until SIGINT/SIGTERM received or connection lost
+5. **Disconnect**: Clean up resources and close connection
+
+### Signal Handling
+
+The client registers handlers for graceful shutdown:
+- `SIGINT` (Ctrl+C): Sets `shutdown_event` to trigger clean disconnect
+- `SIGTERM`: Sets `shutdown_event` to trigger clean disconnect
+
+Signal handlers use `asyncio.create_task()` to set the event from signal context safely.
+
+### Packet Reader Loop
+
+The `_packet_reader_loop()` runs continuously in the background:
+1. Read packet header to determine type and length
+2. Read packet body based on length
+3. Look up handler function for packet type in `self.packet_handlers` dict
+4. Call handler with packet data and client context
+5. Repeat until connection closed or error occurs
+
+### Handler Registration
+
+Packet handlers are registered at client initialization:
+
+```python
+self.packet_handlers = {
+    0: handle_processing_started,
+    1: handle_processing_finished,
+    5: handle_server_join_reply,
+    25: handle_server_info,
+    29: handle_chat_msg,
+}
+```
+
+All handlers follow this signature:
+```python
+async def handle_packet_name(data: bytes, client: FreeCivClient) -> None:
+    # Decode packet
+    # Update game state
+    # Perform any side effects
+```
+
+### Protocol Version Switching
+
+The client starts with 1-byte packet type numbers for capability negotiation:
+- Packets 0-255 use 1-byte type field
+- After receiving JOIN_REPLY (packet 5), switches to 2-byte type field
+- This allows access to full packet range (0-65535)
+
+The switch happens in `handle_server_join_reply()`:
+```python
+client.protocol_version = 2  # Switch to 2-byte packet types
+```
+
+### Graceful Shutdown
+
+On shutdown signal or connection loss:
+1. `shutdown_event.set()` signals main loop to exit
+2. Main loop calls `disconnect()`
+3. `disconnect()` cancels reader task if still running
+4. Close network writer and wait for closure
+5. Clear delta cache to maintain consistency
+
+## Delta Protocol
+
+FreeCiv uses a delta protocol to reduce bandwidth by only transmitting changed fields in frequently-sent packets.
+
+### How It Works
+
+Instead of sending all fields every time, the server:
+1. **Sends a bitvector** indicating which fields are present in this packet
+2. **Includes only the present fields** in the packet body
+3. **Client reconstructs** full packet by combining new fields with cached values
+
+### Bitvectors
+
+A bitvector is a compact bit array where each bit represents one field:
+- Bit set to 1: Field is present in packet, read new value
+- Bit set to 0: Field is absent, use cached value from previous packet
+
+Bitvectors are packed into bytes, read with helper functions:
+```python
+def is_bit_set(bitvector: bytes, bit_index: int) -> bool:
+    byte_index = bit_index // 8
+    bit_offset = bit_index % 8
+    return bool(bitvector[byte_index] & (1 << bit_offset))
+```
+
+### Cache Structure
+
+The `DeltaCache` stores previous packet values:
+- **Key**: Tuple of `(packet_type, key_value)`
+  - `packet_type`: Which packet type (e.g., 25 for SERVER_INFO)
+  - `key_value`: Unique identifier for this specific instance (e.g., server ID)
+- **Value**: Dictionary mapping field names to their last seen values
+
+Example cache entry:
+```python
+{
+    (25, 0): {  # SERVER_INFO for server 0
+        'turn': 42,
+        'year': 1850,
+        'phase': 'Movement',
+        # ... other fields
+    }
+}
+```
+
+### Key Fields vs. Non-Key Fields
+
+Packet specifications define one "key" field:
+- **Key field**: Always transmitted (even in delta packets), used for cache lookup
+- **Non-key fields**: May be omitted using delta protocol
+
+For example, SERVER_INFO uses server ID as the key field.
+
+### Decoding Algorithm
+
+The `decode_delta_packet()` function follows this process:
+
+1. **Read key field**: Extract the key field value (always present)
+2. **Read bitvector**: Read N bytes where N = ceil(num_non_key_fields / 8)
+3. **Check cache**: Look up previous values using (packet_type, key_value)
+4. **Decode fields**: For each non-key field in order:
+   - If bit is set: Read new value from packet, update cache
+   - If bit is clear: Use cached value from previous packet
+5. **Return result**: Combined dictionary of all field values
+
+### Cache Lifecycle
+
+- **Created**: Empty dict when client initializes
+- **Updated**: Modified by `decode_delta_packet()` as packets arrive
+- **Cleared**: Emptied on disconnect to ensure consistency for next connection
+
+## Packet Debugging
+
+The client includes an optional packet capture utility for debugging protocol issues.
+
+### Enabling Debug Mode
+
+Pass the `--debug-packets` flag when starting the client:
+```bash
+python3 fc_ai.py --debug-packets
+```
+
+This captures all inbound and outbound packets to individual files.
+
+### File Naming Convention
+
+Packets are saved with sequential numbering:
+- **Inbound**: `inbound_0.packet`, `inbound_1.packet`, `inbound_2.packet`, ...
+- **Outbound**: `outbound_0.packet`, `outbound_1.packet`, `outbound_2.packet`, ...
+
+Each file contains the raw binary packet data as transmitted/received.
+
+### Use Cases
+
+Captured packets are useful for:
+- **Protocol analysis**: Examine exact byte sequences sent/received
+- **Bug reproduction**: Save packets that trigger errors
+- **Comparison testing**: Compare packets from different client/server versions
+- **Manual decoding**: Write test decoders against known-good packet data
+- **Documentation**: Create examples of real packet structures
+
+### Safety Mechanism
+
+The debugger uses `FileExistsError` prevention:
+- If a numbered file already exists, it raises an error rather than overwriting
+- This prevents accidental data loss from multiple runs
+- Clear old packet files before starting a new debug session
+
 ## Network Protocol Notes
 
 - FreeCiv uses a custom binary protocol over TCP
 - Server connection defaults to port 6556
 - Packets numbered 0-255 are used for initial protocol/capability negotiation
 - Capability checking uses special packets that should never change their numbers:
-  - PACKET_PROCESSING_STARTED
-  - PACKET_PROCESSING_FINISHED
-  - PACKET_SERVER_JOIN_REQ
-  - PACKET_SERVER_JOIN_REPLY
+  - PACKET_PROCESSING_STARTED (0)
+  - PACKET_PROCESSING_FINISHED (1)
+  - PACKET_SERVER_JOIN_REQ (4)
+  - PACKET_SERVER_JOIN_REPLY (5)
+
+### Protocol Version Switching
+
+The client dynamically switches packet type field size:
+- **Version 1**: Uses 1-byte packet type field (0-255) during capability negotiation
+- **Version 2**: Switches to 2-byte packet type field (0-65535) after successful JOIN_REPLY
+- This allows initial negotiation with stable packet numbers while supporting full protocol range
+
+### Delta Protocol Implementation
+
+The client implements delta protocol for bandwidth optimization:
+- Packets can be sent with only changed fields (indicated by bitvector)
+- Cache stores previous values keyed by (packet_type, key_value)
+- Decoder reconstructs full packet by combining new and cached fields
+- Currently implemented for SERVER_INFO (25) and CHAT_MSG (29)
+
+### Handler Registration Pattern
+
+Packet handlers are registered in a dictionary mapping packet type to handler function:
+```python
+self.packet_handlers = {
+    0: handle_processing_started,
+    1: handle_processing_finished,
+    5: handle_server_join_reply,
+    25: handle_server_info,
+    29: handle_chat_msg,
+}
+```
+
+Handlers receive packet data and client instance, allowing them to update game state and trigger actions.
+
+### Currently Implemented Packet Types
+
+- **0** (PROCESSING_STARTED): Capability negotiation start marker
+- **1** (PROCESSING_FINISHED): Capability negotiation end marker
+- **5** (SERVER_JOIN_REPLY): Response to join request, triggers protocol version switch
+- **25** (SERVER_INFO): Server metadata (turn, year, phase, etc.) with delta support
+- **29** (CHAT_MSG): Chat messages from server/players with delta support
+
+Approximately 515 additional packet types remain to be implemented from packets.def.
