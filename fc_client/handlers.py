@@ -8,7 +8,7 @@ responsible for decoding the payload and updating client state as needed.
 
 from typing import TYPE_CHECKING
 from . import protocol
-from .game_state import GameState
+from .game_state import GameState, RulesetControl
 
 if TYPE_CHECKING:
     from .client import FreeCivClient
@@ -106,6 +106,36 @@ async def handle_chat_msg(client: 'FreeCivClient', game_state: GameState, payloa
     print(f"\n[CHAT {time_str}] {data['message']}")
     print(f"  Turn: {data['turn']} | Phase: {data['phase']} | "
           f"Event: {data['event']} | Tile: {data['tile']} | Conn: {data['conn_id']}")
+
+
+async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_CONTROL.
+
+    This packet contains ruleset configuration including counts of all game entities
+    (units, techs, nations, etc.) and metadata. Sent during initialization to inform
+    the client what to expect from subsequent ruleset data packets.
+
+    Updates game_state.ruleset_control with complete ruleset configuration.
+    """
+    # Decode using delta protocol (returns dict)
+    packet_spec = protocol.PACKET_SPECS[protocol.PACKET_RULESET_CONTROL]
+    data = protocol.decode_delta_packet(payload, packet_spec, client._delta_cache)
+
+    # Convert dict to typed dataclass
+    ruleset = RulesetControl(**data)
+
+    # Store in game state
+    game_state.ruleset_control = ruleset
+
+    # Display summary (using attribute access)
+    print(f"\n[RULESET] {ruleset.name} v{ruleset.version}")
+    print(f"  Units: {ruleset.num_unit_types} ({ruleset.num_unit_classes} classes)")
+    print(f"  Techs: {ruleset.num_tech_types} ({ruleset.num_tech_classes} classes)")
+    print(f"  Nations: {ruleset.nation_count} ({ruleset.num_nation_groups} groups)")
+    print(f"  Improvements: {ruleset.num_impr_types}")
+    print(f"  Terrain: {ruleset.terrain_count}")
+    print(f"  Governments: {ruleset.government_count}")
 
 
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:

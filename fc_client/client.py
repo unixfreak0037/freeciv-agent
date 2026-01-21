@@ -43,6 +43,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_SERVER_JOIN_REPLY, handlers.handle_server_join_reply)
         self.register_handler(protocol.PACKET_SERVER_INFO, handlers.handle_server_info)
         self.register_handler(protocol.PACKET_CHAT_MSG, handlers.handle_chat_msg)
+        self.register_handler(protocol.PACKET_RULESET_CONTROL, handlers.handle_ruleset_control)
 
     def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
         """

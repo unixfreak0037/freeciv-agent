@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch, AsyncMock
 import pytest
 
 from fc_client import handlers, protocol
-from fc_client.game_state import GameState
+from fc_client.game_state import GameState, RulesetControl
 from fc_client.delta_cache import DeltaCache
 
 
@@ -445,3 +445,85 @@ async def test_server_info_replaces_previous_state(mock_client, game_state):
     # Should completely replace, not merge
     assert game_state.server_info == new_server_info
     assert 'old_key' not in game_state.server_info
+
+
+# ============================================================================
+# handle_ruleset_control Tests
+# ============================================================================
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_control_stores_dataclass(mock_client, game_state):
+    """Handler should convert dict to RulesetControl and store in game_state."""
+    payload = b"\x00" * 200
+
+    ruleset_data = {
+        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
+        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
+        'num_tiledef_types': 15, 'num_base_types': 8, 'num_road_types': 6,
+        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
+        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
+        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
+        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
+        'num_normal_specialists': 4, 'num_nation_groups': 15, 'num_nation_sets': 10,
+        'preferred_tileset': 'amplio2', 'preferred_soundset': 'stdmusic',
+        'preferred_musicset': 'stdmusic', 'popup_tech_help': True,
+        'name': 'TestRuleset', 'version': '3.0', 'alt_dir': '',
+        'desc_length': 1024, 'num_counters': 5,
+    }
+
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+        mock_decode.return_value = ruleset_data
+        await handlers.handle_ruleset_control(mock_client, game_state, payload)
+
+    # Verify dataclass stored
+    assert game_state.ruleset_control is not None
+    assert isinstance(game_state.ruleset_control, RulesetControl)
+    assert game_state.ruleset_control.name == "TestRuleset"
+    assert game_state.ruleset_control.num_unit_types == 50
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_control_replaces_previous(mock_client, game_state):
+    """Handler should completely replace previous ruleset_control."""
+    # Set initial
+    old_data = {
+        'num_unit_classes': 5, 'num_unit_types': 25, 'num_impr_types': 20,
+        'num_tech_classes': 3, 'num_tech_types': 44, 'num_extra_types': 10,
+        'num_tiledef_types': 8, 'num_base_types': 4, 'num_road_types': 3,
+        'num_resource_types': 12, 'num_goods_types': 2, 'num_disaster_types': 3,
+        'num_achievement_types': 6, 'num_multipliers': 2, 'num_styles': 3,
+        'num_music_styles': 2, 'government_count': 4, 'nation_count': 100,
+        'num_city_styles': 5, 'terrain_count': 15, 'num_specialist_types': 3,
+        'num_normal_specialists': 2, 'num_nation_groups': 8, 'num_nation_sets': 5,
+        'preferred_tileset': 'old', 'preferred_soundset': 'old',
+        'preferred_musicset': 'old', 'popup_tech_help': False,
+        'name': 'Old', 'version': '1.0', 'alt_dir': '',
+        'desc_length': 512, 'num_counters': 2,
+    }
+    game_state.ruleset_control = RulesetControl(**old_data)
+
+    # Receive new
+    payload = b"\x00" * 200
+    new_data = {
+        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
+        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
+        'num_tiledef_types': 15, 'num_base_types': 8, 'num_road_types': 6,
+        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
+        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
+        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
+        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
+        'num_normal_specialists': 4, 'num_nation_groups': 15, 'num_nation_sets': 10,
+        'preferred_tileset': 'new', 'preferred_soundset': 'new',
+        'preferred_musicset': 'new', 'popup_tech_help': True,
+        'name': 'New', 'version': '2.0', 'alt_dir': '',
+        'desc_length': 1024, 'num_counters': 5,
+    }
+
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+        mock_decode.return_value = new_data
+        await handlers.handle_ruleset_control(mock_client, game_state, payload)
+
+    # Verify complete replacement
+    assert game_state.ruleset_control.name == "New"
+    assert game_state.ruleset_control.num_unit_types == 50

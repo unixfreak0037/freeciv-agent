@@ -111,6 +111,53 @@ PACKET_SPECS[25] = PacketSpec(
 )
 
 
+# PACKET_RULESET_CONTROL = 155
+# From packets.def lines 1970-2006
+PACKET_SPECS[155] = PacketSpec(
+    packet_type=155,
+    name="PACKET_RULESET_CONTROL",
+    has_delta=True,
+    fields=[
+        # Entity counts (24 UINT16 fields - lines 1971-1994)
+        FieldSpec(name='num_unit_classes', type_name='UINT16'),
+        FieldSpec(name='num_unit_types', type_name='UINT16'),
+        FieldSpec(name='num_impr_types', type_name='UINT16'),
+        FieldSpec(name='num_tech_classes', type_name='UINT16'),
+        FieldSpec(name='num_tech_types', type_name='UINT16'),
+        FieldSpec(name='num_extra_types', type_name='UINT16'),
+        FieldSpec(name='num_tiledef_types', type_name='UINT16'),
+        FieldSpec(name='num_base_types', type_name='UINT16'),
+        FieldSpec(name='num_road_types', type_name='UINT16'),
+        FieldSpec(name='num_resource_types', type_name='UINT16'),
+        FieldSpec(name='num_goods_types', type_name='UINT16'),
+        FieldSpec(name='num_disaster_types', type_name='UINT16'),
+        FieldSpec(name='num_achievement_types', type_name='UINT16'),
+        FieldSpec(name='num_multipliers', type_name='UINT16'),
+        FieldSpec(name='num_styles', type_name='UINT16'),
+        FieldSpec(name='num_music_styles', type_name='UINT16'),
+        FieldSpec(name='government_count', type_name='UINT16'),
+        FieldSpec(name='nation_count', type_name='UINT16'),
+        FieldSpec(name='num_city_styles', type_name='UINT16'),
+        FieldSpec(name='terrain_count', type_name='UINT16'),
+        FieldSpec(name='num_specialist_types', type_name='UINT16'),
+        FieldSpec(name='num_normal_specialists', type_name='UINT16'),
+        FieldSpec(name='num_nation_groups', type_name='UINT16'),
+        FieldSpec(name='num_nation_sets', type_name='UINT16'),
+        # Client preferences (lines 1996-1999)
+        FieldSpec(name='preferred_tileset', type_name='STRING'),
+        FieldSpec(name='preferred_soundset', type_name='STRING'),
+        FieldSpec(name='preferred_musicset', type_name='STRING'),
+        FieldSpec(name='popup_tech_help', type_name='BOOL'),
+        # Ruleset metadata (lines 2001-2005)
+        FieldSpec(name='name', type_name='STRING'),
+        FieldSpec(name='version', type_name='STRING'),
+        FieldSpec(name='alt_dir', type_name='STRING'),
+        FieldSpec(name='desc_length', type_name='UINT32'),
+        FieldSpec(name='num_counters', type_name='UINT16'),
+    ]
+)
+
+
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(
 #     packet_type=<packet_num>,

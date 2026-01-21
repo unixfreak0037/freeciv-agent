@@ -14,6 +14,7 @@ PACKET_SERVER_JOIN_REQ = 4
 PACKET_SERVER_JOIN_REPLY = 5
 PACKET_CHAT_MSG = 25
 PACKET_SERVER_INFO = 29
+PACKET_RULESET_CONTROL = 155
 PACKET_GAME_LOAD = 155
 PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
@@ -98,6 +99,17 @@ def decode_sint16(data: bytes, offset: int) -> Tuple[int, int]:
         Tuple of (int_value, new_offset)
     """
     value = struct.unpack('>h', data[offset:offset+2])[0]
+    return value, offset + 2
+
+
+def decode_uint16(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode UINT16 (big-endian unsigned 16-bit).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = struct.unpack('>H', data[offset:offset+2])[0]
     return value, offset + 2
 
 
@@ -348,6 +360,8 @@ def _decode_field(data: bytes, offset: int, type_name: str) -> Tuple[Any, int]:
         return decode_sint32(data, offset)
     elif type_name == 'SINT16':
         return decode_sint16(data, offset)
+    elif type_name == 'UINT16':
+        return decode_uint16(data, offset)
     elif type_name == 'UINT32':
         return decode_uint32(data, offset)
     elif type_name == 'BOOL':
