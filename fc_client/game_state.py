@@ -65,3 +65,4 @@ class GameState:
         self.server_info = None
         self.chat_history = []  # List of chat message dicts with timestamps
         self.ruleset_control: Optional[RulesetControl] = None  # Ruleset configuration (PACKET_RULESET_CONTROL)
+        self.ruleset_summary: Optional[str] = None  # Ruleset summary text (PACKET_RULESET_SUMMARY)

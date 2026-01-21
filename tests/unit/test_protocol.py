@@ -27,6 +27,7 @@ from fc_client.protocol import (
     decode_server_join_reply,
     decode_server_info,
     decode_chat_msg,
+    decode_ruleset_summary,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -739,3 +740,78 @@ def test_decode_field_all_types():
     # SINT32
     value, offset = _decode_field(data, offset, 'SINT32')
     assert value == -999999
+
+
+# ============================================================================
+# PACKET_RULESET_SUMMARY Decoder Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_decode_ruleset_summary_simple():
+    """Test decoding RULESET_SUMMARY with simple text."""
+    text = "Classic ruleset with standard game mechanics."
+    payload = encode_string(text)
+
+    result = decode_ruleset_summary(payload)
+
+    assert result['text'] == text
+
+
+@pytest.mark.unit
+def test_decode_ruleset_summary_empty():
+    """Test decoding RULESET_SUMMARY with empty string."""
+    payload = encode_string("")
+
+    result = decode_ruleset_summary(payload)
+
+    assert result['text'] == ""
+
+
+@pytest.mark.unit
+def test_decode_ruleset_summary_long():
+    """Test decoding RULESET_SUMMARY with near-maximum length (4000 chars)."""
+    # Create a long text (4000 chars, approaching the 4076 byte limit)
+    text = "A" * 4000
+
+    payload = encode_string(text)
+
+    result = decode_ruleset_summary(payload)
+
+    assert result['text'] == text
+    assert len(result['text']) == 4000
+
+
+@pytest.mark.unit
+def test_decode_ruleset_summary_multiline():
+    """Test decoding RULESET_SUMMARY with newlines preserved."""
+    text = "Line 1\nLine 2\nLine 3\n\nLine 5 after blank line"
+    payload = encode_string(text)
+
+    result = decode_ruleset_summary(payload)
+
+    assert result['text'] == text
+    assert "\n" in result['text']
+    assert result['text'].count("\n") == 4
+
+
+@pytest.mark.unit
+def test_decode_ruleset_summary_unicode():
+    """Test decoding RULESET_SUMMARY with UTF-8 characters (emoji, international)."""
+    # Emoji
+    text_emoji = "This ruleset is awesome! 🎮🎲🏰"
+    payload = encode_string(text_emoji)
+    result = decode_ruleset_summary(payload)
+    assert result['text'] == text_emoji
+
+    # International characters (Chinese, Arabic, Cyrillic)
+    text_intl = "欢迎 مرحبا Добро пожаловать"
+    payload = encode_string(text_intl)
+    result = decode_ruleset_summary(payload)
+    assert result['text'] == text_intl
+
+    # Combined
+    text_combined = "Freeciv 🌍 世界征服 Завоевание мира"
+    payload = encode_string(text_combined)
+    result = decode_ruleset_summary(payload)
+    assert result['text'] == text_combined

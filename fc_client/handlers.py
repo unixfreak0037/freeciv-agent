@@ -138,6 +138,32 @@ async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState,
     print(f"  Governments: {ruleset.government_count}")
 
 
+async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_SUMMARY.
+
+    This packet contains a summary text describing the ruleset.
+    Sent during game initialization to provide overview information.
+
+    Updates game_state.ruleset_summary with the text content.
+    """
+    # Decode packet (simple, non-delta)
+    data = protocol.decode_ruleset_summary(payload)
+
+    # Store in game state
+    game_state.ruleset_summary = data['text']
+
+    # Display summary (truncate if very long)
+    text = data['text']
+    if len(text) > 200:
+        preview = text[:200] + "..."
+    else:
+        preview = text
+
+    print(f"\n[RULESET SUMMARY]")
+    print(preview)
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.

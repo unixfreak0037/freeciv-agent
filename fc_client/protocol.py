@@ -299,6 +299,23 @@ def decode_chat_msg(payload: bytes) -> dict:
     }
 
 
+def decode_ruleset_summary(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_SUMMARY packet.
+
+    Packet structure (from packets.def line 2013):
+    - STRING text[MAX_LEN_CONTENT]  # 4076 bytes max
+
+    Returns dictionary with key: text
+    """
+    offset = 0
+    text, offset = decode_string(payload, offset)
+
+    return {
+        'text': text
+    }
+
+
 # ============================================================================
 # Delta Protocol Support
 # ============================================================================

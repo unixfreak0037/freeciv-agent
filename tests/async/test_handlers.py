@@ -527,3 +527,74 @@ async def test_handle_ruleset_control_replaces_previous(mock_client, game_state)
     # Verify complete replacement
     assert game_state.ruleset_control.name == "New"
     assert game_state.ruleset_control.num_unit_types == 50
+
+
+# ============================================================================
+# handle_ruleset_summary Tests
+# ============================================================================
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_summary_stores_text(mock_client, game_state):
+    """Handler should decode and store text in game_state.ruleset_summary."""
+    payload = b"Test ruleset summary text\x00"
+
+    summary_text = "Test ruleset summary text"
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
+        mock_decode.return_value = {'text': summary_text}
+
+        await handlers.handle_ruleset_summary(mock_client, game_state, payload)
+
+    # Verify stored in game_state
+    assert game_state.ruleset_summary == summary_text
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_summary_replaces_previous(mock_client, game_state):
+    """Handler should replace previous summary, not append."""
+    # Set initial summary
+    game_state.ruleset_summary = "Old summary text"
+
+    payload = b"New summary text\x00"
+    new_text = "New summary text"
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
+        mock_decode.return_value = {'text': new_text}
+
+        await handlers.handle_ruleset_summary(mock_client, game_state, payload)
+
+    # Should replace, not append
+    assert game_state.ruleset_summary == new_text
+    assert "Old summary" not in game_state.ruleset_summary
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_summary_empty(mock_client, game_state):
+    """Handler should handle empty string without error."""
+    payload = b"\x00"  # Empty string
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
+        mock_decode.return_value = {'text': ''}
+
+        await handlers.handle_ruleset_summary(mock_client, game_state, payload)
+
+    # Should store empty string (not None)
+    assert game_state.ruleset_summary == ""
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_summary_multiline(mock_client, game_state):
+    """Handler should preserve multiline text with newlines."""
+    multiline_text = "Line 1\nLine 2\nLine 3"
+    payload = b"Line 1\nLine 2\nLine 3\x00"
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
+        mock_decode.return_value = {'text': multiline_text}
+
+        await handlers.handle_ruleset_summary(mock_client, game_state, payload)
+
+    # Should preserve newlines
+    assert game_state.ruleset_summary == multiline_text
+    assert "\n" in game_state.ruleset_summary
+    assert game_state.ruleset_summary.count("\n") == 2
