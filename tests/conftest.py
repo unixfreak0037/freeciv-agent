@@ -105,28 +105,28 @@ def game_state():
 
 
 @pytest.fixture
-def freeciv_client(mock_stream_reader, mock_stream_writer, delta_cache, game_state):
+def freeciv_client():
     """
-    Mock FreeCivClient instance with dependencies injected.
+    Fresh FreeCivClient instance for testing.
 
-    Note: This creates a client with mocked network streams but does NOT
-    call connect(). Tests should manually set reader/writer if needed.
+    Note: This creates a client without debug_packets_dir and does NOT
+    call connect(). Tests should manually set reader/writer/game_state if needed.
 
     Usage:
         async def test_client(freeciv_client):
-            # Client has mocked dependencies but no active connection
+            # Client has no active connection
+            # Manually configure as needed for your test
             freeciv_client.reader = mock_stream_reader
             freeciv_client.writer = mock_stream_writer
+            freeciv_client.game_state = GameState()
             # Test client methods
     """
     # Import here to avoid circular dependency issues
     from fc_client.client import FreeCivClient
 
-    client = FreeCivClient(host="localhost", port=6556, username="test-user")
-    # Inject mocked dependencies
-    client.delta_cache = delta_cache
-    client.game_state = game_state
-    # Don't set reader/writer - let tests control when/how they're set
+    # Create client with no debug directory
+    client = FreeCivClient(debug_packets_dir=None)
+    # Don't inject any dependencies - let tests control setup
     return client
 
 
