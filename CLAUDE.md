@@ -132,6 +132,176 @@ The project has a working async network client that can connect to FreeCiv serve
 - `pytest-asyncio` - Support for testing async functions
 - `pytest-cov` - Code coverage reporting
 
+## Testing Infrastructure
+
+The project uses pytest with async support for comprehensive testing of the FreeCiv AI client.
+
+### Test Organization
+
+Tests are organized into three categories based on complexity and I/O requirements:
+
+```
+tests/
+├── __init__.py          # Test suite documentation
+├── conftest.py          # Shared fixtures for all tests
+├── unit/                # Pure unit tests (fast, no I/O)
+│   └── __init__.py
+├── async/               # Async tests with mocked I/O
+│   └── __init__.py
+└── integration/         # Integration tests (cross-module)
+    └── __init__.py
+```
+
+**Directory Purposes:**
+- **unit/**: Test pure functions like encoders, decoders, and data structures. No network I/O, fast execution.
+- **async/**: Test async logic with mocked `StreamReader`/`StreamWriter` to avoid real network calls.
+- **integration/**: Test full packet processing pipelines across multiple modules.
+
+### Configuration
+
+All test configuration is centralized in `pyproject.toml` (modern Python standard):
+
+**pytest Configuration:**
+- `asyncio_mode = "auto"`: Automatically detects async test functions without requiring `@pytest.mark.asyncio` decorator
+- Custom markers: `unit`, `async_test`, `integration`, `network`, `slow`
+- Test discovery: `tests/` directory with `test_*.py` pattern
+
+**Coverage Configuration:**
+- Source tracking: `fc_client/` package
+- Branch coverage enabled
+- HTML reports in `htmlcov/` directory
+- Excludes: `tests/`, `freeciv/` (reference code), `packets/` (debug output)
+
+**Black Configuration:**
+- Line length: 100 characters
+- Excludes: `freeciv/`, `packets/`, `.venv/`, test artifacts
+
+### Running Tests
+
+```bash
+# Activate virtual environment first
+source .venv/bin/activate
+
+# Run all tests
+pytest
+
+# Run specific test directory
+pytest tests/unit
+pytest tests/async
+pytest tests/integration
+
+# Run with coverage report
+pytest --cov=fc_client --cov-report=html
+
+# Run tests matching a pattern
+pytest -k test_encode_packet
+
+# Run tests with specific marker
+pytest -m unit           # Only unit tests
+pytest -m "not slow"     # Skip slow tests
+
+# Verbose output with traceback
+pytest -v --tb=short
+```
+
+### Shared Fixtures
+
+The `tests/conftest.py` file provides reusable fixtures to minimize test boilerplate:
+
+**Mock Network Fixtures:**
+- `mock_stream_reader`: Mocked `asyncio.StreamReader` with `readexactly()`, `read()`, `at_eof()`
+- `mock_stream_writer`: Mocked `asyncio.StreamWriter` with `write()`, `drain()`, `close()`, `wait_closed()`
+- `mock_stream_pair`: Convenience fixture providing both reader and writer
+
+**Component Fixtures:**
+- `delta_cache`: Fresh `DeltaCache` instance for testing delta protocol
+- `game_state`: Fresh `GameState` instance for testing state tracking
+- `freeciv_client`: Mock `FreeCivClient` with injected dependencies (no active connection)
+
+**Sample Data Fixtures:**
+- `sample_join_reply_success`: Sample SERVER_JOIN_REPLY packet data (successful join)
+- `sample_join_reply_failure`: Sample SERVER_JOIN_REPLY packet data (failed join)
+- `sample_server_info`: Sample SERVER_INFO packet data with game state
+- `sample_chat_msg_payload`: Sample CHAT_MSG packet data
+- `sample_bitvector`: Sample bitvector bytes for delta protocol testing
+
+**Utility Fixtures:**
+- `packet_builder`: Helper function to construct raw packet bytes with header + body
+
+### Test Markers
+
+Tests can be marked with custom markers for selective execution:
+
+```python
+import pytest
+
+@pytest.mark.unit
+def test_encode_string():
+    # Fast unit test with no I/O
+    pass
+
+@pytest.mark.async_test
+async def test_read_packet(mock_stream_reader):
+    # Async test with mocked I/O
+    pass
+
+@pytest.mark.integration
+@pytest.mark.slow
+async def test_full_packet_pipeline():
+    # Integration test across multiple modules
+    pass
+```
+
+**Marker Definitions:**
+- `@pytest.mark.unit`: Fast unit tests with no I/O operations
+- `@pytest.mark.async_test`: Async tests with mocked StreamReader/StreamWriter
+- `@pytest.mark.integration`: Integration tests across multiple modules
+- `@pytest.mark.network`: Tests requiring network stream mocking
+- `@pytest.mark.slow`: Slow-running tests (skip with `-m "not slow"`)
+
+### Coverage Reports
+
+After running tests with coverage, view results:
+
+```bash
+# Terminal summary
+pytest --cov=fc_client --cov-report=term
+
+# Generate HTML report
+pytest --cov=fc_client --cov-report=html
+
+# Open HTML report in browser
+xdg-open htmlcov/index.html  # Linux
+open htmlcov/index.html       # macOS
+```
+
+Coverage artifacts are ignored by git:
+- `.pytest_cache/` - Pytest cache directory
+- `htmlcov/` - HTML coverage reports
+- `.coverage` - Coverage data file
+
+### Design Rationale
+
+**Why pyproject.toml over pytest.ini:**
+- Modern Python standard (PEP 518/517/621)
+- Single configuration file for all tools (pytest, coverage, black)
+- Future-proof as ecosystem moves away from legacy config files
+
+**Why asyncio_mode = "auto":**
+- Eliminates need for `@pytest.mark.asyncio` decorator on every async test
+- Automatically detects async test functions by signature
+- Reduces boilerplate and improves test readability
+
+**Why three test directories:**
+- Clear separation between fast unit tests and slower integration tests
+- Allows running subsets of tests during development (e.g., `pytest tests/unit` for quick feedback)
+- Encourages writing fast unit tests for pure functions before integration tests
+
+**Why comprehensive fixtures:**
+- Reduces test boilerplate by providing pre-configured mocks and sample data
+- Ensures consistent test setup across all test files
+- Makes tests more readable by focusing on behavior rather than setup
+
 ## Async Programming Requirements
 
 **All network I/O operations in this project MUST use async/await patterns.**

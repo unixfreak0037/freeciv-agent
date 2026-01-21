@@ -4,3 +4,8 @@ freeciv/
 __pycache__/
 *.swp
 packets/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage

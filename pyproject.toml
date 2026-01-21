@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "freeciv-ai"
+version = "0.1.0"
+description = "Python-based AI client for FreeCiv turn-based strategy game"
+requires-python = ">=3.7"
+
+[tool.pytest.ini_options]
+# Test discovery
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Asyncio configuration
+asyncio_mode = "auto"
+
+# Output formatting
+addopts = [
+    "-v",                       # Verbose output
+    "--strict-markers",         # Raise error on unknown markers
+    "--tb=short",               # Shorter traceback format
+    "--color=yes",              # Colored output
+]
+
+# Custom markers
+markers = [
+    "unit: Fast unit tests with no I/O operations",
+    "async_test: Async tests with mocked StreamReader/StreamWriter",
+    "integration: Integration tests across multiple modules",
+    "network: Tests requiring network stream mocking",
+    "slow: Slow-running tests (skip with -m 'not slow')",
+]
+
+# Test output
+console_output_style = "progress"
+
+[tool.coverage.run]
+# What to measure
+source = ["fc_client"]
+branch = true
+parallel = false
+
+# What to exclude
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/freeciv/*",      # Reference code, not our implementation
+    "*/packets/*",      # Debug output directory
+]
+
+[tool.coverage.report]
+# Reporting thresholds
+precision = 2
+show_missing = true
+skip_covered = false
+
+# Exclude lines from coverage
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.black]
+line-length = 100
+target-version = ["py37", "py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | \.pytest_cache
+  | __pycache__
+  | htmlcov
+  | freeciv
+  | packets
+)/
+'''
