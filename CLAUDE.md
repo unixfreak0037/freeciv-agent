@@ -302,6 +302,47 @@ Coverage artifacts are ignored by git:
 - Ensures consistent test setup across all test files
 - Makes tests more readable by focusing on behavior rather than setup
 
+### Debugging Test Failures and Bugs
+
+**IMPORTANT: Tests should reflect expected behavior, not work around implementation bugs.**
+
+When encountering test failures, follow these guidelines:
+
+1. **Never modify tests to accommodate obvious bugs**: If a test fails due to a clear bug in the implementation code, fix the bug in the implementation, not the test.
+
+2. **Fix obvious bugs directly**: When you identify an obvious bug (incorrect logic, typos, wrong return values, etc.), go ahead and fix it in the implementation code.
+
+3. **Ask for guidance when uncertain**: If it's unclear whether the issue is:
+   - A bug in the implementation
+   - A misunderstanding of requirements
+   - An incorrect test expectation
+
+   Stop and ask for clarification before making changes.
+
+4. **Consider the FreeCiv server as a source of truth**: We're implementing a client that communicates with a FreeCiv game server. The server behavior defines the correct protocol implementation.
+   - The FreeCiv source code is available in the `freeciv/` directory for validation
+   - If server behavior seems unexpected, consult the source code to verify
+   - The server itself may have bugs, but we should match its actual behavior
+
+5. **Stop and ask about server bugs**: If you discover what appears to be a bug in the FreeCiv server itself:
+   - Document the unexpected behavior
+   - Reference the relevant server source code
+   - Stop and ask whether to:
+     - Implement a workaround in the client
+     - Report the issue upstream
+     - Document the behavior and move on
+
+**Example Scenarios:**
+
+- ❌ **Wrong**: Test expects `decode_packet()` to return a dict, but it returns a tuple. Change the test to expect a tuple.
+- ✅ **Right**: Test expects `decode_packet()` to return a dict, but it returns a tuple. Fix `decode_packet()` to return a dict as designed.
+
+- ❌ **Wrong**: Test fails because field order doesn't match. Reorder the test assertions to match current output.
+- ✅ **Right**: Investigate whether the field order is correct per the protocol specification, then fix whichever is wrong (code or test).
+
+- ❌ **Wrong**: Server sends unexpected bytes. Change decoder to silently skip them.
+- ✅ **Right**: Check server source code to understand the bytes, then ask whether this is expected behavior or a bug to work around.
+
 ## Async Programming Requirements
 
 **All network I/O operations in this project MUST use async/await patterns.**
