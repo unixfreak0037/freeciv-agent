@@ -272,6 +272,40 @@ async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameSt
             print(f"    {desc_preview}")
 
 
+async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_NATION_GROUPS.
+
+    This packet contains the list of available nation groups (categories of nations
+    such as "Ancient", "Medieval", "African", "European", etc.). Groups can be
+    hidden from player selection. Sent during game initialization.
+
+    Updates game_state.nation_groups with list of NationGroup objects.
+    """
+    from .game_state import NationGroup
+
+    # Decode packet
+    data = protocol.decode_ruleset_nation_groups(payload)
+
+    # Transform parallel arrays into list of objects
+    nation_groups = []
+    for i in range(data['ngroups']):
+        nation_group = NationGroup(
+            name=data['groups'][i],
+            hidden=data['hidden'][i]
+        )
+        nation_groups.append(nation_group)
+
+    # Store in game state (replaces previous data)
+    game_state.nation_groups = nation_groups
+
+    # Display summary
+    print(f"\n[NATION GROUPS] {len(nation_groups)} available")
+    for nation_group in nation_groups:
+        visibility = "hidden" if nation_group.hidden else "visible"
+        print(f"  - {nation_group.name} ({visibility})")
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.

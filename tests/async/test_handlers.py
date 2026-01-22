@@ -1158,3 +1158,127 @@ async def test_handle_ruleset_nation_sets_calls_decoder(mock_client, game_state)
         await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
 
         mock_decode.assert_called_once_with(payload)
+
+
+# ============================================================================
+# PACKET_RULESET_NATION_GROUPS Handler Tests
+# ============================================================================
+
+async def test_handle_ruleset_nation_groups_stores_in_game_state(mock_client, game_state):
+    """Test handler stores nation groups in game state."""
+    from fc_client.game_state import NationGroup
+
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x03'  # ngroups=3
+        # groups[3] - null-terminated variable-length strings
+        b'?nationgroup:Ancient\x00'
+        b'?nationgroup:Medieval\x00'
+        b'?nationgroup:Modern\x00'
+        # hidden[3] - boolean values (1 byte each)
+        b'\x00'  # hidden[0]=false (visible)
+        b'\x00'  # hidden[1]=false (visible)
+        b'\x01'  # hidden[2]=true (hidden)
+    )
+
+    await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
+
+    assert len(game_state.nation_groups) == 3
+    assert game_state.nation_groups[0].name == '?nationgroup:Ancient'
+    assert game_state.nation_groups[0].hidden == False
+    assert game_state.nation_groups[1].name == '?nationgroup:Medieval'
+    assert game_state.nation_groups[1].hidden == False
+    assert game_state.nation_groups[2].name == '?nationgroup:Modern'
+    assert game_state.nation_groups[2].hidden == True
+
+
+async def test_handle_ruleset_nation_groups_replaces_previous(mock_client, game_state):
+    """Test handler replaces previous nation groups data."""
+    from fc_client.game_state import NationGroup
+
+    game_state.nation_groups = [NationGroup('Old', False)]
+
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x01'  # ngroups=1
+        # Null-terminated variable-length strings
+        b'?nationgroup:Ancient\x00'  # groups[0]
+        b'\x00'  # hidden[0]=false
+    )
+
+    await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
+
+    assert len(game_state.nation_groups) == 1
+    assert game_state.nation_groups[0].name == '?nationgroup:Ancient'
+
+
+async def test_handle_ruleset_nation_groups_empty_list(mock_client, game_state):
+    """Test handler handles ngroups=0 correctly."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x00'  # ngroups=0
+    )
+
+    await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
+
+    assert game_state.nation_groups == []
+
+
+async def test_handle_ruleset_nation_groups_calls_decoder(mock_client, game_state):
+    """Test handler calls decoder function."""
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x01'  # ngroups=1
+        # Null-terminated variable-length strings
+        b'Ancient\x00'  # groups[0]
+        b'\x00'  # hidden[0]=false
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_nation_groups') as mock_decode:
+        mock_decode.return_value = {
+            'ngroups': 1,
+            'groups': ['Ancient'],
+            'hidden': [False]
+        }
+
+        await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
+
+        mock_decode.assert_called_once_with(payload)
+
+
+async def test_handle_ruleset_nation_groups_transforms_parallel_arrays(mock_client, game_state):
+    """Test handler correctly transforms parallel arrays into objects."""
+    from fc_client.game_state import NationGroup
+
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x04'  # ngroups=4
+        b'Ancient\x00'
+        b'Medieval\x00'
+        b'Modern\x00'
+        b'Barbarian\x00'
+        b'\x00'  # hidden[0]=false
+        b'\x00'  # hidden[1]=false
+        b'\x00'  # hidden[2]=false
+        b'\x01'  # hidden[3]=true
+    )
+
+    await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
+
+    # Verify transformation from parallel arrays to objects
+    assert len(game_state.nation_groups) == 4
+    assert all(isinstance(group, NationGroup) for group in game_state.nation_groups)
+
+    # Verify each group has correct name and hidden status
+    assert game_state.nation_groups[0].name == 'Ancient'
+    assert game_state.nation_groups[0].hidden == False
+    assert game_state.nation_groups[1].name == 'Medieval'
+    assert game_state.nation_groups[1].hidden == False
+    assert game_state.nation_groups[2].name == 'Modern'
+    assert game_state.nation_groups[2].hidden == False
+    assert game_state.nation_groups[3].name == 'Barbarian'
+    assert game_state.nation_groups[3].hidden == True

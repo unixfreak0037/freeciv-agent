@@ -29,6 +29,7 @@ from fc_client.protocol import (
     decode_chat_msg,
     decode_ruleset_summary,
     decode_ruleset_nation_sets,
+    decode_ruleset_nation_groups,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -907,3 +908,179 @@ def test_decode_ruleset_nation_sets_unicode():
     )
     result = decode_ruleset_nation_sets(payload)
     assert result['names'] == ['Nações']
+
+
+# ============================================================================
+# PACKET_RULESET_NATION_GROUPS Tests
+# ============================================================================
+
+def test_decode_ruleset_nation_groups_empty():
+    """Test decoding packet with ngroups=0."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x00'  # ngroups=0
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 0
+    assert result['groups'] == []
+    assert result['hidden'] == []
+
+
+def test_decode_ruleset_nation_groups_single():
+    """Test decoding packet with single nation group using delta protocol."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x01'  # ngroups=1
+        # Null-terminated variable-length string
+        b'?nationgroup:Ancient\x00'  # groups[0]
+        b'\x00'  # hidden[0]=false (visible)
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 1
+    assert result['groups'] == ['?nationgroup:Ancient']
+    assert result['hidden'] == [False]
+
+
+def test_decode_ruleset_nation_groups_multiple():
+    """Test decoding packet with multiple nation groups using delta protocol."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x03'  # ngroups=3
+        # Null-terminated variable-length strings
+        b'?nationgroup:Ancient\x00'
+        b'?nationgroup:Medieval\x00'
+        b'?nationgroup:Modern\x00'
+        # hidden array (boolean values, 1 byte each)
+        b'\x00'  # hidden[0]=false
+        b'\x00'  # hidden[1]=false
+        b'\x00'  # hidden[2]=false
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 3
+    assert result['groups'] == [
+        '?nationgroup:Ancient',
+        '?nationgroup:Medieval',
+        '?nationgroup:Modern'
+    ]
+    assert result['hidden'] == [False, False, False]
+
+
+def test_decode_ruleset_nation_groups_all_visible():
+    """Test decoding packet with all groups visible (hidden=false)."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present
+        b'\x02'  # ngroups=2
+        b'Ancient\x00'
+        b'Modern\x00'
+        b'\x00'  # hidden[0]=false
+        b'\x00'  # hidden[1]=false
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 2
+    assert result['hidden'] == [False, False]
+
+
+def test_decode_ruleset_nation_groups_all_hidden():
+    """Test decoding packet with all groups hidden (hidden=true)."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present
+        b'\x02'  # ngroups=2
+        b'Test1\x00'
+        b'Test2\x00'
+        b'\x01'  # hidden[0]=true
+        b'\x01'  # hidden[1]=true
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 2
+    assert result['hidden'] == [True, True]
+
+
+def test_decode_ruleset_nation_groups_mixed_visibility():
+    """Test decoding packet with mixed visibility (some visible, some hidden)."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present
+        b'\x04'  # ngroups=4
+        b'Ancient\x00'
+        b'Medieval\x00'
+        b'Modern\x00'
+        b'Barbarian\x00'
+        b'\x00'  # hidden[0]=false (visible)
+        b'\x00'  # hidden[1]=false (visible)
+        b'\x00'  # hidden[2]=false (visible)
+        b'\x01'  # hidden[3]=true (hidden)
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 4
+    assert result['groups'] == ['Ancient', 'Medieval', 'Modern', 'Barbarian']
+    assert result['hidden'] == [False, False, False, True]
+
+
+def test_decode_ruleset_nation_groups_empty_strings():
+    """Test decoding packet with empty group names."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present
+        b'\x01'  # ngroups=1
+        b'\x00'  # empty group name
+        b'\x00'  # hidden=false
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 1
+    assert result['groups'] == ['']
+    assert result['hidden'] == [False]
+
+
+def test_decode_ruleset_nation_groups_unicode():
+    """Test decoding packet with UTF-8 unicode strings."""
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present
+        b'\x01'  # ngroups=1
+        # "Européen" in UTF-8
+        b'Europ\xc3\xa9en\x00'
+        b'\x00'  # hidden=false
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 1
+    assert result['groups'] == ['Européen']
+    assert result['hidden'] == [False]
+
+
+def test_decode_ruleset_nation_groups_from_captured_packet():
+    """Test decoding actual captured packet from packets/inbound_19.packet."""
+    # This is the actual payload from the captured packet (excluding 4-byte header)
+    # Header was: 0x0102 (length=258) 0x0093 (type=147)
+    # Payload contains 11 nation groups with the last one (Barbarian) hidden
+    payload = (
+        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
+        b'\x0b'  # ngroups=11
+        # 11 null-terminated strings
+        b'?nationgroup:Ancient\x00'
+        b'?nationgroup:Medieval\x00'
+        b'?nationgroup:Early Modern\x00'
+        b'?nationgroup:Modern\x00'
+        b'?nationgroup:African\x00'
+        b'?nationgroup:American\x00'
+        b'?nationgroup:Asian\x00'
+        b'?nationgroup:European\x00'
+        b'?nationgroup:Oceanian\x00'
+        b'?nationgroup:Imaginary\x00'
+        b'?nationgroup:Barbarian\x00'
+        # 11 boolean values (1 byte each)
+        b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01'
+    )
+    result = decode_ruleset_nation_groups(payload)
+    assert result['ngroups'] == 11
+    assert len(result['groups']) == 11
+    assert result['groups'][0] == '?nationgroup:Ancient'
+    assert result['groups'][1] == '?nationgroup:Medieval'
+    assert result['groups'][2] == '?nationgroup:Early Modern'
+    assert result['groups'][3] == '?nationgroup:Modern'
+    assert result['groups'][4] == '?nationgroup:African'
+    assert result['groups'][5] == '?nationgroup:American'
+    assert result['groups'][6] == '?nationgroup:Asian'
+    assert result['groups'][7] == '?nationgroup:European'
+    assert result['groups'][8] == '?nationgroup:Oceanian'
+    assert result['groups'][9] == '?nationgroup:Imaginary'
+    assert result['groups'][10] == '?nationgroup:Barbarian'
+    # First 10 are visible (false), last one is hidden (true)
+    assert result['hidden'] == [False, False, False, False, False,
+                                 False, False, False, False, False, True]

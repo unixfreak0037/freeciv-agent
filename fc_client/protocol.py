@@ -16,6 +16,7 @@ PACKET_CHAT_MSG = 25
 PACKET_SERVER_INFO = 29
 PACKET_RULESET_CONTROL = 155
 PACKET_GAME_LOAD = 155
+PACKET_RULESET_NATION_GROUPS = 147
 PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
@@ -437,6 +438,70 @@ def decode_ruleset_nation_sets(payload: bytes) -> dict:
         'names': names,
         'rule_names': rule_names,
         'descriptions': descriptions
+    }
+
+
+def decode_ruleset_nation_groups(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_NATION_GROUPS packet with delta protocol support.
+
+    This packet uses delta protocol encoding, which means it starts with a bitvector
+    indicating which fields are present in the packet.
+
+    Packet structure (from packets.def lines 1612-1616):
+    - BITVECTOR (1 byte) - indicates which fields are present
+      Bit 0: ngroups field present
+      Bit 1: groups array present
+      Bit 2: hidden array present
+    - UINT8 ngroups (count of nation groups, 0-255) - if bit 0 is set
+    - STRING groups[ngroups] (null-terminated variable-length strings) - if bit 1 is set
+    - BOOL hidden[ngroups] (1 byte each, 0x00=false, non-zero=true) - if bit 2 is set
+
+    Note: Despite the MAX_LEN_NAME constant in packets.def, FreeCiv
+    transmits strings as null-terminated variable-length, NOT fixed-size.
+
+    Returns dictionary with keys:
+      ngroups (int), groups (list), hidden (list)
+    """
+    offset = 0
+
+    # Read delta protocol bitvector (1 byte for 3 fields)
+    bitvector = payload[offset]
+    offset += 1
+
+    # Check which fields are present
+    has_ngroups = bool(bitvector & (1 << 0))
+    has_groups = bool(bitvector & (1 << 1))
+    has_hidden = bool(bitvector & (1 << 2))
+
+    # Read ngroups if present (should always be present in first packet)
+    if has_ngroups:
+        ngroups = payload[offset]
+        offset += 1
+    else:
+        # In delta protocol, missing fields would come from cache
+        # For first packet, ngroups should always be present
+        ngroups = 0
+
+    # Read groups array (null-terminated strings)
+    groups = []
+    if has_groups:
+        for i in range(ngroups):
+            group, offset = decode_string(payload, offset)
+            groups.append(group)
+
+    # Read hidden array (boolean values, 1 byte each)
+    hidden = []
+    if has_hidden:
+        for i in range(ngroups):
+            hidden_byte = payload[offset]
+            hidden.append(bool(hidden_byte))
+            offset += 1
+
+    return {
+        'ngroups': ngroups,
+        'groups': groups,
+        'hidden': hidden
     }
 
 
