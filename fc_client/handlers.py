@@ -373,6 +373,50 @@ async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, 
           f"{nation.init_units_count} units, {nation.init_buildings_count} buildings")
 
 
+async def handle_nation_availability(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_NATION_AVAILABILITY (237).
+
+    This packet indicates which nations are available for player selection.
+    Sent when nation availability changes (e.g., another player picks a nation,
+    or the nation set changes).
+
+    Updates game_state.nation_availability with current availability data.
+    """
+    # Decode packet (simple, non-delta)
+    data = protocol.decode_nation_availability(payload)
+
+    # Store in game state
+    game_state.nation_availability = {
+        'ncount': data['ncount'],
+        'is_pickable': data['is_pickable'],
+        'nationset_change': data['nationset_change']
+    }
+
+    # Display summary
+    available_count = sum(data['is_pickable'])
+    total_count = data['ncount']
+
+    print(f"\n[NATION AVAILABILITY] {available_count}/{total_count} nations available")
+    if data['nationset_change']:
+        print("  Nation set changed")
+
+    # Display detailed availability (limit to first 10 for brevity)
+    if game_state.nations:
+        print("  Available nations:")
+        shown = 0
+        for nation_id, is_available in enumerate(data['is_pickable']):
+            if is_available and nation_id in game_state.nations:
+                nation = game_state.nations[nation_id]
+                print(f"    - {nation.adjective} ({nation.rule_name})")
+                shown += 1
+                if shown >= 10:
+                    remaining = available_count - shown
+                    if remaining > 0:
+                        print(f"    ... and {remaining} more")
+                    break
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.

@@ -35,6 +35,7 @@ from fc_client.protocol import (
     decode_ruleset_summary,
     decode_ruleset_nation_sets,
     decode_ruleset_nation_groups,
+    decode_nation_availability,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -1302,3 +1303,98 @@ def test_decode_ruleset_nation_groups_from_captured_packet():
     # First 10 are visible (false), last one is hidden (true)
     assert result['hidden'] == [False, False, False, False, False,
                                  False, False, False, False, False, True]
+
+
+# ============================================================================
+# PACKET_NATION_AVAILABILITY Tests (5 tests)
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_decode_nation_availability_basic():
+    """Test decoding basic nation availability packet with 3 nations using delta protocol."""
+    payload = (
+        b'\x03'      # bitvector: bits 0,1 set (ncount and is_pickable present), bit 2 clear (nationset_change=False)
+        b'\x00\x03'  # ncount=3 (UINT16, big-endian)
+        b'\x01'      # is_pickable[0]=True
+        b'\x00'      # is_pickable[1]=False
+        b'\x01'      # is_pickable[2]=True
+    )
+    result = protocol.decode_nation_availability(payload)
+    assert result['ncount'] == 3
+    assert result['is_pickable'] == [True, False, True]
+    assert result['nationset_change'] is False
+
+
+@pytest.mark.unit
+def test_decode_nation_availability_empty():
+    """Test decoding packet with zero nations (edge case)."""
+    payload = (
+        b'\x07'      # bitvector: bits 0,1,2 set (all fields present, nationset_change=True via folding)
+        b'\x00\x00'  # ncount=0 (UINT16, big-endian)
+        # No is_pickable array bytes (ncount=0)
+    )
+    result = protocol.decode_nation_availability(payload)
+    assert result['ncount'] == 0
+    assert result['is_pickable'] == []
+    assert result['nationset_change'] is True
+
+
+@pytest.mark.unit
+def test_decode_nation_availability_large():
+    """Test decoding packet with realistic number of nations (52 nations)."""
+    ncount = 52
+    # Create payload with 52 nations, alternating availability
+    is_pickable_bytes = bytes([i % 2 for i in range(ncount)])
+
+    payload = (
+        b'\x03' +                              # bitvector: bits 0,1 set, bit 2 clear (nationset_change=False)
+        struct.pack('>H', ncount) +            # ncount=52 (UINT16, big-endian)
+        is_pickable_bytes                      # 52 BOOL values
+    )
+
+    result = protocol.decode_nation_availability(payload)
+    assert result['ncount'] == 52
+    assert len(result['is_pickable']) == 52
+    # Check first few values
+    assert result['is_pickable'][0] is False  # 0 % 2 = 0
+    assert result['is_pickable'][1] is True   # 1 % 2 = 1
+    assert result['is_pickable'][2] is False  # 2 % 2 = 0
+    assert result['is_pickable'][3] is True   # 3 % 2 = 1
+    assert result['nationset_change'] is False
+
+
+@pytest.mark.unit
+def test_decode_nation_availability_nationset_change():
+    """Test decoding packet with nationset_change flag set via boolean header folding."""
+    payload = (
+        b'\x07'      # bitvector: bits 0,1,2 set (all fields present, nationset_change=True)
+        b'\x00\x02'  # ncount=2 (UINT16, big-endian)
+        b'\x01'      # is_pickable[0]=True
+        b'\x01'      # is_pickable[1]=True
+    )
+    result = protocol.decode_nation_availability(payload)
+    assert result['ncount'] == 2
+    assert result['is_pickable'] == [True, True]
+    assert result['nationset_change'] is True
+
+
+@pytest.mark.unit
+def test_decode_nation_availability_from_captured_packet():
+    """Test decoding actual captured packet from real server (572 nations)."""
+    # This is the actual payload from captured packet inbound_0592_type237.packet
+    # Bitvector 0x03 = bits 0,1 set (ncount and is_pickable present)
+    # ncount = 0x023c = 572 (big-endian)
+
+    # Build payload: bitvector (1) + ncount (2) + is_pickable array (572)
+    bitvector = b'\x03'  # Bits 0,1 set, bit 2 clear
+    ncount_bytes = b'\x02\x3c'  # 572 in big-endian (0x023c)
+    is_pickable_bytes = b'\x00' * 572  # All nations unavailable
+    payload = bitvector + ncount_bytes + is_pickable_bytes
+
+    result = protocol.decode_nation_availability(payload)
+    assert result['ncount'] == 572
+    assert len(result['is_pickable']) == 572
+    assert result['nationset_change'] is False  # Bit 2 not set
+    # First few nations should be unavailable in this test
+    assert result['is_pickable'][0] is False

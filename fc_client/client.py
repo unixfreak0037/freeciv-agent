@@ -53,6 +53,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_RULESET_NATION_GROUPS, handlers.handle_ruleset_nation_groups)
         self.register_handler(protocol.PACKET_RULESET_NATION, handlers.handle_ruleset_nation)
         self.register_handler(protocol.PACKET_RULESET_NATION_SETS, handlers.handle_ruleset_nation_sets)
+        self.register_handler(protocol.PACKET_NATION_AVAILABILITY, handlers.handle_nation_availability)
 
     def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
         """

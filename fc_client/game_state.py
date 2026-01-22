@@ -6,7 +6,7 @@ are received and processed from the server.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 
 @dataclass
@@ -129,3 +129,4 @@ class GameState:
         self.nation_sets: List[NationSet] = []  # Available nation sets (PACKET_RULESET_NATION_SETS)
         self.nation_groups: List[NationGroup] = []  # Available nation groups (PACKET_RULESET_NATION_GROUPS)
         self.nations: Dict[int, Nation] = {}  # Nations by ID (PACKET_RULESET_NATION)
+        self.nation_availability: Optional[Dict[str, Any]] = None  # Nation availability tracking (PACKET_NATION_AVAILABILITY)

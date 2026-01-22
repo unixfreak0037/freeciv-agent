@@ -21,6 +21,7 @@ PACKET_RULESET_NATION = 148
 PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
+PACKET_NATION_AVAILABILITY = 237
 
 # Version constants
 MAJOR_VERSION = 3
@@ -730,6 +731,65 @@ def decode_ruleset_nation(payload: bytes) -> dict:
         for i in range(result['init_buildings_count']):
             building_id, offset = decode_uint8(payload, offset)
             result['init_buildings'].append(building_id)
+
+    return result
+
+
+def decode_nation_availability(payload: bytes) -> dict:
+    """
+    Decode PACKET_NATION_AVAILABILITY packet using delta protocol.
+
+    This packet indicates which nations are available for player selection.
+    Uses delta encoding with boolean header folding for nationset_change field.
+
+    Packet structure (from packets.def lines 1650-1654):
+    - BITVECTOR (1 byte for 3 non-key fields)
+    - UINT16 ncount (little-endian) - Field 0
+    - BOOL is_pickable[ncount] (1 byte each) - Field 1
+    - BOOL nationset_change (folded into bitvector bit 2) - Field 2
+
+    IMPORTANT: This packet has NO key fields, so all fields are conditional
+    based on the bitvector. The nationset_change field uses boolean header
+    folding, meaning its value is stored directly in bitvector bit 2 and
+    consumes NO payload bytes.
+
+    Returns dictionary with keys:
+      ncount (int), is_pickable (list[bool]), nationset_change (bool)
+    """
+    offset = 0
+
+    # Read delta protocol bitvector (1 byte for 3 fields)
+    bitvector = payload[offset]
+    offset += 1
+
+    # Initialize result with defaults
+    result = {
+        'ncount': 0,
+        'is_pickable': [],
+        'nationset_change': False
+    }
+
+    # Field 0: ncount (UINT16, big-endian)
+    if bitvector & (1 << 0):
+        # Note: FreeCiv uses big-endian for multi-byte integers (consistent with rest of protocol)
+        ncount = int.from_bytes(payload[offset:offset+2], byteorder='big')
+        offset += 2
+        result['ncount'] = ncount
+
+    # Field 1: is_pickable (BOOL array)
+    if bitvector & (1 << 1):
+        ncount = result['ncount']
+        is_pickable = []
+        for i in range(ncount):
+            pickable = bool(payload[offset])
+            is_pickable.append(pickable)
+            offset += 1
+        result['is_pickable'] = is_pickable
+
+    # Field 2: nationset_change (BOOL, folded into bitvector)
+    # Boolean header folding: the bitvector bit IS the field value
+    # No payload bytes consumed for this field
+    result['nationset_change'] = bool(bitvector & (1 << 2))
 
     return result
 

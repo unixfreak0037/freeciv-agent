@@ -1286,3 +1286,94 @@ async def test_handle_ruleset_nation_groups_transforms_parallel_arrays(mock_clie
     assert game_state.nation_groups[2].hidden == False
     assert game_state.nation_groups[3].name == 'Barbarian'
     assert game_state.nation_groups[3].hidden == True
+
+
+# ============================================================================
+# PACKET_NATION_AVAILABILITY Tests (3 tests) - Delta Protocol
+# ============================================================================
+
+
+@pytest.mark.async_test
+async def test_handle_nation_availability_basic(mock_client, game_state):
+    """Test handler updates game state with nation availability data (delta protocol)."""
+    # Delta protocol packet with 3 nations
+    payload = (
+        b'\x03'      # bitvector: bits 0,1 set (ncount and is_pickable present), bit 2 clear
+        b'\x00\x03'  # ncount=3 (UINT16, big-endian)
+        b'\x01'      # is_pickable[0]=True
+        b'\x00'      # is_pickable[1]=False
+        b'\x01'      # is_pickable[2]=True
+    )
+
+    await handlers.handle_nation_availability(mock_client, game_state, payload)
+
+    # Verify game state was updated
+    assert game_state.nation_availability is not None
+    assert game_state.nation_availability['ncount'] == 3
+    assert game_state.nation_availability['is_pickable'] == [True, False, True]
+    assert game_state.nation_availability['nationset_change'] is False
+
+
+@pytest.mark.async_test
+async def test_handle_nation_availability_nationset_change(mock_client, game_state):
+    """Test handler correctly detects nationset_change flag via boolean header folding."""
+    # Delta protocol packet with nationset_change=True (folded in bitvector bit 2)
+    payload = (
+        b'\x07'      # bitvector: bits 0,1,2 set (nationset_change=True via folding)
+        b'\x00\x02'  # ncount=2 (UINT16, big-endian)
+        b'\x01'      # is_pickable[0]=True
+        b'\x01'      # is_pickable[1]=True
+    )
+
+    await handlers.handle_nation_availability(mock_client, game_state, payload)
+
+    # Verify nationset_change flag is detected from bitvector
+    assert game_state.nation_availability is not None
+    assert game_state.nation_availability['nationset_change'] is True
+    assert game_state.nation_availability['ncount'] == 2
+    assert game_state.nation_availability['is_pickable'] == [True, True]
+
+
+@pytest.mark.async_test
+async def test_handle_nation_availability_with_nations_loaded(mock_client, game_state):
+    """Test handler cross-references with loaded nation data."""
+    from fc_client.game_state import Nation
+
+    # Pre-populate game state with nation data
+    nation0 = Nation(
+        id=0, translation_domain='', adjective='Roman', rule_name='roman',
+        noun_plural='Romans', graphic_str='', graphic_alt='', legend='',
+        style=0, leader_count=1, leader_name=['Caesar'], leader_is_male=[True],
+        is_playable=True, barbarian_type=0, nsets=0, sets=[], ngroups=0, groups=[],
+        init_government_id=-1, init_techs_count=0, init_techs=[],
+        init_units_count=0, init_units=[], init_buildings_count=0, init_buildings=[]
+    )
+    nation1 = Nation(
+        id=1, translation_domain='', adjective='Babylonian', rule_name='babylonian',
+        noun_plural='Babylonians', graphic_str='', graphic_alt='', legend='',
+        style=0, leader_count=1, leader_name=['Hammurabi'], leader_is_male=[True],
+        is_playable=True, barbarian_type=0, nsets=0, sets=[], ngroups=0, groups=[],
+        init_government_id=-1, init_techs_count=0, init_techs=[],
+        init_units_count=0, init_units=[], init_buildings_count=0, init_buildings=[]
+    )
+
+    game_state.nations = {0: nation0, 1: nation1}
+
+    # Delta protocol packet indicating only nation 0 is available
+    payload = (
+        b'\x03'      # bitvector: bits 0,1 set, bit 2 clear (nationset_change=False)
+        b'\x00\x02'  # ncount=2 (UINT16, big-endian)
+        b'\x01'      # is_pickable[0]=True
+        b'\x00'      # is_pickable[1]=False
+    )
+
+    await handlers.handle_nation_availability(mock_client, game_state, payload)
+
+    # Verify game state was updated correctly
+    assert game_state.nation_availability is not None
+    assert game_state.nation_availability['ncount'] == 2
+    assert game_state.nation_availability['is_pickable'] == [True, False]
+
+    # Handler should successfully cross-reference with nation data
+    # (We can't directly test console output, but we verify no exceptions occur)
+    # and the availability data matches the nation IDs we have
