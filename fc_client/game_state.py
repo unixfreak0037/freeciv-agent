@@ -6,7 +6,7 @@ are received and processed from the server.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 @dataclass
@@ -80,6 +80,41 @@ class NationGroup:
     hidden: bool   # Whether the group is hidden from player selection
 
 
+@dataclass
+class Nation:
+    """
+    Represents a nation/civilization from PACKET_RULESET_NATION (packet 148).
+
+    Contains detailed information about a playable or AI nation, including
+    leaders, starting conditions, and associated sets/groups.
+    """
+    id: int                           # Nation ID (key field)
+    translation_domain: str           # Translation domain for i18n
+    adjective: str                    # Adjective form (e.g., "Roman")
+    rule_name: str                    # Internal identifier
+    noun_plural: str                  # Plural form (e.g., "Romans")
+    graphic_str: str                  # Primary graphics tag
+    graphic_alt: str                  # Alternative graphics tag
+    legend: str                       # Descriptive text/legend
+    style: int                        # Nation style ID
+    leader_count: int                 # Number of leaders
+    leader_name: List[str]            # Leader names
+    leader_is_male: List[bool]        # Leader genders (True=male)
+    is_playable: bool                 # Whether human players can select this nation
+    barbarian_type: int               # Barbarian type (0=not barbarian)
+    nsets: int                        # Number of nation sets
+    sets: List[int]                   # Nation set IDs
+    ngroups: int                      # Number of nation groups
+    groups: List[int]                 # Nation group IDs
+    init_government_id: int           # Starting government (-1=none)
+    init_techs_count: int             # Number of starting techs
+    init_techs: List[int]             # Starting technology IDs
+    init_units_count: int             # Number of starting units
+    init_units: List[int]             # Starting unit type IDs
+    init_buildings_count: int         # Number of starting buildings
+    init_buildings: List[int]         # Starting building/improvement IDs
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -93,3 +128,4 @@ class GameState:
         self.ruleset_description: Optional[str] = None  # Complete assembled description
         self.nation_sets: List[NationSet] = []  # Available nation sets (PACKET_RULESET_NATION_SETS)
         self.nation_groups: List[NationGroup] = []  # Available nation groups (PACKET_RULESET_NATION_GROUPS)
+        self.nations: Dict[int, Nation] = {}  # Nations by ID (PACKET_RULESET_NATION)

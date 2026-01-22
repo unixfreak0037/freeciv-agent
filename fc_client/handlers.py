@@ -310,6 +310,69 @@ async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: Game
         print(f"  - {nation_group.name} ({visibility})")
 
 
+async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_NATION (148) - nation/civilization data.
+
+    This packet contains detailed information about a single nation, including
+    leaders, starting conditions (government, techs, units, buildings), and
+    membership in nation sets and groups. One packet is sent per nation during
+    game initialization.
+
+    Updates game_state.nations dict with Nation objects keyed by nation ID.
+    """
+    from .game_state import Nation
+
+    # Decode packet using manual decoder
+    data = protocol.decode_ruleset_nation(payload)
+
+    # Create Nation object from decoded data
+    nation = Nation(
+        id=data['id'],
+        translation_domain=data.get('translation_domain', ''),
+        adjective=data.get('adjective', ''),
+        rule_name=data.get('rule_name', ''),
+        noun_plural=data.get('noun_plural', ''),
+        graphic_str=data.get('graphic_str', ''),
+        graphic_alt=data.get('graphic_alt', ''),
+        legend=data.get('legend', ''),
+        style=data.get('style', 0),
+        leader_count=data.get('leader_count', 0),
+        leader_name=data.get('leader_name', []),
+        leader_is_male=data.get('leader_is_male', []),
+        is_playable=data.get('is_playable', False),
+        barbarian_type=data.get('barbarian_type', 0),
+        nsets=data.get('nsets', 0),
+        sets=data.get('sets', []),
+        ngroups=data.get('ngroups', 0),
+        groups=data.get('groups', []),
+        init_government_id=data.get('init_government_id', -1),
+        init_techs_count=data.get('init_techs_count', 0),
+        init_techs=data.get('init_techs', []),
+        init_units_count=data.get('init_units_count', 0),
+        init_units=data.get('init_units', []),
+        init_buildings_count=data.get('init_buildings_count', 0),
+        init_buildings=data.get('init_buildings', [])
+    )
+
+    # Store in game state by nation ID
+    game_state.nations[nation.id] = nation
+
+    # Display summary
+    leaders_str = ", ".join(nation.leader_name[:3])
+    if len(nation.leader_name) > 3:
+        leaders_str += f", +{len(nation.leader_name) - 3} more"
+
+    playable = "playable" if nation.is_playable else "not playable"
+
+    print(f"\n[NATION {nation.id}] {nation.adjective} ({nation.rule_name})")
+    print(f"  Leaders: {leaders_str}")
+    print(f"  Status: {playable}")
+    print(f"  Sets: {len(nation.sets)}, Groups: {len(nation.groups)}")
+    print(f"  Starting: {nation.init_techs_count} techs, "
+          f"{nation.init_units_count} units, {nation.init_buildings_count} buildings")
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.

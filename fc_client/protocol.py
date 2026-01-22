@@ -17,6 +17,7 @@ PACKET_SERVER_INFO = 29
 PACKET_RULESET_CONTROL = 155
 PACKET_GAME_LOAD = 155
 PACKET_RULESET_NATION_GROUPS = 147
+PACKET_RULESET_NATION = 148
 PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
@@ -569,6 +570,170 @@ def decode_ruleset_nation_groups(payload: bytes) -> dict:
     }
 
 
+def decode_ruleset_nation(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_NATION packet using delta protocol.
+
+    Based on FreeCiv source code analysis (common/generate_packets.py):
+    - Only the 'id' field is a KEY field (always transmitted)
+    - ALL other 24 fields are NON-KEY fields (conditional based on bitvector)
+    - Bitvector has 24 bits (3 bytes) for the 24 non-key fields
+    - When a bit is set, the corresponding field is present in the payload
+    - When a bit is clear, use default/cached value (we use defaults since no cache)
+
+    IMPORTANT: Delta Protocol Field Order
+    - FreeCiv's delta protocol transmits bitvector BEFORE key fields
+    - This is confirmed in common/generate_packets.py lines 2267-2282
+    - Key fields are always present but come after the bitvector
+
+    IMPORTANT: Boolean Header Folding Optimization
+    - Standalone BOOL fields (like is_playable) use "boolean header folding"
+    - The bitvector bit IS the field value (True if set, False if clear)
+    - NO payload bytes are consumed for standalone BOOL fields
+    - This provides 8x compression for boolean data
+    - BOOL arrays (like leader_is_male[]) still transmit each element as a byte
+
+    Packet structure:
+    - BITVECTOR (3 bytes, 24 bits) - indicates which non-key fields are present
+    - NATION id (SINT16) - key field, always present after bitvector
+    - Conditional fields based on bitvector bits
+
+    Returns dictionary with all nation fields.
+    """
+    offset = 0
+
+    # IMPORTANT: In delta protocol, bitvector comes BEFORE key fields!
+    # This matches FreeCiv's generate_packets.py: bitvector first, then key fields
+
+    # Read delta protocol bitvector FIRST (3 bytes = 24 bits for 24 non-key fields)
+    bitvector = int.from_bytes(payload[offset:offset+3], byteorder='little')
+    offset += 3
+
+    # Read key field (id) SECOND - always present after bitvector
+    nation_id, offset = decode_sint16(payload, offset)
+
+    # Initialize result with key field
+    result = {'id': nation_id}
+
+    # Helper to check if bit is set
+    def has_field(bit_index):
+        return bool(bitvector & (1 << bit_index))
+
+    # Initialize all fields with defaults
+    result.update({
+        'translation_domain': '', 'adjective': '', 'rule_name': '', 'noun_plural': '',
+        'graphic_str': '', 'graphic_alt': '', 'legend': '',
+        'style': 0, 'leader_count': 0, 'leader_name': [], 'leader_is_male': [],
+        'is_playable': False, 'barbarian_type': 0,
+        'nsets': 0, 'sets': [], 'ngroups': 0, 'groups': [],
+        'init_government_id': -1, 'init_techs_count': 0, 'init_techs': [],
+        'init_units_count': 0, 'init_units': [], 'init_buildings_count': 0, 'init_buildings': []
+    })
+
+    # Read ONLY the fields indicated by the bitvector
+
+    if has_field(0):  # translation_domain
+        result['translation_domain'], offset = decode_string(payload, offset)
+
+    if has_field(1):  # adjective
+        result['adjective'], offset = decode_string(payload, offset)
+
+    if has_field(2):  # rule_name
+        result['rule_name'], offset = decode_string(payload, offset)
+
+    if has_field(3):  # noun_plural
+        result['noun_plural'], offset = decode_string(payload, offset)
+
+    if has_field(4):  # graphic_str
+        result['graphic_str'], offset = decode_string(payload, offset)
+
+    if has_field(5):  # graphic_alt
+        result['graphic_alt'], offset = decode_string(payload, offset)
+
+    if has_field(6):  # legend
+        result['legend'], offset = decode_string(payload, offset)
+
+    if has_field(7):  # style
+        result['style'], offset = decode_uint8(payload, offset)
+
+    if has_field(8):  # leader_count
+        result['leader_count'], offset = decode_uint8(payload, offset)
+
+    if has_field(9):  # leader_name[]
+        result['leader_name'] = []
+        for i in range(result['leader_count']):
+            name, offset = decode_string(payload, offset)
+            result['leader_name'].append(name)
+
+    if has_field(10):  # leader_is_male[] (BOOL array)
+        # Note: Arrays of BOOLs transmit each element as a byte in the payload
+        # (boolean header folding only applies to standalone BOOL fields)
+        result['leader_is_male'] = []
+        for i in range(result['leader_count']):
+            is_male, offset = decode_bool(payload, offset)
+            result['leader_is_male'].append(is_male)
+
+    # Field 11: is_playable (BOOL) - uses boolean header folding
+    # The bitvector bit IS the field value; no payload bytes consumed
+    if has_field(11):
+        result['is_playable'] = True
+    else:
+        result['is_playable'] = False
+
+    if has_field(12):  # barbarian_type
+        result['barbarian_type'], offset = decode_uint8(payload, offset)
+
+    if has_field(13):  # nsets
+        result['nsets'], offset = decode_uint8(payload, offset)
+
+    if has_field(14):  # sets[]
+        result['sets'] = []
+        for i in range(result['nsets']):
+            set_id, offset = decode_uint8(payload, offset)
+            result['sets'].append(set_id)
+
+    if has_field(15):  # ngroups
+        result['ngroups'], offset = decode_uint8(payload, offset)
+
+    if has_field(16):  # groups[]
+        result['groups'] = []
+        for i in range(result['ngroups']):
+            group_id, offset = decode_uint8(payload, offset)
+            result['groups'].append(group_id)
+
+    if has_field(17):  # init_government_id
+        result['init_government_id'], offset = decode_sint8(payload, offset)
+
+    if has_field(18):  # init_techs_count
+        result['init_techs_count'], offset = decode_uint8(payload, offset)
+
+    if has_field(19):  # init_techs[]
+        result['init_techs'] = []
+        for i in range(result['init_techs_count']):
+            tech_id, offset = decode_uint16(payload, offset)
+            result['init_techs'].append(tech_id)
+
+    if has_field(20):  # init_units_count
+        result['init_units_count'], offset = decode_uint8(payload, offset)
+
+    if has_field(21):  # init_units[]
+        result['init_units'] = []
+        for i in range(result['init_units_count']):
+            unit_id, offset = decode_uint16(payload, offset)
+            result['init_units'].append(unit_id)
+
+    if has_field(22):  # init_buildings_count
+        result['init_buildings_count'], offset = decode_uint8(payload, offset)
+
+    if has_field(23):  # init_buildings[]
+        result['init_buildings'] = []
+        for i in range(result['init_buildings_count']):
+            building_id, offset = decode_uint8(payload, offset)
+            result['init_buildings'].append(building_id)
+
+    return result
+
+
 # ============================================================================
 # Delta Protocol Support
 # ============================================================================
@@ -659,12 +824,16 @@ def decode_delta_packet(
     Generic delta decoder for any packet with delta support.
 
     This decoder implements FreeCiv's delta protocol:
-    1. Read key fields (always present, not in bitvector)
-    2. Read bitvector indicating which non-key fields are present
+    1. Read bitvector indicating which non-key fields are present
+    2. Read key fields (always present, transmitted after bitvector)
     3. For each non-key field:
        - If bit is set: read new value from payload
        - If bit is clear: use cached value from previous packet
     4. Update cache with complete packet
+
+    IMPORTANT: FreeCiv transmits bitvector BEFORE key fields (confirmed in
+    common/generate_packets.py lines 2267-2282). Key fields are always present
+    but come after the bitvector.
 
     Args:
         payload: Raw packet payload (after header)
@@ -677,7 +846,15 @@ def decode_delta_packet(
     offset = 0
     fields = {}
 
-    # Step 1: Read key fields (always present, always transmitted)
+    # Step 1: Read bitvector FIRST (if packet has non-key fields)
+    if packet_spec.num_bitvector_bits > 0:
+        bitvector, offset = read_bitvector(
+            payload, offset, packet_spec.num_bitvector_bits
+        )
+    else:
+        bitvector = 0
+
+    # Step 2: Read key fields SECOND (always present, always transmitted)
     key_values = []
     for field_spec in packet_spec.key_fields:
         value, offset = _decode_field(payload, offset, field_spec.type_name)
@@ -685,14 +862,6 @@ def decode_delta_packet(
         key_values.append(value)
 
     key_tuple = tuple(key_values)
-
-    # Step 2: Read bitvector (if packet has non-key fields)
-    if packet_spec.num_bitvector_bits > 0:
-        bitvector, offset = read_bitvector(
-            payload, offset, packet_spec.num_bitvector_bits
-        )
-    else:
-        bitvector = 0
 
     # Step 3: Get cached packet (or use defaults if no cache exists)
     cached = delta_cache.get_cached_packet(packet_spec.packet_type, key_tuple)

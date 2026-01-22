@@ -197,8 +197,9 @@ async def test_send_join_request_with_debugger(mock_stream_pair):
 
         await client.send_join_request("test-user")
 
-        # Counter starts at 0 and increments before writing, so first file is outbound_1.packet
-        outbound_file = os.path.join(debug_dir, "outbound_1.packet")
+        # Packet debugger now includes type in filename: outbound_INDEX_typeNNN.packet
+        # JOIN_REQ is packet type 4, counter starts at 0 and increments, so first file is outbound_0001_type004.packet
+        outbound_file = os.path.join(debug_dir, "outbound_0001_type004.packet")
         assert os.path.exists(outbound_file)
 
 
@@ -251,7 +252,7 @@ async def test_packet_reading_loop_reads_and_dispatches(mock_stream_pair):
     raw_packet = b"\x00\x03\x00"  # Length=3, Type=0
 
     call_count = 0
-    async def mock_read_packet(reader, use_two_byte_type):
+    async def mock_read_packet(reader, use_two_byte_type, validate=False):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -531,7 +532,7 @@ async def test_packet_reading_loop_uses_two_byte_type():
     client._use_two_byte_type = True
 
     call_count = 0
-    async def mock_read_packet(reader, use_two_byte_type):
+    async def mock_read_packet(reader, use_two_byte_type, validate=False):
         nonlocal call_count
         call_count += 1
         # Verify use_two_byte_type is passed correctly

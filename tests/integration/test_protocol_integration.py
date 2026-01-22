@@ -77,11 +77,12 @@ def test_delta_packet_first_packet_no_cache(delta_cache):
         ]
     )
 
-    # Build payload: key field + bitvector (all bits set) + all non-key fields
+    # Build payload: bitvector + key field + all non-key fields
+    # IMPORTANT: Delta protocol transmits bitvector BEFORE key fields
     # Bitvector: 2 bits = 1 byte, bits 0 and 1 set = 0b00000011 = 0x03
     payload = (
-        encode_uint32(42) +      # id (key field)
-        b'\x03' +                 # bitvector: bits 0,1 set
+        b'\x03' +                 # bitvector: bits 0,1 set (comes FIRST)
+        encode_uint32(42) +      # id (key field, comes SECOND)
         encode_string("test") +   # name
         build_sint32_bytes(999)   # value
     )
@@ -111,8 +112,8 @@ def test_delta_packet_second_packet_no_changes(delta_cache):
 
     # First packet: populate cache
     payload1 = (
-        encode_uint32(42) +
         b'\x03' +                # bits 0,1 set
+        encode_uint32(42) +
         encode_string("test") +
         build_sint32_bytes(999)
     )
@@ -120,8 +121,8 @@ def test_delta_packet_second_packet_no_changes(delta_cache):
 
     # Second packet: no changes (bitvector all zeros)
     payload2 = (
-        encode_uint32(42) +      # Same id
-        b'\x00'                  # bitvector: no bits set, use cache
+        b'\x00' +                # bitvector: no bits set, use cache
+        encode_uint32(42)        # Same id
     )
     result2 = decode_delta_packet(payload2, spec, delta_cache)
 
@@ -146,8 +147,8 @@ def test_delta_packet_second_packet_partial_changes(delta_cache):
 
     # First packet: populate cache
     payload1 = (
-        encode_uint32(42) +
         b'\x07' +                # bits 0,1,2 set (3 non-key fields)
+        encode_uint32(42) +
         encode_string("alice") +
         build_sint32_bytes(100) +
         build_sint16_bytes(5)
@@ -156,8 +157,8 @@ def test_delta_packet_second_packet_partial_changes(delta_cache):
 
     # Second packet: only change 'value' (bit 1)
     payload2 = (
-        encode_uint32(42) +
         b'\x02' +                # Only bit 1 set (value changed)
+        encode_uint32(42) +
         build_sint32_bytes(200)  # New value
     )
     result2 = decode_delta_packet(payload2, spec, delta_cache)
@@ -190,8 +191,8 @@ def test_delta_packet_bitvector_boundary(delta_cache):
 
     # All 8 bits set = 0xFF
     payload = (
-        encode_uint32(1) +
         b'\xff' +  # 1 byte bitvector, all bits set
+        encode_uint32(1) +
         build_sint16_bytes(1) +
         build_sint16_bytes(2) +
         build_sint16_bytes(3) +
@@ -226,8 +227,8 @@ def test_delta_packet_bitvector_boundary(delta_cache):
     # Note: bitvectors use little-endian byte order
     # Bits 0-7 in first byte (\xff), bit 8 in second byte (\x01)
     payload = (
-        encode_uint32(1) +
         b'\xff\x01' +  # 2 byte bitvector, 9 bits set (little-endian)
+        encode_uint32(1) +
         build_sint16_bytes(1) +
         build_sint16_bytes(2) +
         build_sint16_bytes(3) +
@@ -254,10 +255,10 @@ def test_delta_packet_key_field_always_transmitted(delta_cache):
         ]
     )
 
-    # Packet with key field and bitvector
+    # Packet with bitvector and key field
     payload = (
-        encode_uint32(99) +      # Key field always present
         b'\x01' +                # Bitvector for non-key field
+        encode_uint32(99) +      # Key field always present (after bitvector)
         build_sint16_bytes(42)
     )
 
@@ -281,8 +282,8 @@ def test_delta_packet_bool_header_folding(delta_cache):
     # Bitvector: bit 0 (is_active) = True, bit 1 (count) = True
     # 0b00000011 = 0x03
     payload = (
-        encode_uint32(1) +
         b'\x03' +                # Both bits set
+        encode_uint32(1) +
         # No byte for is_active (header folding)
         build_sint16_bytes(10)   # Only count has payload byte
     )
@@ -304,8 +305,8 @@ def test_delta_packet_cache_update(delta_cache):
     )
 
     payload = (
-        encode_uint32(7) +
         b'\x01' +
+        encode_uint32(7) +
         encode_string("cached_value")
     )
 
@@ -330,9 +331,9 @@ def test_delta_packet_multiple_keys(delta_cache):
     )
 
     payload = (
+        b'\x01' +                # bitvector (comes first)
         encode_uint32(10) +      # player_id (key 1)
         encode_uint32(20) +      # city_id (key 2)
-        b'\x01' +                # bitvector
         build_sint32_bytes(5000)
     )
 
@@ -364,8 +365,8 @@ def test_delta_packet_all_field_types(delta_cache):
 
     # All non-key fields present (bits 0-4 set = 0x1F)
     payload = (
-        encode_uint32(1) +
         b'\x1f' +                # 5 bits set (excluding BOOL byte)
+        encode_uint32(1) +
         encode_string("player1") +
         build_sint32_bytes(1000) +
         build_sint16_bytes(10) +
@@ -404,8 +405,8 @@ def test_delta_packet_round_trip(delta_cache):
 
     # Build payload manually
     payload = (
-        encode_uint32(original['id']) +
         b'\x03' +  # Both non-key fields present
+        encode_uint32(original['id']) +
         encode_string(original['message']) +
         build_sint32_bytes(original['counter'])
     )
@@ -440,16 +441,16 @@ def test_delta_packet_cache_isolation(delta_cache):
 
     # Decode packet type 109
     payload1 = (
-        encode_uint32(5) +
         b'\x01' +
+        encode_uint32(5) +
         build_sint32_bytes(100)
     )
     decode_delta_packet(payload1, spec1, delta_cache)
 
     # Decode packet type 110 with same key
     payload2 = (
-        encode_uint32(5) +
         b'\x01' +
+        encode_uint32(5) +
         build_sint32_bytes(200)
     )
     decode_delta_packet(payload2, spec2, delta_cache)
