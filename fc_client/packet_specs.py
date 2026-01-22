@@ -157,6 +157,23 @@ PACKET_SPECS[155] = PacketSpec(
     ]
 )
 
+# PACKET_RULESET_DESCRIPTION_PART = 247
+# From packets.def lines 2012-2014:
+#   PACKET_RULESET_DESCRIPTION_PART = 247; sc, lsend
+#     STRING text[MAX_LEN_CONTENT];
+#   end
+#
+# Multi-part packet: Sent after RULESET_CONTROL in chunks.
+# Client accumulates parts until total bytes >= desc_length from RULESET_CONTROL.
+PACKET_SPECS[247] = PacketSpec(
+    packet_type=247,
+    name="PACKET_RULESET_DESCRIPTION_PART",
+    has_delta=False,  # Simple packet, no delta encoding
+    fields=[
+        FieldSpec(name='text', type_name='STRING'),
+    ]
+)
+
 
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(

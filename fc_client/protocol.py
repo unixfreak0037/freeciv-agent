@@ -18,6 +18,7 @@ PACKET_RULESET_CONTROL = 155
 PACKET_GAME_LOAD = 155
 PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
+PACKET_RULESET_NATION_SETS = 236
 
 # Version constants
 MAJOR_VERSION = 3
@@ -334,6 +335,49 @@ def decode_ruleset_description_part(payload: bytes) -> dict:
 
     return {
         'text': text
+    }
+
+
+def decode_ruleset_nation_sets(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_NATION_SETS packet.
+
+    Packet structure (from packets.def lines 1603-1610):
+    - UINT8 nsets (count of nation sets, 0-32)
+    - STRING names[nsets][MAX_LEN_NAME] (display names)
+    - STRING rule_names[nsets][MAX_LEN_NAME] (internal identifiers)
+    - STRING descriptions[nsets][MAX_LEN_MSG] (descriptive text)
+
+    Returns dictionary with keys:
+      nsets (int), names (list), rule_names (list), descriptions (list)
+    """
+    offset = 0
+
+    # Read count
+    nsets = payload[offset]
+    offset += 1
+
+    # Read three parallel arrays
+    names = []
+    for i in range(nsets):
+        name, offset = decode_string(payload, offset)
+        names.append(name)
+
+    rule_names = []
+    for i in range(nsets):
+        rule_name, offset = decode_string(payload, offset)
+        rule_names.append(rule_name)
+
+    descriptions = []
+    for i in range(nsets):
+        description, offset = decode_string(payload, offset)
+        descriptions.append(description)
+
+    return {
+        'nsets': nsets,
+        'names': names,
+        'rule_names': rule_names,
+        'descriptions': descriptions
     }
 
 

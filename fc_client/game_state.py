@@ -6,7 +6,7 @@ are received and processed from the server.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass
@@ -57,6 +57,19 @@ class RulesetControl:
     num_counters: int  # UINT16
 
 
+@dataclass
+class NationSet:
+    """
+    Represents a nation set from PACKET_RULESET_NATION_SETS (packet 236).
+
+    A nation set is a collection of nations grouped by theme, era, or region.
+    Examples: "Core", "Extended", "Custom"
+    """
+    name: str          # Display name (MAX_LEN_NAME = 48 bytes)
+    rule_name: str     # Internal identifier (MAX_LEN_NAME = 48 bytes)
+    description: str   # Descriptive text (MAX_LEN_MSG = 1536 bytes)
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -66,3 +79,6 @@ class GameState:
         self.chat_history = []  # List of chat message dicts with timestamps
         self.ruleset_control: Optional[RulesetControl] = None  # Ruleset configuration (PACKET_RULESET_CONTROL)
         self.ruleset_summary: Optional[str] = None  # Ruleset summary text (PACKET_RULESET_SUMMARY)
+        self.ruleset_description_parts: List[str] = []  # Accumulator for description chunks
+        self.ruleset_description: Optional[str] = None  # Complete assembled description
+        self.nation_sets: List[NationSet] = []  # Available nation sets (PACKET_RULESET_NATION_SETS)

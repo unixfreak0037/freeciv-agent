@@ -28,6 +28,7 @@ from fc_client.protocol import (
     decode_server_info,
     decode_chat_msg,
     decode_ruleset_summary,
+    decode_ruleset_nation_sets,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -817,3 +818,72 @@ def test_decode_ruleset_summary_unicode():
     payload = encode_string(text_combined)
     result = decode_ruleset_summary(payload)
     assert result['text'] == text_combined
+
+
+# PACKET_RULESET_NATION_SETS Tests
+
+def test_decode_ruleset_nation_sets_empty():
+    """Test decoding packet with nsets=0."""
+    payload = b'\x00'  # nsets=0
+    result = decode_ruleset_nation_sets(payload)
+    assert result['nsets'] == 0
+    assert result['names'] == []
+    assert result['rule_names'] == []
+    assert result['descriptions'] == []
+
+
+def test_decode_ruleset_nation_sets_single():
+    """Test decoding packet with single nation set."""
+    payload = (
+        b'\x01'  # nsets=1
+        b'Core\x00'  # names[0]
+        b'core\x00'  # rule_names[0]
+        b'Default nations\x00'  # descriptions[0]
+    )
+    result = decode_ruleset_nation_sets(payload)
+    assert result['nsets'] == 1
+    assert result['names'] == ['Core']
+    assert result['rule_names'] == ['core']
+    assert result['descriptions'] == ['Default nations']
+
+
+def test_decode_ruleset_nation_sets_multiple():
+    """Test decoding packet with multiple nation sets."""
+    payload = (
+        b'\x03'  # nsets=3
+        b'Core\x00Extended\x00Custom\x00'  # names
+        b'core\x00extended\x00custom\x00'  # rule_names
+        b'Default\x00Additional\x00User-created\x00'  # descriptions
+    )
+    result = decode_ruleset_nation_sets(payload)
+    assert result['nsets'] == 3
+    assert result['names'] == ['Core', 'Extended', 'Custom']
+    assert result['rule_names'] == ['core', 'extended', 'custom']
+    assert result['descriptions'] == ['Default', 'Additional', 'User-created']
+
+
+def test_decode_ruleset_nation_sets_empty_strings():
+    """Test decoding packet with empty string fields."""
+    payload = (
+        b'\x01'  # nsets=1
+        b'\x00'  # empty name
+        b'core\x00'  # rule_name
+        b'\x00'  # empty description
+    )
+    result = decode_ruleset_nation_sets(payload)
+    assert result['nsets'] == 1
+    assert result['names'] == ['']
+    assert result['rule_names'] == ['core']
+    assert result['descriptions'] == ['']
+
+
+def test_decode_ruleset_nation_sets_unicode():
+    """Test decoding packet with UTF-8 unicode strings."""
+    payload = (
+        b'\x01'  # nsets=1
+        b'Na\xc3\xa7\xc3\xb5es\x00'  # "Nações" in UTF-8
+        b'nacoes\x00'
+        b'Description\x00'
+    )
+    result = decode_ruleset_nation_sets(payload)
+    assert result['names'] == ['Nações']

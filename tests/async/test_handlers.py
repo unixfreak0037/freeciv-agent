@@ -598,3 +598,536 @@ async def test_handle_ruleset_summary_multiline(mock_client, game_state):
     assert game_state.ruleset_summary == multiline_text
     assert "\n" in game_state.ruleset_summary
     assert game_state.ruleset_summary.count("\n") == 2
+
+
+# ============================================================================
+# PACKET_RULESET_DESCRIPTION_PART Handler Tests
+# ============================================================================
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_single_part(mock_client, game_state):
+    """Handler should assemble complete description from single part."""
+    text = "This is a complete description."
+    payload = b"dummy"
+
+    # Setup ruleset_control with expected length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(text.encode('utf-8')),  # UTF-8 byte length
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble complete description
+    assert game_state.ruleset_description == text
+    assert game_state.ruleset_description_parts == []  # Accumulator cleared
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_multiple_parts(mock_client, game_state):
+    """Handler should accumulate and assemble multiple parts correctly."""
+    part1 = "This is part one. "
+    part2 = "This is part two. "
+    part3 = "This is part three."
+    expected_total = part1 + part2 + part3
+    payload = b"dummy"
+
+    # Setup ruleset_control with expected total length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(expected_total.encode('utf-8')),
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        # Send part 1
+        mock_decode.return_value = {'text': part1}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+        assert game_state.ruleset_description is None  # Not complete yet
+        assert len(game_state.ruleset_description_parts) == 1
+
+        # Send part 2
+        mock_decode.return_value = {'text': part2}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+        assert game_state.ruleset_description is None  # Still not complete
+        assert len(game_state.ruleset_description_parts) == 2
+
+        # Send part 3 (completes assembly)
+        mock_decode.return_value = {'text': part3}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble all parts
+    assert game_state.ruleset_description == expected_total
+    assert game_state.ruleset_description_parts == []  # Accumulator cleared
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_incremental_accumulation(mock_client, game_state):
+    """Handler should accumulate parts without assembling until threshold reached."""
+    part1 = "Part 1"
+    part2 = "Part 2"
+    expected_total_length = 100  # Much larger than current accumulation
+    payload = b"dummy"
+
+    # Setup ruleset_control with large expected length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=expected_total_length,
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        # Send part 1
+        mock_decode.return_value = {'text': part1}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+        # Should accumulate but not assemble
+        assert game_state.ruleset_description is None
+        assert game_state.ruleset_description_parts == [part1]
+
+        # Send part 2
+        mock_decode.return_value = {'text': part2}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+        # Should accumulate but still not assemble
+        assert game_state.ruleset_description is None
+        assert game_state.ruleset_description_parts == [part1, part2]
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_exact_threshold(mock_client, game_state):
+    """Handler should trigger assembly when total bytes exactly matches desc_length."""
+    text = "Exactly 20 bytes !!!"  # Note the space for exactly 20 bytes
+    assert len(text.encode('utf-8')) == 20
+    payload = b"dummy"
+
+    # Setup with exact expected length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=20,  # Exact match
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should trigger assembly at exact threshold
+    assert game_state.ruleset_description == text
+    assert game_state.ruleset_description_parts == []
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_missing_ruleset_control(mock_client, game_state):
+    """Handler should handle missing RULESET_CONTROL gracefully with warning."""
+    text = "Some description text"
+    payload = b"dummy"
+
+    # No ruleset_control set (None)
+    assert game_state.ruleset_control is None
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+
+        # Should not crash, just warn and accumulate
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should still accumulate part
+    assert game_state.ruleset_description_parts == [text]
+    # Should not assemble (no expected length)
+    assert game_state.ruleset_description is None
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_empty_string(mock_client, game_state):
+    """Handler should handle empty string chunks correctly."""
+    text = ""
+    payload = b"dummy"
+
+    # Setup with zero expected length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=0,  # Zero length expected
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble immediately (0 >= 0)
+    assert game_state.ruleset_description == ""
+    assert game_state.ruleset_description_parts == []
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_unicode_text(mock_client, game_state):
+    """Handler should handle Unicode multi-byte characters correctly."""
+    text = "Hello 世界! 🌍"  # Multi-byte UTF-8 characters
+    payload = b"dummy"
+
+    # Setup with UTF-8 byte length (not character count!)
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(text.encode('utf-8')),  # UTF-8 bytes, not character count
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble correctly with Unicode
+    assert game_state.ruleset_description == text
+    assert game_state.ruleset_description_parts == []
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_multiline_text(mock_client, game_state):
+    """Handler should preserve newlines in multiline text."""
+    text = "Line 1\nLine 2\nLine 3"
+    payload = b"dummy"
+
+    # Setup with expected length
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(text.encode('utf-8')),
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should preserve newlines
+    assert game_state.ruleset_description == text
+    assert "\n" in game_state.ruleset_description
+    assert game_state.ruleset_description.count("\n") == 2
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_exceeds_expected_length(mock_client, game_state):
+    """Handler should assemble even if parts exceed expected desc_length."""
+    part1 = "Part 1 text"
+    part2 = "Part 2 text"
+    expected_total = part1 + part2
+    # Set expected length slightly less than actual total
+    expected_length = len(part1.encode('utf-8')) + 5  # Will be exceeded by part2
+    payload = b"dummy"
+
+    # Setup ruleset_control
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=expected_length,
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        # Send part 1
+        mock_decode.return_value = {'text': part1}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+        assert game_state.ruleset_description is None  # Not yet
+
+        # Send part 2 (exceeds expected length)
+        mock_decode.return_value = {'text': part2}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble when threshold is exceeded (using >=)
+    assert game_state.ruleset_description == expected_total
+    assert game_state.ruleset_description_parts == []
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_replaces_previous(mock_client, game_state):
+    """Handler should replace previous description when new one is assembled."""
+    old_desc = "Old description"
+    new_desc = "New description"
+    payload = b"dummy"
+
+    # Set old description
+    game_state.ruleset_description = old_desc
+
+    # Setup ruleset_control for new description
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(new_desc.encode('utf-8')),
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': new_desc}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should replace old with new
+    assert game_state.ruleset_description == new_desc
+    assert game_state.ruleset_description != old_desc
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_calls_decode(mock_client, game_state):
+    """Handler should call decode_ruleset_description_part with payload."""
+    text = "Test description"
+    payload = b"test_payload_data"
+
+    # Setup ruleset_control
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=len(text.encode('utf-8')),
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        mock_decode.return_value = {'text': text}
+
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+        # Verify decoder was called with payload
+        mock_decode.assert_called_once_with(payload)
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_description_part_byte_calculation_accuracy(mock_client, game_state):
+    """Handler should count UTF-8 bytes accurately, not characters."""
+    # String with multi-byte characters
+    part1 = "Hello"  # 5 bytes ASCII
+    part2 = " 世界"   # 1 space (1 byte) + 2 Chinese chars (6 bytes) = 7 bytes
+    # Total: 5 + 7 = 12 bytes, but only 8 characters
+    expected_bytes = len((part1 + part2).encode('utf-8'))
+    assert expected_bytes == 12  # Verify our calculation
+    payload = b"dummy"
+
+    # Setup with byte length (not character count)
+    from fc_client.game_state import RulesetControl
+    game_state.ruleset_control = RulesetControl(
+        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
+        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
+        num_tiledef_types=0, num_base_types=0, num_road_types=0,
+        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
+        num_achievement_types=0, num_multipliers=0, num_styles=0,
+        num_music_styles=0, government_count=0, nation_count=0,
+        num_city_styles=0, terrain_count=0, num_specialist_types=0,
+        num_normal_specialists=0, num_nation_groups=0, num_nation_sets=0,
+        preferred_tileset="", preferred_soundset="", preferred_musicset="",
+        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        desc_length=expected_bytes,  # 12 bytes, not 8 characters
+        num_counters=0
+    )
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+        # Send part 1 (5 bytes)
+        mock_decode.return_value = {'text': part1}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+        assert game_state.ruleset_description is None  # Not complete (5 < 12)
+
+        # Send part 2 (7 bytes, total 12)
+        mock_decode.return_value = {'text': part2}
+        await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
+
+    # Should assemble when byte count (not char count) reaches threshold
+    assert game_state.ruleset_description == part1 + part2
+    assert len(game_state.ruleset_description) == 8  # 8 characters
+    assert len(game_state.ruleset_description.encode('utf-8')) == 12  # 12 bytes
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_control_resets_accumulator(mock_client, game_state):
+    """Handler should reset description accumulator when RULESET_CONTROL received."""
+    # Setup: Pre-fill accumulator with stale data
+    game_state.ruleset_description_parts = ["stale part 1", "stale part 2"]
+    game_state.ruleset_description = "stale complete description"
+
+    # Create sample RULESET_CONTROL packet data
+    from fc_client.game_state import RulesetControl
+    ruleset_data = {
+        'num_unit_classes': 5, 'num_unit_types': 10, 'num_impr_types': 15,
+        'num_tech_classes': 3, 'num_tech_types': 20, 'num_extra_types': 8,
+        'num_tiledef_types': 4, 'num_base_types': 6, 'num_road_types': 7,
+        'num_resource_types': 12, 'num_goods_types': 3, 'num_disaster_types': 5,
+        'num_achievement_types': 10, 'num_multipliers': 4, 'num_styles': 3,
+        'num_music_styles': 2, 'government_count': 8, 'nation_count': 50,
+        'num_city_styles': 5, 'terrain_count': 15, 'num_specialist_types': 4,
+        'num_normal_specialists': 3, 'num_nation_groups': 10, 'num_nation_sets': 5,
+        'preferred_tileset': "amplio2", 'preferred_soundset': "stdsounds",
+        'preferred_musicset': "stdmusic", 'popup_tech_help': True,
+        'name': "Civ2Civ3", 'version': "3.3", 'alt_dir': "",
+        'desc_length': 1000, 'num_counters': 2
+    }
+    payload = b"dummy"
+
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+        mock_decode.return_value = ruleset_data
+
+        await handlers.handle_ruleset_control(mock_client, game_state, payload)
+
+    # Should reset accumulator
+    assert game_state.ruleset_description_parts == []
+    assert game_state.ruleset_description is None
+    # Should store new ruleset_control
+    assert game_state.ruleset_control is not None
+    assert game_state.ruleset_control.name == "Civ2Civ3"
+
+
+# PACKET_RULESET_NATION_SETS Tests
+
+async def test_handle_ruleset_nation_sets_stores_in_game_state(mock_client, game_state):
+    """Test handler stores nation sets in game state."""
+    from fc_client.game_state import NationSet
+
+    payload = (
+        b'\x02'  # nsets=2
+        b'Core\x00Extended\x00'
+        b'core\x00extended\x00'
+        b'Default nations\x00Additional nations\x00'
+    )
+
+    await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
+
+    assert len(game_state.nation_sets) == 2
+    assert game_state.nation_sets[0].name == 'Core'
+    assert game_state.nation_sets[0].rule_name == 'core'
+    assert game_state.nation_sets[0].description == 'Default nations'
+    assert game_state.nation_sets[1].name == 'Extended'
+
+
+async def test_handle_ruleset_nation_sets_replaces_previous(mock_client, game_state):
+    """Test handler replaces previous nation sets data."""
+    from fc_client.game_state import NationSet
+
+    game_state.nation_sets = [NationSet('Old', 'old', 'Old data')]
+
+    payload = b'\x01Core\x00core\x00New data\x00'
+
+    await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
+
+    assert len(game_state.nation_sets) == 1
+    assert game_state.nation_sets[0].name == 'Core'
+
+
+async def test_handle_ruleset_nation_sets_empty_list(mock_client, game_state):
+    """Test handler handles nsets=0 correctly."""
+    payload = b'\x00'  # nsets=0
+
+    await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
+
+    assert game_state.nation_sets == []
+
+
+async def test_handle_ruleset_nation_sets_calls_decoder(mock_client, game_state):
+    """Test handler calls decoder function."""
+    payload = b'\x01Core\x00core\x00Description\x00'
+
+    with patch('fc_client.handlers.protocol.decode_ruleset_nation_sets') as mock_decode:
+        mock_decode.return_value = {
+            'nsets': 1,
+            'names': ['Core'],
+            'rule_names': ['core'],
+            'descriptions': ['Description']
+        }
+
+        await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
+
+        mock_decode.assert_called_once_with(payload)

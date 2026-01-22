@@ -128,6 +128,10 @@ async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState,
     # Store in game state
     game_state.ruleset_control = ruleset
 
+    # Reset description accumulator for new ruleset
+    game_state.ruleset_description_parts = []
+    game_state.ruleset_description = None
+
     # Display summary (using attribute access)
     print(f"\n[RULESET] {ruleset.name} v{ruleset.version}")
     print(f"  Units: {ruleset.num_unit_types} ({ruleset.num_unit_classes} classes)")
@@ -162,6 +166,110 @@ async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState,
 
     print(f"\n[RULESET SUMMARY]")
     print(preview)
+
+
+async def handle_ruleset_description_part(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_DESCRIPTION_PART.
+
+    This packet contains one chunk of the ruleset description text.
+    Multiple parts are sent after RULESET_CONTROL and must be accumulated
+    until total bytes >= desc_length from ruleset_control.
+
+    Multi-part assembly algorithm:
+    1. Decode the text chunk from payload
+    2. Append to game_state.ruleset_description_parts
+    3. Calculate total accumulated bytes (UTF-8 encoding)
+    4. If total >= expected desc_length:
+       - Join all parts into complete description
+       - Store in game_state.ruleset_description
+       - Clear accumulator for next ruleset load
+
+    Updates game_state.ruleset_description_parts (accumulator) and
+    game_state.ruleset_description (final assembled text).
+    """
+    # Decode packet (simple, non-delta)
+    data = protocol.decode_ruleset_description_part(payload)
+    chunk_text = data['text']
+
+    # Append chunk to accumulator
+    game_state.ruleset_description_parts.append(chunk_text)
+
+    # Calculate total bytes accumulated (UTF-8 encoding, not character count)
+    total_bytes = sum(len(part.encode('utf-8')) for part in game_state.ruleset_description_parts)
+
+    # Check if we have expected desc_length from RULESET_CONTROL
+    if game_state.ruleset_control is None:
+        print(f"\n[WARNING] Received RULESET_DESCRIPTION_PART before RULESET_CONTROL")
+        print(f"  Accumulated {len(game_state.ruleset_description_parts)} part(s), {total_bytes} bytes")
+        return
+
+    expected_length = game_state.ruleset_control.desc_length
+
+    # Print progress
+    progress_pct = min(100, int(100 * total_bytes / expected_length)) if expected_length > 0 else 0
+    print(f"[RULESET DESC] Part {len(game_state.ruleset_description_parts)}: "
+          f"{len(chunk_text)} bytes (total: {total_bytes}/{expected_length} bytes, {progress_pct}%)")
+
+    # Check if assembly is complete
+    if total_bytes >= expected_length:
+        # Join all parts into complete description
+        complete_description = ''.join(game_state.ruleset_description_parts)
+        game_state.ruleset_description = complete_description
+
+        # Clear accumulator
+        game_state.ruleset_description_parts = []
+
+        # Display completion message
+        print(f"\n[RULESET DESCRIPTION] Assembly complete: {len(complete_description)} characters")
+
+        # Show preview (first 300 chars)
+        if len(complete_description) > 300:
+            preview = complete_description[:300] + "..."
+        else:
+            preview = complete_description
+
+        print(preview)
+        print()  # Blank line for readability
+
+
+async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_NATION_SETS.
+
+    This packet contains the list of available nation sets (collections of nations
+    grouped by theme, era, or region). Sent during game initialization.
+
+    Updates game_state.nation_sets with list of NationSet objects.
+    """
+    from .game_state import NationSet
+
+    # Decode packet
+    data = protocol.decode_ruleset_nation_sets(payload)
+
+    # Transform parallel arrays into list of objects
+    nation_sets = []
+    for i in range(data['nsets']):
+        nation_set = NationSet(
+            name=data['names'][i],
+            rule_name=data['rule_names'][i],
+            description=data['descriptions'][i]
+        )
+        nation_sets.append(nation_set)
+
+    # Store in game state (replaces previous data)
+    game_state.nation_sets = nation_sets
+
+    # Display summary
+    print(f"\n[NATION SETS] {len(nation_sets)} available")
+    for nation_set in nation_sets:
+        # Truncate long descriptions for console output
+        desc_preview = (nation_set.description[:60] + "..."
+                       if len(nation_set.description) > 60
+                       else nation_set.description)
+        print(f"  - {nation_set.name} ({nation_set.rule_name})")
+        if desc_preview:
+            print(f"    {desc_preview}")
 
 
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
