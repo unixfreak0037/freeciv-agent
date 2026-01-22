@@ -22,6 +22,7 @@ PACKET_RULESET_DESCRIPTION_PART = 247
 PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
 PACKET_NATION_AVAILABILITY = 237
+PACKET_RULESET_GAME = 141
 
 # Version constants
 MAJOR_VERSION = 3
@@ -792,6 +793,108 @@ def decode_nation_availability(payload: bytes) -> dict:
     result['nationset_change'] = bool(bitvector & (1 << 2))
 
     return result
+
+
+def decode_ruleset_game(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_GAME packet (type 141).
+
+    This packet transmits core ruleset game settings including veteran system
+    configuration and UI background color.
+
+    WARNING: The actual packet structure does NOT match packets.def lines 1490-1508!
+    The observed structure (FreeCiv 3.2.2) is:
+    - 4 unknown UINT8 fields (purpose unclear - may be version-specific)
+    - UINT8 veteran_levels
+    - STRING veteran_name[veteran_levels][MAX_LEN_NAME]
+    - UINT16 power_fact[veteran_levels]
+    - MOVEFRAGS move_bonus[veteran_levels]                   # MOVEFRAGS = UINT32
+    - UINT8 base_raise_chance[veteran_levels]
+    - UINT8 work_raise_chance[veteran_levels]
+    - UINT8 background_red
+    - UINT8 background_green
+    - UINT8 background_blue
+
+    The packets.def specification shows default_specialist, global_init_techs, and
+    global_init_buildings should come first, but they are not present in the observed
+    packet structure. This may be a version-specific difference or conditional compilation.
+
+    TODO: Investigate actual packet generation code to determine correct structure.
+
+    This is a non-delta protocol packet - all fields are always present.
+
+    Returns dictionary with all packet fields.
+    """
+    offset = 0
+
+    # Skip 4 unknown bytes at the start
+    # Observed values: 248, 63, 1, 23 (meaning unclear)
+    unknown_bytes = []
+    for i in range(4):
+        val, offset = decode_uint8(payload, offset)
+        unknown_bytes.append(val)
+
+    # Set missing fields to defaults (not present in actual packet)
+    default_specialist = 0
+    global_init_techs_count = 0
+    global_init_techs = []
+    global_init_buildings_count = 0
+    global_init_buildings = []
+
+    # Veteran system configuration
+    veteran_levels, offset = decode_uint8(payload, offset)
+
+    # Veteran names (variable-length strings)
+    veteran_name = []
+    for i in range(veteran_levels):
+        name, offset = decode_string(payload, offset)
+        veteran_name.append(name)
+
+    # Veteran power factors (UINT16 each)
+    power_fact = []
+    for i in range(veteran_levels):
+        power, offset = decode_uint16(payload, offset)
+        power_fact.append(power)
+
+    # Veteran move bonuses (MOVEFRAGS = UINT32 each)
+    move_bonus = []
+    for i in range(veteran_levels):
+        bonus, offset = decode_uint32(payload, offset)
+        move_bonus.append(bonus)
+
+    # Base raise chance (UINT8 each)
+    base_raise_chance = []
+    for i in range(veteran_levels):
+        chance, offset = decode_uint8(payload, offset)
+        base_raise_chance.append(chance)
+
+    # Work raise chance (UINT8 each)
+    work_raise_chance = []
+    for i in range(veteran_levels):
+        chance, offset = decode_uint8(payload, offset)
+        work_raise_chance.append(chance)
+
+    # Background color (RGB)
+    background_red, offset = decode_uint8(payload, offset)
+    background_green, offset = decode_uint8(payload, offset)
+    background_blue, offset = decode_uint8(payload, offset)
+
+    return {
+        'default_specialist': default_specialist,
+        'global_init_techs_count': global_init_techs_count,
+        'global_init_techs': global_init_techs,
+        'global_init_buildings_count': global_init_buildings_count,
+        'global_init_buildings': global_init_buildings,
+        'veteran_levels': veteran_levels,
+        'veteran_name': veteran_name,
+        'power_fact': power_fact,
+        'move_bonus': move_bonus,
+        'base_raise_chance': base_raise_chance,
+        'work_raise_chance': work_raise_chance,
+        'background_red': background_red,
+        'background_green': background_green,
+        'background_blue': background_blue,
+    }
 
 
 # ============================================================================

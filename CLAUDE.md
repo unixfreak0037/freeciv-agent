@@ -91,26 +91,38 @@ The source code for freeciv is located in the `freeciv` directory. It is made av
 
 ### FreeCiv Protocol
 
-**IMPORTANT: When implementing protocol features, consult sources in this order:**
+**CRITICAL: When implementing protocol features, consult sources in this order:**
 
-1. **freeciv/common/generate_packets.py** (lines 1-3000+) - The code generator
-   - Shows actual implementation details (field order, encoding logic, optimizations)
-   - Reveals critical details not obvious from packet specifications
-   - Example: Lines 2267-2282 show bitvector is transmitted BEFORE key fields
-   - Example: Lines 1590-1730 show boolean header folding implementation
+1. **Captured packets from real server** - The ultimate source of truth
+   - Run `python3 fc_ai.py --debug-packets` to capture actual packet bytes
+   - Examine raw bytes with `xxd packets/inbound_*_typeNNN.packet`
+   - Real server behavior is the ONLY definitive source
 
 2. **Generated C code** - The actual protocol implementation
    - `freeciv/common/packets_gen.c` - Generated send/receive functions
    - `freeciv/common/packets_gen.h` - Generated packet structures
-   - This is the ground truth for how packets are actually encoded/decoded
+   - This shows HOW packets are actually encoded/decoded by the server
+   - Search for `send_packet_<name>` and `receive_packet_<name>` functions
 
-3. **freeciv/common/networking/packets.def** (2477 lines) - The protocol specification
-   - High-level packet structure definitions with type mappings (BOOL, UINT8, STRING, etc.)
-   - Packet numbers range from 0-520 (with 256-511 reserved for freeciv-web)
-   - Includes metadata about packet flags (is-info, is-game-info, force, etc.)
-   - **Note:** This is a specification, not the implementation - implementation details may differ
+3. **freeciv/common/generate_packets.py** (lines 1-3000+) - The code generator
+   - Shows packet generation logic (field order, encoding rules, optimizations)
+   - Reveals implementation details not in specifications
+   - Example: Lines 2267-2282 show bitvector is transmitted BEFORE key fields
+   - Example: Lines 1590-1730 show boolean header folding implementation
 
-**Why this order matters:** The packets.def file defines WHAT packets contain, but generate_packets.py and the generated code define HOW they're transmitted. Critical details like field order, boolean folding, and bitvector placement are only clear from the generated code.
+4. **freeciv/common/networking/packets.def** (2477 lines) - DO NOT TRUST AS PRIMARY SOURCE
+   - ⚠️ **WARNING:** packets.def is often WRONG or INCOMPLETE
+   - Example: PACKET_RULESET_GAME (141) specification shows fields that don't exist in actual packets
+   - Use ONLY as a last resort for high-level overview
+   - NEVER implement based solely on packets.def without verification
+   - Packet numbers and type mappings are usually accurate
+   - Field lists, field order, and conditional fields are UNRELIABLE
+
+**Why this order matters:**
+- packets.def is a specification that may not match actual implementation
+- The generated C code is what the server actually runs
+- Real captured packets prove what's actually transmitted
+- **LESSON LEARNED:** We wasted hours implementing PACKET_RULESET_GAME based on packets.def, only to discover the actual packet structure was completely different. Always start with captured packets or generated code.
 
 ### Current State
 
@@ -129,7 +141,7 @@ The project has a working async network client that can connect to FreeCiv serve
 10. ✅ Packet debugger utility for network protocol analysis
 
 **To Do:**
-1. **Protocol Implementation**: Implement encoding/decoding for remaining ~515 packet types defined in `packets.def`
+1. **Protocol Implementation**: Implement encoding/decoding for remaining ~515 packet types (packet type numbers from `packets.def`, but structure must be verified from captured packets and generated C code)
 2. **Game State Management**: Expand tracking to include players, cities, units, map tiles, etc.
 3. **AI Strategy**: Implement AI decision-making logic for game actions
 4. **Turn Management**: Handle turn-based game loop and action submission
@@ -682,63 +694,87 @@ Handlers receive packet data and client instance, allowing them to update game s
 - **25** (SERVER_INFO): Server metadata (turn, year, phase, etc.) with delta support
 - **29** (CHAT_MSG): Chat messages from server/players with delta support
 
-Approximately 515 additional packet types remain to be implemented from packets.def.
+Approximately 515 additional packet types remain to be implemented. While packets.def lists packet type numbers and names, the actual structure of each packet MUST be verified from captured packets and generated C code.
 
 ### Protocol Implementation Best Practices
 
+**⚠️ CRITICAL: NEVER trust packets.def as your primary source! ⚠️**
+
 **When implementing a new packet decoder:**
 
-1. **Start with source code, not specifications:**
-   - First: Examine `freeciv/common/generate_packets.py` for the packet generation logic
-   - Second: Look at generated C code in `freeciv/common/packets_gen.c` for actual encoding
-   - Last: Consult `packets.def` for high-level structure
-   - **Why:** Implementation details (field order, optimizations) are only visible in generated code
-
-2. **Use captured packets for validation:**
+1. **ALWAYS start with captured packets:**
    - Enable packet debugger: `python3 fc_ai.py --debug-packets`
    - Capture real server packets in `packets/` directory
-   - Use captured bytes as test fixtures for unit tests
-   - Compare your decoder output against known server behavior
+   - Examine raw bytes: `xxd packets/inbound_*_typeNNN.packet`
+   - This is your GROUND TRUTH - the actual bytes the server sends
+   - **Example:** PACKET_RULESET_GAME (141) packets.def was completely wrong - captured packet showed different structure
 
-3. **Test with known-good data:**
+2. **Examine generated C code:**
+   - Search `freeciv/common/packets_gen.c` for `send_packet_<name>` function
+   - This shows the EXACT encoding order and field types
+   - Look for `dio_put_uint8`, `dio_put_uint16`, `dio_put_string`, etc.
+   - Example: `grep -A 100 "send_packet_ruleset_game" freeciv/common/packets_gen.c`
+
+3. **Consult generate_packets.py for encoding rules:**
+   - Understand delta protocol: `freeciv/common/generate_packets.py` lines 2267-2282
+   - Boolean header folding: lines 1590-1730
+   - Array encoding: lines 1241-1387
+   - This explains HOW the generator creates the C code
+
+4. **Use packets.def ONLY as a last resort:**
+   - ⚠️ packets.def is a specification, NOT the implementation
+   - It may be outdated, wrong, or conditionally compiled differently
+   - Use ONLY for: packet numbers, type name mappings (TECH=UINT16, etc.)
+   - NEVER trust field order or field presence without verification
+   - Example failures: PACKET_RULESET_GAME fields completely wrong
+
+5. **Create test fixtures from captured data:**
    ```python
-   # Create test fixtures from captured packets
-   PACKET_SAMPLE = bytes.fromhex("03 00 00 00 00...")  # From packets/inbound_*.packet
-   EXPECTED = {
-       'id': 0,
-       'name': 'expected_value',
-       # ... expected fields
-   }
+   # ALWAYS use real captured packet bytes for tests
+   # From packets/inbound_0123_type141.packet
+   REAL_PACKET = bytes.fromhex("f8 3f 01 17 04 67 72 65 65 6e 00...")
 
-   result = decode_packet(PACKET_SAMPLE)
-   assert result == EXPECTED  # Immediate validation
+   result = decode_packet_ruleset_game(REAL_PACKET)
+   # Verify against what you see in the hex dump
+   assert result['veteran_levels'] == 4  # Byte 4 = 0x04
+   assert result['veteran_name'][0] == 'green'  # Bytes 5-10
    ```
 
-4. **Watch for protocol version differences:**
-   - Packet encoding may differ between FreeCiv versions
-   - Always check server version in test environment
-   - Document which version your decoder targets
-
-5. **Common debugging techniques:**
+6. **Debugging workflow:**
    ```bash
-   # Compare first bytes of multiple packets side-by-side
-   for f in packets/inbound_*_type148.packet; do
-       echo -n "$(basename $f): "
-       xxd $f | head -1
+   # 1. Capture packets
+   python3 fc_ai.py --debug-packets
+
+   # 2. Find the packet type you're implementing
+   ls packets/*_type141.packet
+
+   # 3. Examine the hex dump
+   xxd packets/inbound_0050_type141.packet | less
+
+   # 4. Compare multiple packets to find patterns
+   for f in packets/*_type141.packet; do
+       echo "=== $f ==="
+       xxd $f | head -5
    done
 
-   # Look for patterns in incrementing fields (IDs, counters)
-   xxd packets/inbound_0020_type148.packet | head -3
-   xxd packets/inbound_0021_type148.packet | head -3
+   # 5. Look at generated C code
+   grep -A 50 "send_packet_ruleset_game" freeciv/common/packets_gen.c
    ```
 
-6. **Validate against FreeCiv source:**
+7. **Validate against FreeCiv source:**
    - Use the `freeciv-research` agent to examine server code
    - Compare your Python implementation against C send/receive functions
-   - Check for special cases, edge conditions, version-specific behavior
+   - Check `freeciv/server/*.c` for how the server populates packet fields
+   - Check for version-specific behavior, conditional compilation
 
-**Ground truth hierarchy:**
-1. Actual server behavior (captured packets) - highest authority
-2. Generated C code (`packets_gen.c`) - implementation reference
-3. Code generator (`generate_packets.py`) - encoding logic
-4. Specification (`packets.def`) - structural reference
+**Ground truth hierarchy (from most to least authoritative):**
+1. ✅ **Actual server packets** (captured with --debug-packets) - ULTIMATE TRUTH
+2. ✅ **Generated C code** (`packets_gen.c`) - What the server actually runs
+3. ✅ **Code generator** (`generate_packets.py`) - Encoding rules and logic
+4. ⚠️ **packets.def** - Specification that may not match reality - USE WITH EXTREME CAUTION
+
+**Real-world example of packets.def failure:**
+- PACKET_RULESET_GAME (141) packets.def shows: default_specialist, global_init_techs_count, global_init_techs[], global_init_buildings_count, global_init_buildings[], then veteran fields
+- Actual packet from FreeCiv 3.2.2: 4 unknown bytes, then veteran fields directly
+- Result: 100% of the specification was wrong for this packet
+- Solution: Captured real packet, decoded manually, found actual structure

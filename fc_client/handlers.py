@@ -417,6 +417,64 @@ async def handle_nation_availability(client: 'FreeCivClient', game_state: GameSt
                     break
 
 
+async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_GAME (141) - core game configuration.
+
+    This packet transmits core ruleset game settings including:
+    - Default specialist configuration
+    - Global starting techs and buildings (given to all civilizations)
+    - Veteran system configuration (levels, names, bonuses, advancement chances)
+    - Background color for UI rendering
+
+    Updates game_state.ruleset_game with the complete game configuration.
+    """
+    from .game_state import RulesetGame
+
+    # Decode packet
+    data = protocol.decode_ruleset_game(payload)
+
+    # Create RulesetGame object
+    ruleset_game = RulesetGame(
+        default_specialist=data['default_specialist'],
+        global_init_techs_count=data['global_init_techs_count'],
+        global_init_techs=data['global_init_techs'],
+        global_init_buildings_count=data['global_init_buildings_count'],
+        global_init_buildings=data['global_init_buildings'],
+        veteran_levels=data['veteran_levels'],
+        veteran_name=data['veteran_name'],
+        power_fact=data['power_fact'],
+        move_bonus=data['move_bonus'],
+        base_raise_chance=data['base_raise_chance'],
+        work_raise_chance=data['work_raise_chance'],
+        background_red=data['background_red'],
+        background_green=data['background_green'],
+        background_blue=data['background_blue'],
+    )
+
+    # Store in game state
+    game_state.ruleset_game = ruleset_game
+
+    # Display summary
+    print(f"\n[RULESET GAME] Game Configuration")
+    print(f"  Default Specialist: {ruleset_game.default_specialist}")
+    print(f"  Global Starting Techs: {ruleset_game.global_init_techs_count} "
+          f"(IDs: {ruleset_game.global_init_techs})")
+    print(f"  Global Starting Buildings: {ruleset_game.global_init_buildings_count} "
+          f"(IDs: {ruleset_game.global_init_buildings})")
+    print(f"  Background Color: RGB({ruleset_game.background_red}, "
+          f"{ruleset_game.background_green}, {ruleset_game.background_blue})")
+
+    # Display veteran system
+    print(f"\n  Veteran System: {ruleset_game.veteran_levels} levels")
+    for i in range(ruleset_game.veteran_levels):
+        print(f"    {i}: {ruleset_game.veteran_name[i]} - "
+              f"Power: {ruleset_game.power_fact[i]}, "
+              f"Move: {ruleset_game.move_bonus[i]}, "
+              f"Base: {ruleset_game.base_raise_chance[i]}%, "
+              f"Work: {ruleset_game.work_raise_chance[i]}%")
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.

@@ -115,6 +115,30 @@ class Nation:
     init_buildings: List[int]         # Starting building/improvement IDs
 
 
+@dataclass
+class RulesetGame:
+    """
+    Ruleset game configuration from PACKET_RULESET_GAME (packet 141).
+
+    Contains core game settings including default specialist, global starting
+    resources for all civilizations, and veteran system configuration.
+    """
+    default_specialist: int                    # Default specialist type ID
+    global_init_techs_count: int              # Number of global starting techs
+    global_init_techs: List[int]              # Tech IDs given to all civilizations
+    global_init_buildings_count: int          # Number of global starting buildings
+    global_init_buildings: List[int]          # Building IDs given to all civilizations
+    veteran_levels: int                       # Number of veteran levels
+    veteran_name: List[str]                   # Names for each veteran level
+    power_fact: List[int]                     # Power factor for each level (UINT16)
+    move_bonus: List[int]                     # Move bonus for each level (MOVEFRAGS=UINT32)
+    base_raise_chance: List[int]              # Base raise chance % for each level
+    work_raise_chance: List[int]              # Work raise chance % for each level
+    background_red: int                       # Background color red component (0-255)
+    background_green: int                     # Background color green component (0-255)
+    background_blue: int                      # Background color blue component (0-255)
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -130,3 +154,4 @@ class GameState:
         self.nation_groups: List[NationGroup] = []  # Available nation groups (PACKET_RULESET_NATION_GROUPS)
         self.nations: Dict[int, Nation] = {}  # Nations by ID (PACKET_RULESET_NATION)
         self.nation_availability: Optional[Dict[str, Any]] = None  # Nation availability tracking (PACKET_NATION_AVAILABILITY)
+        self.ruleset_game: Optional[RulesetGame] = None  # Core game configuration (PACKET_RULESET_GAME)

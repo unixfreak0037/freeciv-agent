@@ -1398,3 +1398,147 @@ def test_decode_nation_availability_from_captured_packet():
     assert result['nationset_change'] is False  # Bit 2 not set
     # First few nations should be unavailable in this test
     assert result['is_pickable'][0] is False
+
+
+def test_decode_ruleset_game_minimal():
+    """Test decode_ruleset_game with minimal configuration (1 veteran level)."""
+    # Build payload with actual observed structure
+    # 4 unknown bytes (purpose unclear)
+    payload = struct.pack('<BBBB', 248, 63, 1, 23)
+
+    # veteran_levels
+    payload += struct.pack('<B', 1)  # veteran_levels
+
+    # 1 veteran level: name
+    payload += b'Green\x00'  # veteran_name[0]
+
+    # 1 veteran level: power_fact (UINT16)
+    payload += struct.pack('>H', 100)  # power_fact[0]
+
+    # 1 veteran level: move_bonus (MOVEFRAGS = UINT32)
+    payload += struct.pack('>I', 0)  # move_bonus[0]
+
+    # 1 veteran level: base_raise_chance
+    payload += struct.pack('<B', 50)  # base_raise_chance[0]
+
+    # 1 veteran level: work_raise_chance
+    payload += struct.pack('<B', 0)  # work_raise_chance[0]
+
+    # Background color (RGB)
+    payload += struct.pack('<BBB', 139, 140, 141)  # background_red, green, blue
+
+    result = protocol.decode_ruleset_game(payload)
+    assert result['default_specialist'] == 0
+    assert result['global_init_techs_count'] == 0
+    assert result['global_init_techs'] == []
+    assert result['global_init_buildings_count'] == 0
+    assert result['global_init_buildings'] == []
+    assert result['veteran_levels'] == 1
+    assert result['veteran_name'] == ['Green']
+    assert result['power_fact'] == [100]
+    assert result['move_bonus'] == [0]
+    assert result['base_raise_chance'] == [50]
+    assert result['work_raise_chance'] == [0]
+    assert result['background_red'] == 139
+    assert result['background_green'] == 140
+    assert result['background_blue'] == 141
+
+
+def test_decode_ruleset_game_with_techs_and_buildings():
+    """Test decode_ruleset_game with multiple veteran levels."""
+    # Build payload with actual observed structure
+    # 4 unknown bytes
+    payload = struct.pack('<BBBB', 248, 63, 1, 23)
+
+    # 2 veteran levels
+    payload += struct.pack('<B', 2)  # veteran_levels
+
+    # Veteran names
+    payload += b'Rookie\x00'  # veteran_name[0]
+    payload += b'Veteran\x00'  # veteran_name[1]
+
+    # Power factors
+    payload += struct.pack('>H', 100)  # power_fact[0]
+    payload += struct.pack('>H', 150)  # power_fact[1]
+
+    # Move bonuses
+    payload += struct.pack('>I', 0)  # move_bonus[0]
+    payload += struct.pack('>I', 3)  # move_bonus[1]
+
+    # Base raise chances
+    payload += struct.pack('<B', 50)  # base_raise_chance[0]
+    payload += struct.pack('<B', 33)  # base_raise_chance[1]
+
+    # Work raise chances
+    payload += struct.pack('<B', 0)  # work_raise_chance[0]
+    payload += struct.pack('<B', 0)  # work_raise_chance[1]
+
+    # Background color
+    payload += struct.pack('<BBB', 255, 255, 255)
+
+    result = protocol.decode_ruleset_game(payload)
+    # Tech/building fields not in actual packet (set to defaults)
+    assert result['default_specialist'] == 0
+    assert result['global_init_techs_count'] == 0
+    assert result['global_init_techs'] == []
+    assert result['global_init_buildings_count'] == 0
+    assert result['global_init_buildings'] == []
+    assert result['veteran_levels'] == 2
+    assert result['veteran_name'] == ['Rookie', 'Veteran']
+    assert result['power_fact'] == [100, 150]
+    assert result['move_bonus'] == [0, 3]
+    assert result['base_raise_chance'] == [50, 33]
+    assert result['work_raise_chance'] == [0, 0]
+    assert result['background_red'] == 255
+    assert result['background_green'] == 255
+    assert result['background_blue'] == 255
+
+
+def test_decode_ruleset_game_max_veteran_levels():
+    """Test decode_ruleset_game with maximum realistic veteran levels."""
+    # Build payload with actual observed structure
+    # 4 unknown bytes
+    payload = struct.pack('<BBBB', 248, 63, 1, 23)
+
+    # 10 veteran levels
+    veteran_count = 10
+    payload += struct.pack('<B', veteran_count)
+
+    # Veteran names
+    names = ['Green', 'Rookie', 'Veteran', 'Hardened', 'Elite',
+             'Champion', 'Legendary', 'Hero', 'Immortal', 'Divine']
+    for name in names:
+        payload += name.encode('utf-8') + b'\x00'
+
+    # Power factors (increasing)
+    for i in range(veteran_count):
+        payload += struct.pack('>H', 100 + i * 10)
+
+    # Move bonuses (increasing)
+    for i in range(veteran_count):
+        payload += struct.pack('>I', i)
+
+    # Base raise chances (decreasing)
+    for i in range(veteran_count):
+        payload += struct.pack('<B', max(0, 50 - i * 5))
+
+    # Work raise chances (decreasing)
+    for i in range(veteran_count):
+        payload += struct.pack('<B', max(0, 20 - i * 2))
+
+    # Background color
+    payload += struct.pack('<BBB', 50, 100, 150)
+
+    result = protocol.decode_ruleset_game(payload)
+    assert result['default_specialist'] == 0
+    assert result['global_init_techs_count'] == 0
+    assert result['global_init_buildings_count'] == 0
+    assert result['veteran_levels'] == 10
+    assert result['veteran_name'] == names
+    assert result['power_fact'] == [100 + i * 10 for i in range(10)]
+    assert result['move_bonus'] == list(range(10))
+    assert result['base_raise_chance'] == [max(0, 50 - i * 5) for i in range(10)]
+    assert result['work_raise_chance'] == [max(0, 20 - i * 2) for i in range(10)]
+    assert result['background_red'] == 50
+    assert result['background_green'] == 100
+    assert result['background_blue'] == 150

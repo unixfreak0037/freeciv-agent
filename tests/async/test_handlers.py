@@ -6,6 +6,7 @@ and event signaling.
 """
 
 import asyncio
+import struct
 from unittest.mock import Mock, patch, AsyncMock
 import pytest
 
@@ -1377,3 +1378,62 @@ async def test_handle_nation_availability_with_nations_loaded(mock_client, game_
     # Handler should successfully cross-reference with nation data
     # (We can't directly test console output, but we verify no exceptions occur)
     # and the availability data matches the nation IDs we have
+
+
+async def test_handle_ruleset_game(mock_client, game_state):
+    """Test handle_ruleset_game with complete game configuration."""
+    # Build payload with actual observed structure
+    # 4 unknown bytes
+    payload = struct.pack('<BBBB', 248, 63, 1, 23)
+
+    # 3 veteran levels
+    payload += struct.pack('<B', 3)  # veteran_levels
+
+    # Veteran names
+    payload += b'Green\x00'
+    payload += b'Veteran\x00'
+    payload += b'Hardened\x00'
+
+    # Power factors
+    payload += struct.pack('>H', 100)
+    payload += struct.pack('>H', 150)
+    payload += struct.pack('>H', 175)
+
+    # Move bonuses
+    payload += struct.pack('>I', 0)
+    payload += struct.pack('>I', 3)
+    payload += struct.pack('>I', 6)
+
+    # Base raise chances
+    payload += struct.pack('<B', 50)
+    payload += struct.pack('<B', 33)
+    payload += struct.pack('<B', 20)
+
+    # Work raise chances
+    payload += struct.pack('<B', 0)
+    payload += struct.pack('<B', 5)
+    payload += struct.pack('<B', 10)
+
+    # Background color (RGB)
+    payload += struct.pack('<BBB', 139, 140, 141)
+
+    # Call handler
+    await handlers.handle_ruleset_game(mock_client, game_state, payload)
+
+    # Verify game state was updated
+    assert game_state.ruleset_game is not None
+    # Tech/building fields not in actual packet (defaults)
+    assert game_state.ruleset_game.default_specialist == 0
+    assert game_state.ruleset_game.global_init_techs_count == 0
+    assert game_state.ruleset_game.global_init_techs == []
+    assert game_state.ruleset_game.global_init_buildings_count == 0
+    assert game_state.ruleset_game.global_init_buildings == []
+    assert game_state.ruleset_game.veteran_levels == 3
+    assert game_state.ruleset_game.veteran_name == ['Green', 'Veteran', 'Hardened']
+    assert game_state.ruleset_game.power_fact == [100, 150, 175]
+    assert game_state.ruleset_game.move_bonus == [0, 3, 6]
+    assert game_state.ruleset_game.base_raise_chance == [50, 33, 20]
+    assert game_state.ruleset_game.work_raise_chance == [0, 5, 10]
+    assert game_state.ruleset_game.background_red == 139
+    assert game_state.ruleset_game.background_green == 140
+    assert game_state.ruleset_game.background_blue == 141
