@@ -139,6 +139,39 @@ class RulesetGame:
     background_blue: int                      # Background color blue component (0-255)
 
 
+@dataclass
+class Requirement:
+    """
+    Game requirement for disasters, buildings, techs, etc.
+
+    Requirements specify conditions that must be met for game elements to be
+    available or active. Used in multiple packet types including PACKET_RULESET_DISASTER.
+    """
+    type: int          # universals_n enum (VUT_*)
+    value: int         # Integer value (meaning depends on type)
+    range: int         # req_range enum
+    survives: bool     # Whether destroyed sources satisfy requirement
+    present: bool      # Whether requirement must be present (vs absent)
+    quiet: bool        # Whether to hide from help text
+
+
+@dataclass
+class DisasterType:
+    """
+    Disaster type configuration from PACKET_RULESET_DISASTER (packet 224).
+
+    Disasters are negative random events (fires, plagues, etc.) that can occur
+    in cities when requirements are met.
+    """
+    id: int                    # Disaster type ID (key)
+    name: str                  # Display name (variable-length, null-terminated)
+    rule_name: str             # Internal identifier (variable-length, null-terminated)
+    reqs_count: int            # Number of requirements
+    reqs: List[Requirement]    # Requirements list
+    frequency: int             # Base probability
+    effects: int               # Bitvector of disaster_effect_id flags
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -155,3 +188,4 @@ class GameState:
         self.nations: Dict[int, Nation] = {}  # Nations by ID (PACKET_RULESET_NATION)
         self.nation_availability: Optional[Dict[str, Any]] = None  # Nation availability tracking (PACKET_NATION_AVAILABILITY)
         self.ruleset_game: Optional[RulesetGame] = None  # Core game configuration (PACKET_RULESET_GAME)
+        self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)

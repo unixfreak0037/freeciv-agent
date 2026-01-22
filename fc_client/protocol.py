@@ -23,6 +23,7 @@ PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
 PACKET_NATION_AVAILABILITY = 237
 PACKET_RULESET_GAME = 141
+PACKET_RULESET_DISASTER = 224
 
 # Version constants
 MAJOR_VERSION = 3
@@ -894,6 +895,152 @@ def decode_ruleset_game(payload: bytes) -> dict:
         'background_red': background_red,
         'background_green': background_green,
         'background_blue': background_blue,
+    }
+
+
+def decode_requirement(data: bytes, offset: int) -> Tuple[dict, int]:
+    """
+    Decode a REQUIREMENT from packet payload (10 bytes).
+
+    Requirements specify conditions that must be met for game elements
+    (disasters, buildings, techs, etc.) to be available or active.
+
+    Structure (10 bytes):
+    - UINT8 type (universals_n enum - VUT_*)
+    - SINT32 value (meaning depends on type)
+    - UINT8 range (req_range enum)
+    - BOOL8 survives (whether destroyed sources satisfy requirement)
+    - BOOL8 present (whether requirement must be present vs absent)
+    - BOOL8 quiet (whether to hide from help text)
+
+    Args:
+        data: Byte array to read from
+        offset: Starting position
+
+    Returns:
+        Tuple of (requirement_dict, new_offset)
+    """
+    req_type, offset = decode_uint8(data, offset)
+    value, offset = decode_sint32(data, offset)
+    range_val, offset = decode_uint8(data, offset)
+    survives, offset = decode_bool(data, offset)
+    present, offset = decode_bool(data, offset)
+    quiet, offset = decode_bool(data, offset)
+
+    return {
+        'type': req_type,
+        'value': value,
+        'range': range_val,
+        'survives': survives,
+        'present': present,
+        'quiet': quiet
+    }, offset
+
+
+def decode_ruleset_disaster(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_DISASTER (224).
+
+    Disasters are negative random events (fires, plagues, etc.) that can occur
+    in cities when requirements are met. One packet is sent per disaster type
+    during game initialization.
+
+    WARNING: The actual packet structure does NOT match packets.def!
+    Real structure (confirmed from captured packets):
+    - UINT8 id (key field - disaster type ID)
+    - STRING name (variable-length, null-terminated)
+    - STRING rule_name (variable-length, null-terminated)
+    - UINT8 reqs_count (number of requirements, 0-255)
+    - REQUIREMENT reqs[reqs_count] (variable-length array, 10 bytes each)
+    - UINT8 frequency (base probability)
+    - BV_DISASTER_EFFECTS effects (1-byte bitvector, 7 bits used)
+
+    BV_DISASTER_EFFECTS bits:
+    - Bit 0: DE_DESTROY_BUILDING
+    - Bit 1: DE_REDUCE_POP
+    - Bit 2: DE_EMPTY_FOODSTOCK
+    - Bit 3: DE_EMPTY_PRODSTOCK
+    - Bit 4: DE_POLLUTION
+    - Bit 5: DE_FALLOUT
+    - Bit 6: DE_REDUCE_DESTROY
+
+    This is a non-delta protocol packet - uses manual decoder due to
+    complex variable-length REQUIREMENT array.
+
+    Returns:
+        Dictionary with decoded fields (id, name, rule_name,
+        reqs_count, reqs, frequency, effects)
+    """
+    offset = 0
+
+
+    # IMPORTANT: This packet CAN use delta protocol despite packets.def saying "lsend"!
+    # First disaster is sent full (no bitvector), subsequent ones use delta protocol.
+    # Detect by checking if first byte looks like a plausible disaster_id (>100)
+    # or a bitvector (<100)
+
+    first_byte = payload[0]
+    uses_delta = first_byte < 100  # Heuristic: disaster IDs are typically >100 for first packet
+
+    if uses_delta:
+        # Delta protocol: bitvector, then disaster_id, then conditional fields
+        bitvector, offset = decode_uint8(payload, offset)
+        disaster_id, offset = decode_uint8(payload, offset)
+    else:
+        # Full packet: disaster_id first, then all fields
+        bitvector = 0xFF  # All bits set (all fields present)
+        disaster_id, offset = decode_uint8(payload, offset)
+
+    # Helper to check if bit is set in bitvector
+    def has_field(bit_index):
+        return bool(bitvector & (1 << bit_index))
+
+    # Initialize with defaults
+    name = ""
+    rule_name = ""
+    reqs_count = 0
+    reqs = []
+    frequency = 0
+    effects_byte = 0
+
+    # Conditional fields based on bitvector
+    # Bit 0: name
+    if has_field(0):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 1: rule_name
+    if has_field(1):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 2: reqs_count
+    if has_field(2):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 3: reqs array
+    if has_field(3):
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 4: frequency
+    if has_field(4):
+        frequency, offset = decode_uint8(payload, offset)
+
+    # Bit 5: unused/reserved?
+
+    # Bit 6: effects
+    if has_field(6):
+        effects_byte = payload[offset]
+        offset += 1
+
+    return {
+        'id': disaster_id,
+        'name': name,
+        'rule_name': rule_name,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'frequency': frequency,
+        'effects': effects_byte
     }
 
 

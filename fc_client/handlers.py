@@ -475,6 +475,77 @@ async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, pa
               f"Work: {ruleset_game.work_raise_chance[i]}%")
 
 
+async def handle_ruleset_disaster(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_DISASTER (224) - disaster type configuration.
+
+    Disasters are negative random events (fires, plagues, etc.) that can occur
+    in cities when requirements are met. One packet is sent per disaster type
+    during game initialization.
+
+    Updates game_state.disasters dict with the disaster type configuration.
+    """
+    from .game_state import DisasterType, Requirement
+
+    # Decode packet
+    data = protocol.decode_ruleset_disaster(payload)
+
+    # Convert requirements to Requirement objects
+    requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['reqs']
+    ]
+
+    # Create DisasterType object
+    disaster = DisasterType(
+        id=data['id'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        reqs_count=data['reqs_count'],
+        reqs=requirements,
+        frequency=data['frequency'],
+        effects=data['effects']
+    )
+
+    # Store in game state
+    game_state.disasters[disaster.id] = disaster
+
+    # Decode effects bitvector for display
+    effect_names = []
+    effect_mapping = {
+        0: "DestroyBuilding",
+        1: "ReducePopulation",
+        2: "EmptyFoodStock",
+        3: "EmptyProdStock",
+        4: "Pollution",
+        5: "Fallout",
+        6: "ReducePopDestroy"
+    }
+
+    for bit in range(7):
+        if data['effects'] & (1 << bit):
+            effect_names.append(effect_mapping[bit])
+
+    effects_str = ", ".join(effect_names) if effect_names else "none"
+
+    # Display summary
+    print(f"\n[DISASTER {disaster.id}] {disaster.name} ({disaster.rule_name})")
+    print(f"  Frequency: {disaster.frequency}")
+    print(f"  Requirements: {disaster.reqs_count}")
+    print(f"  Effects: {effects_str}")
+
+
 async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
     """
     Handle unknown/unimplemented packet types.
