@@ -17,14 +17,13 @@ class RulesetControl:
     Contains counts of all game entities (units, techs, nations, etc.)
     and ruleset metadata. Sent during initialization.
     """
-    # Entity counts (24 UINT16 fields)
+    # Entity counts (22 UINT16 fields)
     num_unit_classes: int
     num_unit_types: int
     num_impr_types: int
     num_tech_classes: int
     num_tech_types: int
     num_extra_types: int
-    num_tiledef_types: int
     num_base_types: int
     num_road_types: int
     num_resource_types: int
@@ -39,7 +38,6 @@ class RulesetControl:
     num_city_styles: int
     terrain_count: int
     num_specialist_types: int
-    num_normal_specialists: int
     num_nation_groups: int
     num_nation_sets: int
 

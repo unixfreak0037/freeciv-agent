@@ -63,9 +63,13 @@ async def handle_server_info(client: 'FreeCivClient', game_state: GameState, pay
     """
     Handle PACKET_SERVER_INFO.
 
+    Uses delta protocol to decode server version information.
     Updates game_state.server_info with server version information.
     """
-    server_info = protocol.decode_server_info(payload)
+    # Decode using delta protocol
+    packet_spec = protocol.PACKET_SPECS[protocol.PACKET_SERVER_INFO]
+    server_info = protocol.decode_delta_packet(payload, packet_spec, client._delta_cache)
+
     game_state.server_info = server_info
 
     print(f"Server version: {server_info['version_label']} "

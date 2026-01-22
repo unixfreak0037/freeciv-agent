@@ -163,7 +163,7 @@ async def test_handle_server_info_updates_game_state(mock_client, game_state):
         'emerg_version': 0,
     }
 
-    with patch('fc_client.handlers.protocol.decode_server_info') as mock_decode:
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
         mock_decode.return_value = server_info_data
 
         await handlers.handle_server_info(mock_client, game_state, payload)
@@ -174,10 +174,10 @@ async def test_handle_server_info_updates_game_state(mock_client, game_state):
 
 @pytest.mark.async_test
 async def test_handle_server_info_calls_decode(mock_client, game_state):
-    """Handler should call decode_server_info with payload."""
+    """Handler should call decode_delta_packet with payload, packet spec, and delta cache."""
     payload = b"\x01\x02\x03"
 
-    with patch('fc_client.handlers.protocol.decode_server_info') as mock_decode:
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
         mock_decode.return_value = {
             'version_label': 'Test',
             'major_version': 1,
@@ -188,8 +188,12 @@ async def test_handle_server_info_calls_decode(mock_client, game_state):
 
         await handlers.handle_server_info(mock_client, game_state, payload)
 
-        # Verify decode was called with exact payload
-        mock_decode.assert_called_once_with(payload)
+        # Verify decode_delta_packet was called with correct arguments
+        mock_decode.assert_called_once()
+        call_args = mock_decode.call_args[0]
+        assert call_args[0] == payload  # payload
+        assert call_args[1].packet_type == protocol.PACKET_SERVER_INFO  # packet_spec
+        assert call_args[2] is mock_client._delta_cache  # delta_cache
 
 
 # ============================================================================
@@ -437,7 +441,7 @@ async def test_server_info_replaces_previous_state(mock_client, game_state):
         'emerg_version': 0,
     }
 
-    with patch('fc_client.handlers.protocol.decode_server_info') as mock_decode:
+    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
         mock_decode.return_value = new_server_info
 
         await handlers.handle_server_info(mock_client, game_state, payload)

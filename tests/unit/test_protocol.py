@@ -18,8 +18,13 @@ from fc_client.protocol import (
     # Integer encoding/decoding
     encode_uint32,
     decode_uint32,
+    encode_sint16,
     decode_sint16,
     decode_sint32,
+    encode_uint8,
+    encode_sint8,
+    decode_uint8,
+    decode_sint8,
     # Packet encoding
     encode_packet,
     encode_server_join_req,
@@ -302,6 +307,213 @@ def test_decode_sint32_boundaries():
     assert offset == 4
 
 
+# SINT16 encoding tests (3 tests)
+
+
+@pytest.mark.unit
+def test_encode_sint16_positive():
+    """Test encoding positive SINT16 values."""
+    result = encode_sint16(42)
+    assert result == b'\x00\x2a'
+
+    result = encode_sint16(1000)
+    assert result == b'\x03\xe8'
+
+
+@pytest.mark.unit
+def test_encode_sint16_negative():
+    """Test encoding negative SINT16 values."""
+    result = encode_sint16(-42)
+    assert result == b'\xff\xd6'
+
+    result = encode_sint16(-1000)
+    assert result == b'\xfc\x18'
+
+
+@pytest.mark.unit
+def test_encode_sint16_boundaries():
+    """Test SINT16 boundary values (min=-32768, max=32767)."""
+    # Min value: -32768
+    result = encode_sint16(-32768)
+    assert result == b'\x80\x00'
+
+    # Max value: 32767
+    result = encode_sint16(32767)
+    assert result == b'\x7f\xff'
+
+    # Zero
+    result = encode_sint16(0)
+    assert result == b'\x00\x00'
+
+
+# UINT8 encoding/decoding tests (4 tests)
+
+
+@pytest.mark.unit
+def test_encode_uint8_basic():
+    """Test encoding basic UINT8 values."""
+    result = encode_uint8(0)
+    assert result == b'\x00'
+
+    result = encode_uint8(42)
+    assert result == b'\x2a'
+
+    result = encode_uint8(127)
+    assert result == b'\x7f'
+
+
+@pytest.mark.unit
+def test_encode_uint8_boundaries():
+    """Test UINT8 boundary values (min=0, max=255)."""
+    # Min value: 0
+    result = encode_uint8(0)
+    assert result == b'\x00'
+
+    # Max value: 255
+    result = encode_uint8(255)
+    assert result == b'\xff'
+
+
+@pytest.mark.unit
+def test_decode_uint8_basic():
+    """Test decoding basic UINT8 values."""
+    data = b'\x00extra'
+    value, offset = decode_uint8(data, 0)
+    assert value == 0
+    assert offset == 1
+
+    data = b'\x2aextra'
+    value, offset = decode_uint8(data, 0)
+    assert value == 42
+    assert offset == 1
+
+    data = b'\x7fextra'
+    value, offset = decode_uint8(data, 0)
+    assert value == 127
+    assert offset == 1
+
+
+@pytest.mark.unit
+def test_decode_uint8_boundaries():
+    """Test UINT8 boundary values (min=0, max=255)."""
+    # Min value: 0
+    data = b'\x00'
+    value, offset = decode_uint8(data, 0)
+    assert value == 0
+    assert offset == 1
+
+    # Max value: 255
+    data = b'\xff'
+    value, offset = decode_uint8(data, 0)
+    assert value == 255
+    assert offset == 1
+
+
+# SINT8 encoding/decoding tests (6 tests)
+
+
+@pytest.mark.unit
+def test_encode_sint8_positive():
+    """Test encoding positive SINT8 values."""
+    result = encode_sint8(0)
+    assert result == b'\x00'
+
+    result = encode_sint8(42)
+    assert result == b'\x2a'
+
+    result = encode_sint8(127)
+    assert result == b'\x7f'
+
+
+@pytest.mark.unit
+def test_encode_sint8_negative():
+    """Test encoding negative SINT8 values."""
+    result = encode_sint8(-1)
+    assert result == b'\xff'
+
+    result = encode_sint8(-42)
+    assert result == b'\xd6'
+
+    result = encode_sint8(-128)
+    assert result == b'\x80'
+
+
+@pytest.mark.unit
+def test_encode_sint8_boundaries():
+    """Test SINT8 boundary values (min=-128, max=127)."""
+    # Min value: -128
+    result = encode_sint8(-128)
+    assert result == b'\x80'
+
+    # Max value: 127
+    result = encode_sint8(127)
+    assert result == b'\x7f'
+
+    # Zero
+    result = encode_sint8(0)
+    assert result == b'\x00'
+
+
+@pytest.mark.unit
+def test_decode_sint8_positive():
+    """Test decoding positive SINT8 values."""
+    data = b'\x00extra'
+    value, offset = decode_sint8(data, 0)
+    assert value == 0
+    assert offset == 1
+
+    data = b'\x2aextra'
+    value, offset = decode_sint8(data, 0)
+    assert value == 42
+    assert offset == 1
+
+    data = b'\x7fextra'
+    value, offset = decode_sint8(data, 0)
+    assert value == 127
+    assert offset == 1
+
+
+@pytest.mark.unit
+def test_decode_sint8_negative():
+    """Test decoding negative SINT8 values."""
+    data = b'\xffextra'
+    value, offset = decode_sint8(data, 0)
+    assert value == -1
+    assert offset == 1
+
+    data = b'\xd6extra'
+    value, offset = decode_sint8(data, 0)
+    assert value == -42
+    assert offset == 1
+
+    data = b'\x80extra'
+    value, offset = decode_sint8(data, 0)
+    assert value == -128
+    assert offset == 1
+
+
+@pytest.mark.unit
+def test_decode_sint8_boundaries():
+    """Test SINT8 boundary values (min=-128, max=127)."""
+    # Min value: -128
+    data = b'\x80'
+    value, offset = decode_sint8(data, 0)
+    assert value == -128
+    assert offset == 1
+
+    # Max value: 127
+    data = b'\x7f'
+    value, offset = decode_sint8(data, 0)
+    assert value == 127
+    assert offset == 1
+
+    # Zero
+    data = b'\x00'
+    value, offset = decode_sint8(data, 0)
+    assert value == 0
+    assert offset == 1
+
+
 # ============================================================================
 # Phase 2: Packet Infrastructure
 # ============================================================================
@@ -419,7 +631,8 @@ def test_decode_server_join_reply_success(sample_join_reply_success):
         encode_bool(True) +
         encode_string("Welcome!") +
         encode_string("+Freeciv-3.0-network") +
-        encode_string("")
+        encode_string("") +
+        encode_sint16(1)  # conn_id
     )
 
     result = decode_server_join_reply(payload)
@@ -428,6 +641,7 @@ def test_decode_server_join_reply_success(sample_join_reply_success):
     assert result['message'] == "Welcome!"
     assert result['capability'] == "+Freeciv-3.0-network"
     assert result['challenge_file'] == ""
+    assert result['conn_id'] == 1
 
 
 @pytest.mark.unit
@@ -438,7 +652,8 @@ def test_decode_server_join_reply_failure(sample_join_reply_failure):
         encode_bool(False) +
         encode_string("Server full") +
         encode_string("+Freeciv-3.0-network") +
-        encode_string("")
+        encode_string("") +
+        encode_sint16(0)  # conn_id
     )
 
     result = decode_server_join_reply(payload)
@@ -447,6 +662,7 @@ def test_decode_server_join_reply_failure(sample_join_reply_failure):
     assert result['message'] == "Server full"
     assert result['capability'] == "+Freeciv-3.0-network"
     assert result['challenge_file'] == ""
+    assert result['conn_id'] == 0
 
 
 @pytest.mark.unit
@@ -456,7 +672,8 @@ def test_decode_server_join_reply_empty_strings():
         encode_bool(True) +
         encode_string("") +  # Empty message
         encode_string("+Freeciv-3.0-network") +
-        encode_string("")  # Empty challenge
+        encode_string("") +  # Empty challenge
+        encode_sint16(1)  # conn_id
     )
 
     result = decode_server_join_reply(payload)
@@ -464,6 +681,7 @@ def test_decode_server_join_reply_empty_strings():
     assert result['you_can_join'] is True
     assert result['message'] == ""
     assert result['challenge_file'] == ""
+    assert result['conn_id'] == 1
 
 
 @pytest.mark.unit

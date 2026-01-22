@@ -423,11 +423,16 @@ self.packet_handlers = {
 
 All handlers follow this signature:
 ```python
-async def handle_packet_name(data: bytes, client: FreeCivClient) -> None:
-    # Decode packet
-    # Update game state
-    # Perform any side effects
+async def handle_packet_name(client: FreeCivClient, game_state: GameState, payload: bytes) -> None:
+    # Decode packet from payload
+    # Update game_state with decoded information
+    # Perform any side effects (logging, etc.)
 ```
+
+**Handler Parameters**:
+- `client`: The FreeCivClient instance (provides access to connection, delta cache, etc.)
+- `game_state`: The GameState instance to update with packet information
+- `payload`: Raw packet body bytes (after packet header has been removed)
 
 ### Protocol Version Switching
 

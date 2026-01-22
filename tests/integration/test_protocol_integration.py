@@ -14,6 +14,7 @@ from fc_client.protocol import (
     encode_string,
     encode_bool,
     encode_uint32,
+    encode_sint16,
     read_bitvector,
     is_bit_set,
 )
@@ -533,7 +534,8 @@ def test_decode_server_join_reply_integration():
         encode_bool(True) +
         encode_string("Welcome to the game!") +
         encode_string("+Freeciv-3.0-network") +
-        encode_string("")
+        encode_string("") +
+        encode_sint16(1)  # conn_id
     )
 
     result = decode_server_join_reply(payload)
@@ -541,6 +543,7 @@ def test_decode_server_join_reply_integration():
     assert result['you_can_join'] is True
     assert result['message'] == "Welcome to the game!"
     assert result['capability'] == "+Freeciv-3.0-network"
+    assert result['conn_id'] == 1
 
 
 @pytest.mark.integration

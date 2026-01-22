@@ -96,6 +96,26 @@ PACKET_SPECS: Dict[int, PacketSpec] = {}
 #     TURN turn;           # SINT16
 #     PHASE phase;         # SINT16
 #     CONNECTION conn_id;  # SINT16
+
+# PACKET_SERVER_INFO = 29
+# From packets.def lines 702-705:
+#   PACKET_SERVER_INFO = 29; sc, dsend, handle-via-fields
+#     STRING version_label[48];
+#     UINT32 major_version, minor_version, patch_version, emerg_version;
+#   end
+PACKET_SPECS[29] = PacketSpec(
+    packet_type=29,
+    name="PACKET_SERVER_INFO",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='version_label', type_name='STRING'),
+        FieldSpec(name='major_version', type_name='UINT32'),
+        FieldSpec(name='minor_version', type_name='UINT32'),
+        FieldSpec(name='patch_version', type_name='UINT32'),
+        FieldSpec(name='emerg_version', type_name='UINT32'),
+    ]
+)
+
 PACKET_SPECS[25] = PacketSpec(
     packet_type=25,
     name="PACKET_CHAT_MSG",
@@ -118,14 +138,13 @@ PACKET_SPECS[155] = PacketSpec(
     name="PACKET_RULESET_CONTROL",
     has_delta=True,
     fields=[
-        # Entity counts (24 UINT16 fields - lines 1971-1994)
+        # Entity counts (22 UINT16 fields - lines 1971-1994)
         FieldSpec(name='num_unit_classes', type_name='UINT16'),
         FieldSpec(name='num_unit_types', type_name='UINT16'),
         FieldSpec(name='num_impr_types', type_name='UINT16'),
         FieldSpec(name='num_tech_classes', type_name='UINT16'),
         FieldSpec(name='num_tech_types', type_name='UINT16'),
         FieldSpec(name='num_extra_types', type_name='UINT16'),
-        FieldSpec(name='num_tiledef_types', type_name='UINT16'),
         FieldSpec(name='num_base_types', type_name='UINT16'),
         FieldSpec(name='num_road_types', type_name='UINT16'),
         FieldSpec(name='num_resource_types', type_name='UINT16'),
@@ -140,7 +159,6 @@ PACKET_SPECS[155] = PacketSpec(
         FieldSpec(name='num_city_styles', type_name='UINT16'),
         FieldSpec(name='terrain_count', type_name='UINT16'),
         FieldSpec(name='num_specialist_types', type_name='UINT16'),
-        FieldSpec(name='num_normal_specialists', type_name='UINT16'),
         FieldSpec(name='num_nation_groups', type_name='UINT16'),
         FieldSpec(name='num_nation_sets', type_name='UINT16'),
         # Client preferences (lines 1996-1999)

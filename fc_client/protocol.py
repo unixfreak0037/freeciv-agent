@@ -23,10 +23,10 @@ PACKET_RULESET_NATION_SETS = 236
 
 # Version constants
 MAJOR_VERSION = 3
-MINOR_VERSION = 3
-PATCH_VERSION = 90
-VERSION_LABEL = "-dev"
-CAPABILITY = "+Freeciv.Devel-3.4-2025.Nov.29"
+MINOR_VERSION = 2
+PATCH_VERSION = 2
+VERSION_LABEL = ""
+CAPABILITY = "+Freeciv-3.2-network ownernull16 unignoresync tu32 hap2clnt"
 
 
 async def _recv_exact(reader: asyncio.StreamReader, num_bytes: int) -> bytes:
@@ -53,6 +53,21 @@ def encode_bool(value: bool) -> bytes:
 def encode_uint32(value: int) -> bytes:
     """Encode a UINT32 as 4 bytes in big-endian format."""
     return struct.pack('>I', value)
+
+
+def encode_sint16(value: int) -> bytes:
+    """Encode a SINT16 as 2 bytes in big-endian format."""
+    return struct.pack('>h', value)
+
+
+def encode_uint8(value: int) -> bytes:
+    """Encode a UINT8 as 1 byte."""
+    return struct.pack('B', value)
+
+
+def encode_sint8(value: int) -> bytes:
+    """Encode a SINT8 as 1 byte (signed)."""
+    return struct.pack('b', value)
 
 
 # Data type decoding functions
@@ -107,6 +122,28 @@ def decode_bool(data: bytes, offset: int) -> Tuple[bool, int]:
         Tuple of (bool_value, new_offset)
     """
     value = data[offset] != 0
+    return value, offset + 1
+
+
+def decode_uint8(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode UINT8 (unsigned 8-bit integer).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = data[offset]
+    return value, offset + 1
+
+
+def decode_sint8(data: bytes, offset: int) -> Tuple[int, int]:
+    """
+    Decode SINT8 (signed 8-bit integer).
+
+    Returns:
+        Tuple of (int_value, new_offset)
+    """
+    value = struct.unpack('b', bytes([data[offset]]))[0]
     return value, offset + 1
 
 
@@ -232,6 +269,7 @@ def decode_server_join_reply(payload: bytes) -> dict:
     - STRING message[1536]
     - STRING capability[512]
     - STRING challenge_file[4095]
+    - CONNECTION conn_id (SINT16)
     """
     offset = 0
 
@@ -243,11 +281,15 @@ def decode_server_join_reply(payload: bytes) -> dict:
     capability, offset = decode_string(payload, offset)
     challenge_file, offset = decode_string(payload, offset)
 
+    # Parse CONNECTION conn_id (SINT16)
+    conn_id, offset = decode_sint16(payload, offset)
+
     return {
         'you_can_join': you_can_join,
         'message': message,
         'capability': capability,
-        'challenge_file': challenge_file
+        'challenge_file': challenge_file,
+        'conn_id': conn_id
     }
 
 
@@ -572,10 +614,14 @@ def _decode_field(data: bytes, offset: int, type_name: str) -> Tuple[Any, int]:
         return decode_sint32(data, offset)
     elif type_name == 'SINT16':
         return decode_sint16(data, offset)
-    elif type_name == 'UINT16':
-        return decode_uint16(data, offset)
+    elif type_name == 'SINT8':
+        return decode_sint8(data, offset)
     elif type_name == 'UINT32':
         return decode_uint32(data, offset)
+    elif type_name == 'UINT16':
+        return decode_uint16(data, offset)
+    elif type_name == 'UINT8':
+        return decode_uint8(data, offset)
     elif type_name == 'BOOL':
         return decode_bool(data, offset)
     else:

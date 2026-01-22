@@ -25,16 +25,17 @@ When asked to implement a new packet handler, follow these steps:
 
 **Study Existing Handlers**: First, examine the current handler implementations in `fc_client/handlers.py` to understand the established patterns:
 - Review `handle_server_join_reply()`, `handle_server_info()`, and `handle_chat_msg()` carefully
-- Note the function signatures (all async, take `data: bytes` and `client: FreeCivClient`)
+- Note the function signatures (all async, take THREE parameters: `client: FreeCivClient`, `game_state: GameState`, `payload: bytes`)
 - Observe how they decode packets, update game state, and log information
 - Understand the error handling and edge case management
 
 **Locate Packet Definition**: Search `freeciv/common/networking/packets.def` for the target packet type:
 - Find the packet number and name
-- Extract the complete field list with types (BOOL, UINT8, UINT16, STRING, etc.)
+- Extract the complete field list with types (BOOL, UINT8, SINT8, UINT16, SINT16, UINT32, SINT32, STRING, etc.)
 - Identify any flags (is-info, is-game-info, force, etc.)
 - Determine if the packet uses delta protocol (look for key fields)
 - Note any array fields, optional fields, or conditional logic
+- **Supported Types**: The `_decode_field()` function supports: STRING, BOOL, UINT8, SINT8, UINT16, SINT16, UINT32, SINT32
 
 ### 2. Design Phase
 
@@ -59,9 +60,10 @@ When asked to implement a new packet handler, follow these steps:
 - Include comprehensive docstring with packet number and purpose
 
 **Implement Handler**: In `fc_client/handlers.py`, create the handler function:
-- Follow the signature: `async def handle_packet_name(data: bytes, client: FreeCivClient) -> None`
-- Call your decoder function to parse the packet
-- Update `client.game_state` with relevant information
+- **CRITICAL**: Follow the correct signature: `async def handle_packet_name(client: FreeCivClient, game_state: GameState, payload: bytes) -> None`
+- The handler receives THREE parameters (client, game_state, payload) - this is verified in fc_client/client.py line 162
+- Call your decoder function to parse the packet (pass `payload`, not `data`)
+- Update the provided `game_state` parameter (NOT `client.game_state`)
 - Log important events using appropriate log levels (info, debug, warning)
 - Handle edge cases gracefully (missing data, invalid values, etc.)
 - Include a comprehensive docstring
