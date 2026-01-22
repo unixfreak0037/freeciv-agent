@@ -591,15 +591,16 @@ def test_read_bitvector_single_byte():
 def test_read_bitvector_multi_byte():
     """Test reading bitvector with 9-16 bits (2 bytes)."""
     # 9 bits = 2 bytes
+    # Note: bitvectors use little-endian byte order (FreeCiv protocol)
     data = b'\x01\x80extra'
     bitvector, offset = read_bitvector(data, 0, 9)
-    assert bitvector == 0x0180
+    assert bitvector == 0x8001  # little-endian: \x01\x80 -> 0x8001
     assert offset == 2
 
     # 16 bits = 2 bytes
     data = b'\xff\xffextra'
     bitvector, offset = read_bitvector(data, 0, 16)
-    assert bitvector == 0xffff
+    assert bitvector == 0xffff  # same in both endianness
     assert offset == 2
 
 
@@ -612,17 +613,18 @@ def test_read_bitvector_offset_tracking():
     assert offset == 3
 
     # 24 bits = 3 bytes
+    # Note: bitvectors use little-endian byte order (FreeCiv protocol)
     data = b'\xaa\xbb\xccextra'
     bitvector, offset = read_bitvector(data, 0, 24)
-    assert bitvector == 0xaabbcc
+    assert bitvector == 0xccbbaa  # little-endian: \xaa\xbb\xcc -> 0xccbbaa
     assert offset == 3
 
 
 @pytest.mark.unit
 def test_is_bit_set_various(sample_bitvector):
     """Test is_bit_set with sample_bitvector (0xB4 = 10110100)."""
-    # Convert bytes to int
-    bitvector = int.from_bytes(sample_bitvector, 'big')  # 0xb4 = 180
+    # Convert bytes to int (for single byte, endianness doesn't matter)
+    bitvector = int.from_bytes(sample_bitvector, 'little')  # 0xb4 = 180
 
     # Bit pattern: 10110100 (LSB to MSB: bit 0 = 0, bit 1 = 0, bit 2 = 1, ...)
     assert is_bit_set(bitvector, 0) is False

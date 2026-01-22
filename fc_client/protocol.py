@@ -316,6 +316,27 @@ def decode_ruleset_summary(payload: bytes) -> dict:
     }
 
 
+def decode_ruleset_description_part(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_DESCRIPTION_PART packet.
+
+    Packet structure (from packets.def lines 2012-2014):
+    - STRING text[MAX_LEN_CONTENT]  # 4076 bytes max
+
+    This packet is sent in multiple parts after PACKET_RULESET_CONTROL.
+    The client must accumulate all parts until the total size matches
+    or exceeds the desc_length field from RULESET_CONTROL.
+
+    Returns dictionary with key: text
+    """
+    offset = 0
+    text, offset = decode_string(payload, offset)
+
+    return {
+        'text': text
+    }
+
+
 # ============================================================================
 # Delta Protocol Support
 # ============================================================================
@@ -329,6 +350,11 @@ def read_bitvector(data: bytes, offset: int, num_bits: int) -> Tuple[int, int]:
     bit 1 = second field, etc.). A bit value of 1 means the field is included
     in the payload.
 
+    FreeCiv bitvectors are stored as byte arrays where each byte contains 8 bits
+    with LSB-first ordering within each byte. This means byte 0 contains bits 0-7,
+    byte 1 contains bits 8-15, etc. To properly decode this in Python, we must
+    use little-endian byte order when converting to an integer.
+
     Args:
         data: Payload bytes
         offset: Starting offset in the payload
@@ -340,7 +366,8 @@ def read_bitvector(data: bytes, offset: int, num_bits: int) -> Tuple[int, int]:
     """
     num_bytes = (num_bits + 7) // 8  # Ceiling division
     bitvector_bytes = data[offset:offset + num_bytes]
-    bitvector = int.from_bytes(bitvector_bytes, 'big')
+    # Use 'little' because FreeCiv stores bitvectors as byte arrays with LSB-first in each byte
+    bitvector = int.from_bytes(bitvector_bytes, 'little')
     return bitvector, offset + num_bytes
 
 

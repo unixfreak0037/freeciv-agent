@@ -221,10 +221,12 @@ def test_delta_packet_bitvector_boundary(delta_cache):
         ]
     )
 
-    # 9 bits = 2 bytes, all bits set = 0x01FF
+    # 9 bits = 2 bytes, bits 0-8 set
+    # Note: bitvectors use little-endian byte order
+    # Bits 0-7 in first byte (\xff), bit 8 in second byte (\x01)
     payload = (
         encode_uint32(1) +
-        b'\x01\xff' +  # 2 byte bitvector, 9 bits set
+        b'\xff\x01' +  # 2 byte bitvector, 9 bits set (little-endian)
         build_sint16_bytes(1) +
         build_sint16_bytes(2) +
         build_sint16_bytes(3) +
