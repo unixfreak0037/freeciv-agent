@@ -41,4 +41,14 @@ Fixtures:
     - Component instances (delta_cache, game_state, freeciv_client)
     - Sample packet data (sample_join_reply_success, sample_chat_msg_payload)
     - Utility helpers (packet_builder)
+
+Delta Protocol Testing:
+    For comprehensive testing strategies for delta protocol implementation,
+    see the "Testing Strategy" section in DELTA_PROTOCOL.md, which includes:
+    - Unit tests for bitvector operations (byte order, size calculation, bit masking)
+    - Integration tests for cache population and delta decoding
+    - Boolean header folding verification
+    - Property-based tests for random field combinations
+    - Performance tests for bandwidth savings measurement
+    - Edge case handling (empty bitvectors, cache misses, first packets)
 """

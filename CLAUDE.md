@@ -457,74 +457,78 @@ On shutdown signal or connection loss:
 
 ## Delta Protocol
 
-FreeCiv uses a delta protocol to reduce bandwidth by only transmitting changed fields in frequently-sent packets.
+The project implements FreeCiv's delta protocol for bandwidth optimization. This protocol reduces network traffic by 60-90% by transmitting only changed fields in frequently-sent packets.
 
-### How It Works
+**For comprehensive technical documentation, see [DELTA_PROTOCOL.md](DELTA_PROTOCOL.md).**
 
-Instead of sending all fields every time, the server:
-1. **Sends a bitvector** indicating which fields are present in this packet
-2. **Includes only the present fields** in the packet body
-3. **Client reconstructs** full packet by combining new fields with cached values
+The detailed documentation covers:
+- Complete encoding/decoding algorithms with pseudocode
+- Bitvector representation and byte ordering (little-endian)
+- Cache structure and lifecycle management
+- Boolean header folding optimization
+- Packet specification flags reference
+- Common pitfalls and edge cases with solutions
+- Testing strategies and example test cases
 
-### Bitvectors
+### Critical Implementation Notes
 
-A bitvector is a compact bit array where each bit represents one field:
-- Bit set to 1: Field is present in packet, read new value
-- Bit set to 0: Field is absent, use cached value from previous packet
+**Bitvector Byte Order:**
+- FreeCiv uses **little-endian** bit order within each byte
+- Bits 0-7 are in byte 0, bits 8-15 are in byte 1, etc.
+- Always use `byteorder='little'` when converting bitvector bytes to integers
 
-Bitvectors are packed into bytes, read with helper functions:
 ```python
-def is_bit_set(bitvector: bytes, bit_index: int) -> bool:
-    byte_index = bit_index // 8
-    bit_offset = bit_index % 8
-    return bool(bitvector[byte_index] & (1 << bit_offset))
+# CORRECT: Little-endian byte order
+bitvector = int.from_bytes(bitvector_bytes, byteorder='little')
+
+# WRONG: Big-endian will decode fields incorrectly
+bitvector = int.from_bytes(bitvector_bytes, byteorder='big')
 ```
 
-### Cache Structure
+**Key Fields:**
+- Always transmitted before the bitvector (never included in bitvector)
+- Used for cache lookup: `(packet_type, key_tuple)`
+- Non-key fields use delta encoding based on bitvector
 
-The `DeltaCache` stores previous packet values:
-- **Key**: Tuple of `(packet_type, key_value)`
-  - `packet_type`: Which packet type (e.g., 25 for SERVER_INFO)
-  - `key_value`: Unique identifier for this specific instance (e.g., server ID)
-- **Value**: Dictionary mapping field names to their last seen values
+**Boolean Header Folding:**
+- BOOL field values are stored directly in bitvector bits
+- No payload bytes are consumed for BOOL fields
+- Provides 8x compression for boolean fields
 
-Example cache entry:
 ```python
-{
-    (25, 0): {  # SERVER_INFO for server 0
-        'turn': 42,
-        'year': 1850,
-        'phase': 'Movement',
+# For BOOL fields, bitvector bit IS the field value
+if field_spec.is_bool:
+    fields[field_spec.name] = is_bit_set(bitvector, bit_index)
+    # No offset increment - no payload bytes consumed
+```
+
+**Cache Structure:**
+```python
+# Cache keyed by (packet_type, key_tuple)
+cache = {
+    (31, (42,)): {  # City with id=42
+        'tile': 1234,
+        'owner': 2,
+        'size': 5,
         # ... other fields
     }
 }
 ```
 
-### Key Fields vs. Non-Key Fields
+### Quick Reference
 
-Packet specifications define one "key" field:
-- **Key field**: Always transmitted (even in delta packets), used for cache lookup
-- **Non-key fields**: May be omitted using delta protocol
+When implementing delta protocol handlers:
 
-For example, SERVER_INFO uses server ID as the key field.
+1. Read all key fields first (always present)
+2. Read bitvector (size = `ceil(num_non_key_fields / 8)` bytes)
+3. Retrieve cached packet or use field defaults
+4. For each non-key field:
+   - If BOOL: use bitvector bit value directly
+   - Elif bit set: read new value from payload
+   - Else: use cached value
+5. Update cache with complete decoded packet
 
-### Decoding Algorithm
-
-The `decode_delta_packet()` function follows this process:
-
-1. **Read key field**: Extract the key field value (always present)
-2. **Read bitvector**: Read N bytes where N = ceil(num_non_key_fields / 8)
-3. **Check cache**: Look up previous values using (packet_type, key_value)
-4. **Decode fields**: For each non-key field in order:
-   - If bit is set: Read new value from packet, update cache
-   - If bit is clear: Use cached value from previous packet
-5. **Return result**: Combined dictionary of all field values
-
-### Cache Lifecycle
-
-- **Created**: Empty dict when client initializes
-- **Updated**: Modified by `decode_delta_packet()` as packets arrive
-- **Cleared**: Emptied on disconnect to ensure consistency for next connection
+See [DELTA_PROTOCOL.md](DELTA_PROTOCOL.md) for detailed algorithms, examples, and testing strategies.
 
 ## Packet Debugging
 
