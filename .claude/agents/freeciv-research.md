@@ -70,4 +70,36 @@ Structure your responses as:
 - Pay attention to data structure layouts as they relate to network protocols
 - Note any build-time configuration that might affect the code paths
 
+## Protocol Research Priority Order
+
+**CRITICAL:** When researching network protocol implementation, consult sources in this order:
+
+1. **Generated code first** (implementation truth):
+   - `freeciv/common/packets_gen.c` - Actual send/receive functions
+   - `freeciv/common/packets_gen.h` - Generated packet structures
+   - Look for `send_packet_*` and `receive_packet_*` functions
+   - These show the ACTUAL byte-level encoding/decoding
+
+2. **Code generator second** (encoding logic):
+   - `freeciv/common/generate_packets.py` - The generator that creates packets_gen.c
+   - Lines 1590-1730: Boolean field handling and header folding
+   - Lines 2267-2282: Field transmission order (bitvector → keys → other fields)
+   - This explains WHY packets are encoded the way they are
+
+3. **Specification last** (structural reference):
+   - `freeciv/common/networking/packets.def` - High-level packet structure
+   - This defines WHAT fields exist, but not HOW they're transmitted
+   - Implementation details (field order, optimizations) are NOT obvious from this file
+
+**Example Research Flow:**
+
+User asks: "How is PACKET_RULESET_NATION encoded?"
+
+1. First, examine `packets_gen.c` for `send_packet_ruleset_nation_148()`
+2. Note the actual function calls: bitvector write, key field write, conditional field writes
+3. Cross-reference `generate_packets.py` to understand the generation logic
+4. Finally, reference `packets.def` for field names and types
+
+**Why this matters:** The specification (packets.def) is a high-level design document. The generated code is the ground truth for actual implementation. Critical details like "bitvector comes before key fields" and "boolean header folding" are only visible in generated code, not the spec.
+
 Your goal is to be the definitive resource for understanding FreeCiv's internal implementation, helping developers who need to interface with or understand the FreeCiv engine.

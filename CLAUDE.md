@@ -91,12 +91,26 @@ The source code for freeciv is located in the `freeciv` directory. It is made av
 
 ### FreeCiv Protocol
 
-- **freeciv/common/networking/packets.def**: Large protocol definition file (2477 lines) from the FreeCiv project
-  - Defines all network packet types used in FreeCiv client-server communication
-  - Contains packet structure definitions with type mappings (BOOL, UINT8, STRING, etc.)
-  - Packet numbers range from 0-520 (with 256-511 reserved for freeciv-web)
-  - Includes metadata about packet flags (is-info, is-game-info, force, etc.)
-  - This file is typically used to generate protocol handling code
+**IMPORTANT: When implementing protocol features, consult sources in this order:**
+
+1. **freeciv/common/generate_packets.py** (lines 1-3000+) - The code generator
+   - Shows actual implementation details (field order, encoding logic, optimizations)
+   - Reveals critical details not obvious from packet specifications
+   - Example: Lines 2267-2282 show bitvector is transmitted BEFORE key fields
+   - Example: Lines 1590-1730 show boolean header folding implementation
+
+2. **Generated C code** - The actual protocol implementation
+   - `freeciv/common/packets_gen.c` - Generated send/receive functions
+   - `freeciv/common/packets_gen.h` - Generated packet structures
+   - This is the ground truth for how packets are actually encoded/decoded
+
+3. **freeciv/common/networking/packets.def** (2477 lines) - The protocol specification
+   - High-level packet structure definitions with type mappings (BOOL, UINT8, STRING, etc.)
+   - Packet numbers range from 0-520 (with 256-511 reserved for freeciv-web)
+   - Includes metadata about packet flags (is-info, is-game-info, force, etc.)
+   - **Note:** This is a specification, not the implementation - implementation details may differ
+
+**Why this order matters:** The packets.def file defines WHAT packets contain, but generate_packets.py and the generated code define HOW they're transmitted. Critical details like field order, boolean folding, and bitvector placement are only clear from the generated code.
 
 ### Current State
 
@@ -621,6 +635,30 @@ The client implements delta protocol for bandwidth optimization:
 - Decoder reconstructs full packet by combining new and cached fields
 - Currently implemented for SERVER_INFO (25) and CHAT_MSG (29)
 
+**Critical Implementation Details:**
+
+For comprehensive technical documentation, see [DELTA_PROTOCOL.md](DELTA_PROTOCOL.md).
+
+**Field Transmission Order:**
+Delta packets are transmitted in this specific order (confirmed in `generate_packets.py` lines 2267-2282):
+1. **Bitvector** (ceil(non_key_fields / 8) bytes) - indicates which non-key fields are present
+2. **Key fields** (always present, transmitted after bitvector)
+3. **Non-key fields** (conditional, based on bitvector bits)
+
+Example: `[3 bytes bitvector] [2 bytes nation_id] [conditional fields...]`
+
+**Boolean Header Folding:**
+Standalone BOOL fields use an optimization where:
+- The bitvector bit IS the field value (True if set, False if clear)
+- NO payload bytes are consumed for standalone BOOL fields
+- Provides 8x compression for boolean data
+- BOOL arrays still transmit each element as a byte in the payload
+
+**Common Pitfalls:**
+1. Reading key fields before bitvector (incorrect - bitvector comes first)
+2. Reading payload bytes for standalone BOOL fields (incorrect - use bitvector bit)
+3. Using big-endian for bitvector (incorrect - FreeCiv uses little-endian)
+
 ### Handler Registration Pattern
 
 Packet handlers are registered in a dictionary mapping packet type to handler function:
@@ -645,3 +683,62 @@ Handlers receive packet data and client instance, allowing them to update game s
 - **29** (CHAT_MSG): Chat messages from server/players with delta support
 
 Approximately 515 additional packet types remain to be implemented from packets.def.
+
+### Protocol Implementation Best Practices
+
+**When implementing a new packet decoder:**
+
+1. **Start with source code, not specifications:**
+   - First: Examine `freeciv/common/generate_packets.py` for the packet generation logic
+   - Second: Look at generated C code in `freeciv/common/packets_gen.c` for actual encoding
+   - Last: Consult `packets.def` for high-level structure
+   - **Why:** Implementation details (field order, optimizations) are only visible in generated code
+
+2. **Use captured packets for validation:**
+   - Enable packet debugger: `python3 fc_ai.py --debug-packets`
+   - Capture real server packets in `packets/` directory
+   - Use captured bytes as test fixtures for unit tests
+   - Compare your decoder output against known server behavior
+
+3. **Test with known-good data:**
+   ```python
+   # Create test fixtures from captured packets
+   PACKET_SAMPLE = bytes.fromhex("03 00 00 00 00...")  # From packets/inbound_*.packet
+   EXPECTED = {
+       'id': 0,
+       'name': 'expected_value',
+       # ... expected fields
+   }
+
+   result = decode_packet(PACKET_SAMPLE)
+   assert result == EXPECTED  # Immediate validation
+   ```
+
+4. **Watch for protocol version differences:**
+   - Packet encoding may differ between FreeCiv versions
+   - Always check server version in test environment
+   - Document which version your decoder targets
+
+5. **Common debugging techniques:**
+   ```bash
+   # Compare first bytes of multiple packets side-by-side
+   for f in packets/inbound_*_type148.packet; do
+       echo -n "$(basename $f): "
+       xxd $f | head -1
+   done
+
+   # Look for patterns in incrementing fields (IDs, counters)
+   xxd packets/inbound_0020_type148.packet | head -3
+   xxd packets/inbound_0021_type148.packet | head -3
+   ```
+
+6. **Validate against FreeCiv source:**
+   - Use the `freeciv-research` agent to examine server code
+   - Compare your Python implementation against C send/receive functions
+   - Check for special cases, edge conditions, version-specific behavior
+
+**Ground truth hierarchy:**
+1. Actual server behavior (captured packets) - highest authority
+2. Generated C code (`packets_gen.c`) - implementation reference
+3. Code generator (`generate_packets.py`) - encoding logic
+4. Specification (`packets.def`) - structural reference
