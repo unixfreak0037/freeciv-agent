@@ -824,7 +824,10 @@ def test_decode_ruleset_summary_unicode():
 
 def test_decode_ruleset_nation_sets_empty():
     """Test decoding packet with nsets=0."""
-    payload = b'\x00'  # nsets=0
+    payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
+        b'\x00'  # nsets=0
+    )
     result = decode_ruleset_nation_sets(payload)
     assert result['nsets'] == 0
     assert result['names'] == []
@@ -833,9 +836,11 @@ def test_decode_ruleset_nation_sets_empty():
 
 
 def test_decode_ruleset_nation_sets_single():
-    """Test decoding packet with single nation set."""
+    """Test decoding packet with single nation set using delta protocol."""
     payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
         b'\x01'  # nsets=1
+        # Null-terminated variable-length strings (not fixed-size)
         b'Core\x00'  # names[0]
         b'core\x00'  # rule_names[0]
         b'Default nations\x00'  # descriptions[0]
@@ -848,12 +853,23 @@ def test_decode_ruleset_nation_sets_single():
 
 
 def test_decode_ruleset_nation_sets_multiple():
-    """Test decoding packet with multiple nation sets."""
+    """Test decoding packet with multiple nation sets using delta protocol."""
     payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
         b'\x03'  # nsets=3
-        b'Core\x00Extended\x00Custom\x00'  # names
-        b'core\x00extended\x00custom\x00'  # rule_names
-        b'Default\x00Additional\x00User-created\x00'  # descriptions
+        # Null-terminated variable-length strings (not fixed-size)
+        # names[3]
+        b'Core\x00'
+        b'Extended\x00'
+        b'Custom\x00'
+        # rule_names[3]
+        b'core\x00'
+        b'extended\x00'
+        b'custom\x00'
+        # descriptions[3]
+        b'Default\x00'
+        b'Additional\x00'
+        b'User-created\x00'
     )
     result = decode_ruleset_nation_sets(payload)
     assert result['nsets'] == 3
@@ -863,9 +879,11 @@ def test_decode_ruleset_nation_sets_multiple():
 
 
 def test_decode_ruleset_nation_sets_empty_strings():
-    """Test decoding packet with empty string fields."""
+    """Test decoding packet with empty string fields using delta protocol."""
     payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
         b'\x01'  # nsets=1
+        # Null-terminated variable-length strings (not fixed-size)
         b'\x00'  # empty name
         b'core\x00'  # rule_name
         b'\x00'  # empty description
@@ -878,12 +896,14 @@ def test_decode_ruleset_nation_sets_empty_strings():
 
 
 def test_decode_ruleset_nation_sets_unicode():
-    """Test decoding packet with UTF-8 unicode strings."""
+    """Test decoding packet with UTF-8 unicode strings using delta protocol."""
     payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
         b'\x01'  # nsets=1
-        b'Na\xc3\xa7\xc3\xb5es\x00'  # "Nações" in UTF-8
-        b'nacoes\x00'
-        b'Description\x00'
+        # Null-terminated variable-length strings (not fixed-size)
+        b'Na\xc3\xa7\xc3\xb5es\x00'  # names[0] - "Nações" in UTF-8
+        b'nacoes\x00'  # rule_names[0]
+        b'Description\x00'  # descriptions[0]
     )
     result = decode_ruleset_nation_sets(payload)
     assert result['names'] == ['Nações']

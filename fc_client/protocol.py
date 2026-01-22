@@ -70,6 +70,34 @@ def decode_string(data: bytes, offset: int) -> Tuple[str, int]:
     return string, end + 1
 
 
+def decode_fixed_string(data: bytes, offset: int, size: int) -> Tuple[str, int]:
+    """
+    Decode a fixed-size STRING from bytes.
+
+    Fixed-size strings are padded to a specific length and null-terminated
+    within that space. We read the fixed number of bytes and decode up to
+    the first null terminator.
+
+    Args:
+        data: Byte array to read from
+        offset: Starting position
+        size: Fixed size of the string field in bytes
+
+    Returns:
+        Tuple of (string_value, new_offset)
+    """
+    chunk = data[offset:offset + size]
+    # Find null terminator within the fixed-size chunk
+    end = chunk.find(b'\x00')
+    if end == -1:
+        # No null terminator, use entire chunk
+        string = chunk.decode('utf-8')
+    else:
+        # Decode up to null terminator
+        string = chunk[:end].decode('utf-8')
+    return string, offset + size
+
+
 def decode_bool(data: bytes, offset: int) -> Tuple[bool, int]:
     """
     Decode a BOOL from bytes.
@@ -340,38 +368,69 @@ def decode_ruleset_description_part(payload: bytes) -> dict:
 
 def decode_ruleset_nation_sets(payload: bytes) -> dict:
     """
-    Decode PACKET_RULESET_NATION_SETS packet.
+    Decode PACKET_RULESET_NATION_SETS packet with delta protocol support.
+
+    This packet uses delta protocol encoding, which means it starts with a bitvector
+    indicating which fields are present in the packet.
 
     Packet structure (from packets.def lines 1603-1610):
-    - UINT8 nsets (count of nation sets, 0-32)
-    - STRING names[nsets][MAX_LEN_NAME] (display names)
-    - STRING rule_names[nsets][MAX_LEN_NAME] (internal identifiers)
-    - STRING descriptions[nsets][MAX_LEN_MSG] (descriptive text)
+    - BITVECTOR (1 byte) - indicates which fields are present
+      Bit 0: nsets field present
+      Bit 1: names array present
+      Bit 2: rule_names array present
+      Bit 3: descriptions array present
+    - UINT8 nsets (count of nation sets, 0-32) - if bit 0 is set
+    - STRING names[nsets] (null-terminated variable-length strings) - if bit 1 is set
+    - STRING rule_names[nsets] (null-terminated variable-length strings) - if bit 2 is set
+    - STRING descriptions[nsets] (null-terminated variable-length strings) - if bit 3 is set
+
+    Note: Despite the MAX_LEN_NAME and MAX_LEN_MSG constants in packets.def, FreeCiv
+    transmits strings as null-terminated variable-length, NOT fixed-size.
 
     Returns dictionary with keys:
       nsets (int), names (list), rule_names (list), descriptions (list)
     """
     offset = 0
 
-    # Read count
-    nsets = payload[offset]
+    # Read delta protocol bitvector (1 byte for 4 fields)
+    bitvector = payload[offset]
     offset += 1
 
-    # Read three parallel arrays
+    # Check which fields are present
+    has_nsets = bool(bitvector & (1 << 0))
+    has_names = bool(bitvector & (1 << 1))
+    has_rule_names = bool(bitvector & (1 << 2))
+    has_descriptions = bool(bitvector & (1 << 3))
+
+    # Read nsets if present (should always be present in first packet)
+    if has_nsets:
+        nsets = payload[offset]
+        offset += 1
+    else:
+        # In delta protocol, missing fields would come from cache
+        # For first packet, nsets should always be present
+        nsets = 0
+
+    # Read names array (null-terminated strings)
     names = []
-    for i in range(nsets):
-        name, offset = decode_string(payload, offset)
-        names.append(name)
+    if has_names:
+        for i in range(nsets):
+            name, offset = decode_string(payload, offset)
+            names.append(name)
 
+    # Read rule_names array (null-terminated strings)
     rule_names = []
-    for i in range(nsets):
-        rule_name, offset = decode_string(payload, offset)
-        rule_names.append(rule_name)
+    if has_rule_names:
+        for i in range(nsets):
+            rule_name, offset = decode_string(payload, offset)
+            rule_names.append(rule_name)
 
+    # Read descriptions array (null-terminated strings)
     descriptions = []
-    for i in range(nsets):
-        description, offset = decode_string(payload, offset)
-        descriptions.append(description)
+    if has_descriptions:
+        for i in range(nsets):
+            description, offset = decode_string(payload, offset)
+            descriptions.append(description)
 
     return {
         'nsets': nsets,

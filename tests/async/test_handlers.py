@@ -1077,11 +1077,19 @@ async def test_handle_ruleset_nation_sets_stores_in_game_state(mock_client, game
     """Test handler stores nation sets in game state."""
     from fc_client.game_state import NationSet
 
+    # Delta protocol format with bitvector and null-terminated strings
     payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
         b'\x02'  # nsets=2
-        b'Core\x00Extended\x00'
-        b'core\x00extended\x00'
-        b'Default nations\x00Additional nations\x00'
+        # names[2] - null-terminated variable-length strings
+        b'Core\x00'
+        b'Extended\x00'
+        # rule_names[2]
+        b'core\x00'
+        b'extended\x00'
+        # descriptions[2]
+        b'Default nations\x00'
+        b'Additional nations\x00'
     )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
@@ -1099,7 +1107,15 @@ async def test_handle_ruleset_nation_sets_replaces_previous(mock_client, game_st
 
     game_state.nation_sets = [NationSet('Old', 'old', 'Old data')]
 
-    payload = b'\x01Core\x00core\x00New data\x00'
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
+        b'\x01'  # nsets=1
+        # Null-terminated variable-length strings
+        b'Core\x00'  # names[0]
+        b'core\x00'  # rule_names[0]
+        b'New data\x00'  # descriptions[0]
+    )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
 
@@ -1109,7 +1125,10 @@ async def test_handle_ruleset_nation_sets_replaces_previous(mock_client, game_st
 
 async def test_handle_ruleset_nation_sets_empty_list(mock_client, game_state):
     """Test handler handles nsets=0 correctly."""
-    payload = b'\x00'  # nsets=0
+    payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
+        b'\x00'  # nsets=0
+    )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
 
@@ -1118,7 +1137,15 @@ async def test_handle_ruleset_nation_sets_empty_list(mock_client, game_state):
 
 async def test_handle_ruleset_nation_sets_calls_decoder(mock_client, game_state):
     """Test handler calls decoder function."""
-    payload = b'\x01Core\x00core\x00Description\x00'
+    # Delta protocol format with bitvector and null-terminated strings
+    payload = (
+        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
+        b'\x01'  # nsets=1
+        # Null-terminated variable-length strings
+        b'Core\x00'  # names[0]
+        b'core\x00'  # rule_names[0]
+        b'Description\x00'  # descriptions[0]
+    )
 
     with patch('fc_client.handlers.protocol.decode_ruleset_nation_sets') as mock_decode:
         mock_decode.return_value = {
