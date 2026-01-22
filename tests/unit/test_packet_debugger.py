@@ -65,10 +65,10 @@ def test_write_inbound_packet_creates_file(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     packet_data = b"\x00\x05\x00\x01\x02"
-    debugger.write_inbound_packet(packet_data)
+    debugger.write_inbound_packet(packet_data, packet_type=5)
 
-    # Should create inbound_1.packet (counter starts at 0, increments before writing)
-    packet_file = debug_dir / "inbound_1.packet"
+    # Should create inbound_0001_type005.packet (counter starts at 0, increments before writing)
+    packet_file = debug_dir / "inbound_0001_type005.packet"
     assert packet_file.exists()
 
 
@@ -79,9 +79,9 @@ def test_write_inbound_packet_correct_content(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     packet_data = b"\x00\x05\x00\x01\x02\x03\x04"
-    debugger.write_inbound_packet(packet_data)
+    debugger.write_inbound_packet(packet_data, packet_type=25)
 
-    packet_file = debug_dir / "inbound_1.packet"
+    packet_file = debug_dir / "inbound_0001_type025.packet"
     with open(packet_file, 'rb') as f:
         content = f.read()
 
@@ -95,14 +95,14 @@ def test_write_inbound_packet_increments_counter(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     # Write multiple packets
-    debugger.write_inbound_packet(b"\x01")
-    debugger.write_inbound_packet(b"\x02")
-    debugger.write_inbound_packet(b"\x03")
+    debugger.write_inbound_packet(b"\x01", packet_type=5)
+    debugger.write_inbound_packet(b"\x02", packet_type=25)
+    debugger.write_inbound_packet(b"\x03", packet_type=29)
 
     # Should have files numbered 1, 2, 3
-    assert (debug_dir / "inbound_1.packet").exists()
-    assert (debug_dir / "inbound_2.packet").exists()
-    assert (debug_dir / "inbound_3.packet").exists()
+    assert (debug_dir / "inbound_0001_type005.packet").exists()
+    assert (debug_dir / "inbound_0002_type025.packet").exists()
+    assert (debug_dir / "inbound_0003_type029.packet").exists()
 
 
 @pytest.mark.unit
@@ -111,9 +111,9 @@ def test_write_inbound_packet_empty_data(tmp_path):
     debug_dir = tmp_path / "debug"
     debugger = PacketDebugger(str(debug_dir))
 
-    debugger.write_inbound_packet(b"")
+    debugger.write_inbound_packet(b"", packet_type=0)
 
-    packet_file = debug_dir / "inbound_1.packet"
+    packet_file = debug_dir / "inbound_0001_type000.packet"
     assert packet_file.exists()
 
     # File should be empty
@@ -132,10 +132,10 @@ def test_write_outbound_packet_creates_file(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     packet_data = b"\x00\x05\x04\x01\x02"
-    debugger.write_outbound_packet(packet_data)
+    debugger.write_outbound_packet(packet_data, packet_type=4)
 
-    # Should create outbound_1.packet
-    packet_file = debug_dir / "outbound_1.packet"
+    # Should create outbound_0001_type004.packet
+    packet_file = debug_dir / "outbound_0001_type004.packet"
     assert packet_file.exists()
 
 
@@ -146,9 +146,9 @@ def test_write_outbound_packet_correct_content(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     packet_data = b"\x00\x0a\x04\x01\x02\x03\x04\x05\x06\x07"
-    debugger.write_outbound_packet(packet_data)
+    debugger.write_outbound_packet(packet_data, packet_type=4)
 
-    packet_file = debug_dir / "outbound_1.packet"
+    packet_file = debug_dir / "outbound_0001_type004.packet"
     with open(packet_file, 'rb') as f:
         content = f.read()
 
@@ -162,14 +162,14 @@ def test_write_outbound_packet_increments_counter(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     # Write multiple packets
-    debugger.write_outbound_packet(b"\x01")
-    debugger.write_outbound_packet(b"\x02")
-    debugger.write_outbound_packet(b"\x03")
+    debugger.write_outbound_packet(b"\x01", packet_type=4)
+    debugger.write_outbound_packet(b"\x02", packet_type=4)
+    debugger.write_outbound_packet(b"\x03", packet_type=4)
 
     # Should have files numbered 1, 2, 3
-    assert (debug_dir / "outbound_1.packet").exists()
-    assert (debug_dir / "outbound_2.packet").exists()
-    assert (debug_dir / "outbound_3.packet").exists()
+    assert (debug_dir / "outbound_0001_type004.packet").exists()
+    assert (debug_dir / "outbound_0002_type004.packet").exists()
+    assert (debug_dir / "outbound_0003_type004.packet").exists()
 
 
 # ============================================================================
@@ -184,16 +184,16 @@ def test_inbound_outbound_counters_independent(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     # Write some inbound packets
-    debugger.write_inbound_packet(b"\x01")
-    debugger.write_inbound_packet(b"\x02")
+    debugger.write_inbound_packet(b"\x01", packet_type=5)
+    debugger.write_inbound_packet(b"\x02", packet_type=25)
 
     # Write some outbound packets
-    debugger.write_outbound_packet(b"\x03")
+    debugger.write_outbound_packet(b"\x03", packet_type=4)
 
     # Both should start from 1
-    assert (debug_dir / "inbound_1.packet").exists()
-    assert (debug_dir / "inbound_2.packet").exists()
-    assert (debug_dir / "outbound_1.packet").exists()
+    assert (debug_dir / "inbound_0001_type005.packet").exists()
+    assert (debug_dir / "inbound_0002_type025.packet").exists()
+    assert (debug_dir / "outbound_0001_type004.packet").exists()
 
 
 @pytest.mark.unit
@@ -203,23 +203,23 @@ def test_interleaved_inbound_outbound_writes(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     # Interleave writes
-    debugger.write_outbound_packet(b"\xa1")
-    debugger.write_inbound_packet(b"\xb1")
-    debugger.write_outbound_packet(b"\xa2")
-    debugger.write_inbound_packet(b"\xb2")
-    debugger.write_outbound_packet(b"\xa3")
+    debugger.write_outbound_packet(b"\xa1", packet_type=4)
+    debugger.write_inbound_packet(b"\xb1", packet_type=5)
+    debugger.write_outbound_packet(b"\xa2", packet_type=4)
+    debugger.write_inbound_packet(b"\xb2", packet_type=25)
+    debugger.write_outbound_packet(b"\xa3", packet_type=4)
 
     # Check files exist with correct counters
-    assert (debug_dir / "outbound_1.packet").exists()
-    assert (debug_dir / "outbound_2.packet").exists()
-    assert (debug_dir / "outbound_3.packet").exists()
-    assert (debug_dir / "inbound_1.packet").exists()
-    assert (debug_dir / "inbound_2.packet").exists()
+    assert (debug_dir / "outbound_0001_type004.packet").exists()
+    assert (debug_dir / "outbound_0002_type004.packet").exists()
+    assert (debug_dir / "outbound_0003_type004.packet").exists()
+    assert (debug_dir / "inbound_0001_type005.packet").exists()
+    assert (debug_dir / "inbound_0002_type025.packet").exists()
 
     # Verify content to ensure correct packet went to correct file
-    with open(debug_dir / "outbound_1.packet", 'rb') as f:
+    with open(debug_dir / "outbound_0001_type004.packet", 'rb') as f:
         assert f.read() == b"\xa1"
-    with open(debug_dir / "inbound_1.packet", 'rb') as f:
+    with open(debug_dir / "inbound_0001_type005.packet", 'rb') as f:
         assert f.read() == b"\xb1"
 
 
@@ -236,9 +236,9 @@ def test_write_inbound_packet_binary_data(tmp_path):
 
     # Binary data with all byte values
     packet_data = bytes(range(256))
-    debugger.write_inbound_packet(packet_data)
+    debugger.write_inbound_packet(packet_data, packet_type=29)
 
-    packet_file = debug_dir / "inbound_1.packet"
+    packet_file = debug_dir / "inbound_0001_type029.packet"
     with open(packet_file, 'rb') as f:
         content = f.read()
 
@@ -254,9 +254,9 @@ def test_write_outbound_packet_large_data(tmp_path):
 
     # Large packet (10KB)
     packet_data = b"\xff" * 10240
-    debugger.write_outbound_packet(packet_data)
+    debugger.write_outbound_packet(packet_data, packet_type=100)
 
-    packet_file = debug_dir / "outbound_1.packet"
+    packet_file = debug_dir / "outbound_0001_type100.packet"
     assert packet_file.stat().st_size == 10240
 
     with open(packet_file, 'rb') as f:
@@ -278,8 +278,8 @@ def test_packet_debugger_with_nested_directory(tmp_path):
     debugger = PacketDebugger(str(debug_dir))
 
     assert debug_dir.exists()
-    debugger.write_inbound_packet(b"\x01")
-    assert (debug_dir / "inbound_1.packet").exists()
+    debugger.write_inbound_packet(b"\x01", packet_type=5)
+    assert (debug_dir / "inbound_0001_type005.packet").exists()
 
 
 @pytest.mark.unit
@@ -291,14 +291,14 @@ def test_multiple_debuggers_same_parent(tmp_path):
     debugger1 = PacketDebugger(str(debug_dir1))
     debugger2 = PacketDebugger(str(debug_dir2))
 
-    debugger1.write_inbound_packet(b"\x01")
-    debugger2.write_inbound_packet(b"\x02")
+    debugger1.write_inbound_packet(b"\x01", packet_type=5)
+    debugger2.write_inbound_packet(b"\x02", packet_type=25)
 
-    assert (debug_dir1 / "inbound_1.packet").exists()
-    assert (debug_dir2 / "inbound_1.packet").exists()
+    assert (debug_dir1 / "inbound_0001_type005.packet").exists()
+    assert (debug_dir2 / "inbound_0001_type025.packet").exists()
 
     # Verify content is different
-    with open(debug_dir1 / "inbound_1.packet", 'rb') as f:
+    with open(debug_dir1 / "inbound_0001_type005.packet", 'rb') as f:
         assert f.read() == b"\x01"
-    with open(debug_dir2 / "inbound_1.packet", 'rb') as f:
+    with open(debug_dir2 / "inbound_0001_type025.packet", 'rb') as f:
         assert f.read() == b"\x02"

@@ -86,7 +86,8 @@ The source code for freeciv is located in the `freeciv` directory. It is made av
   - **packet_debugger.py**: Optional packet capture utility for debugging
     - `PacketDebugger`: Captures raw packets to files for analysis
     - Enabled via `--debug-packets` command-line flag
-    - Saves inbound/outbound packets to numbered files
+    - Saves packets with format: `DIRECTION_INDEX_typeNNN.packet` (e.g., `inbound_0001_type005.packet`)
+    - Includes packet type in filename for easy identification
 
 ### FreeCiv Protocol
 
@@ -545,20 +546,47 @@ This captures all inbound and outbound packets to individual files.
 
 ### File Naming Convention
 
-Packets are saved with sequential numbering:
-- **Inbound**: `inbound_0.packet`, `inbound_1.packet`, `inbound_2.packet`, ...
-- **Outbound**: `outbound_0.packet`, `outbound_1.packet`, `outbound_2.packet`, ...
+Packets are saved with a structured naming format: `DIRECTION_INDEX_typeNNN.packet`
 
-Each file contains the raw binary packet data as transmitted/received.
+- **DIRECTION**: `inbound` (from server) or `outbound` (to server)
+- **INDEX**: 4-digit zero-padded counter (0001, 0002, 0003, ...)
+- **typeNNN**: 3-digit zero-padded packet type number (e.g., type005 for PACKET_SERVER_JOIN_REPLY)
+
+**Examples:**
+- `inbound_0001_type005.packet` - First inbound packet, type 5 (SERVER_JOIN_REPLY)
+- `inbound_0002_type025.packet` - Second inbound packet, type 25 (SERVER_INFO)
+- `outbound_0001_type004.packet` - First outbound packet, type 4 (SERVER_JOIN_REQ)
+
+This naming convention provides:
+- **Chronological ordering**: The index shows the order packets were sent/received
+- **Quick identification**: The type number lets you identify packet types without inspecting the file
+- **Easy filtering**: You can use shell globs to find all packets of a specific type (e.g., `inbound_*_type025.packet`)
+
+Each file contains the raw binary packet data as transmitted/received, including the packet header.
 
 ### Use Cases
 
-Captured packets are useful for:
-- **Protocol analysis**: Examine exact byte sequences sent/received
-- **Bug reproduction**: Save packets that trigger errors
-- **Comparison testing**: Compare packets from different client/server versions
-- **Manual decoding**: Write test decoders against known-good packet data
-- **Documentation**: Create examples of real packet structures
+The packet debugger is valuable for:
+
+**Protocol Development:**
+- **Implementing new packet handlers**: Capture real server packets to understand their structure
+- **Debugging decoding errors**: Save problematic packets for offline analysis
+- **Writing unit tests**: Use captured packets as test fixtures with known-good data
+- **Protocol analysis**: Examine exact byte sequences to verify encoding/decoding logic
+
+**Troubleshooting:**
+- **Bug reproduction**: Capture the exact sequence of packets that trigger an error
+- **State debugging**: Analyze packet history to understand game state changes
+- **Delta protocol verification**: Compare packets to ensure delta encoding/decoding is correct
+- **Version compatibility**: Compare packets between different server versions
+
+**Development Workflow:**
+When implementing a new packet handler (e.g., PACKET_CITY_INFO):
+1. Run the client with `--debug-packets` and join a game
+2. Find captured packets for the type you're implementing (e.g., `inbound_*_type031.packet`)
+3. Use the captured bytes as test fixtures in unit tests
+4. Decode the packet structure by examining the raw bytes
+5. Implement and test the handler against real server data
 
 ### Safety Mechanism
 

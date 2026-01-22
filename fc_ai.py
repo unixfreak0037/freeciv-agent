@@ -20,6 +20,11 @@ def parse_args():
         default=None,     # Default when --debug-packets not provided
         help='Enable packet debugging to DIR (default: packets)'
     )
+    parser.add_argument(
+        '--validate-packets',
+        action='store_true',
+        help='Enable packet validation mode with integrity checks and logging'
+    )
     return parser.parse_args()
 
 
@@ -37,9 +42,12 @@ async def main() -> int:
 
     shutdown_event = asyncio.Event()
 
-    # Create client with optional packet debugging
+    # Create client with optional packet debugging and validation
     try:
-        client = FreeCivClient(debug_packets_dir=args.debug_packets)
+        client = FreeCivClient(
+            debug_packets_dir=args.debug_packets,
+            validate_packets=args.validate_packets
+        )
     except FileExistsError as e:
         print(f"Error: {e}", file=sys.stderr)
         return os.EX_USAGE  # Exit code 64

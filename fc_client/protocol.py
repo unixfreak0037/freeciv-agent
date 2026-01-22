@@ -224,13 +224,14 @@ def encode_server_join_req(username: str) -> bytes:
     return encode_packet(PACKET_SERVER_JOIN_REQ, payload)
 
 
-async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = False) -> Tuple[int, bytes, bytes]:
+async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = False, validate: bool = False) -> Tuple[int, bytes, bytes]:
     """
     Read a packet from the stream.
 
     Args:
         reader: The stream reader
         use_two_byte_type: If True, read 2 bytes for packet type (after JOIN_REPLY accepted)
+        validate: If True, enable validation logging and assertions for debugging
 
     Returns:
         Tuple of (packet_type, payload_data, raw_packet_bytes)
@@ -239,6 +240,9 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
     # Read 2-byte length field (big-endian)
     length_bytes = await _recv_exact(reader, 2)
     packet_length = struct.unpack('>H', length_bytes)[0]
+
+    if validate:
+        print(f"[VALIDATE] Length header: {packet_length} bytes")
 
     # Read packet type (1 or 2 bytes depending on connection state)
     if use_two_byte_type:
@@ -250,12 +254,30 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
         packet_type = struct.unpack('B', type_bytes)[0]
         header_size = 3  # 2 bytes length + 1 byte type
 
+    if validate:
+        print(f"[VALIDATE] Type field: {len(type_bytes)} bytes (packet type {packet_type})")
+
     # Read remaining payload
     payload_length = packet_length - header_size
     payload = await _recv_exact(reader, payload_length) if payload_length > 0 else b''
 
+    if validate:
+        print(f"[VALIDATE] Payload length: {payload_length} bytes")
+
     # Construct complete raw packet for debugging
     raw_packet = length_bytes + type_bytes + payload
+
+    if validate:
+        print(f"[VALIDATE] Reconstructed raw_packet: {len(raw_packet)} bytes")
+
+        # Critical assertion: reconstructed size must match header
+        if len(raw_packet) != packet_length:
+            raise RuntimeError(
+                f"Packet reconstruction error for type {packet_type}: "
+                f"header claims {packet_length} bytes, "
+                f"but reconstructed {len(raw_packet)} bytes"
+            )
+        print(f"[VALIDATE] ✓ Packet {packet_type} reconstruction verified")
 
     return packet_type, payload, raw_packet
 

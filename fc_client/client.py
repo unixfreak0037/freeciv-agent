@@ -19,7 +19,7 @@ class FreeCivClient:
     _use_two_byte_type: bool
     _delta_cache: DeltaCache
 
-    def __init__(self, debug_packets_dir: Optional[str] = None):
+    def __init__(self, debug_packets_dir: Optional[str] = None, validate_packets: bool = False):
         self.reader = None
         self.writer = None
         self._shutdown_event = None
@@ -29,6 +29,7 @@ class FreeCivClient:
         self.game_state = None
         self._use_two_byte_type = False  # Start with 1-byte type, switch after JOIN_REPLY
         self._delta_cache = DeltaCache()  # Cache for delta protocol
+        self._validate_packets = validate_packets  # Enable validation logging
 
         # Initialize packet debugger if requested
         if debug_packets_dir:
@@ -36,6 +37,9 @@ class FreeCivClient:
             print(f"Packet debugging enabled: {debug_packets_dir}/")
         else:
             self._packet_debugger = None
+
+        if self._validate_packets:
+            print("Packet validation mode enabled")
 
         # Register packet handlers
         self.register_handler(protocol.PACKET_PROCESSING_STARTED, handlers.handle_processing_started)
@@ -93,7 +97,7 @@ class FreeCivClient:
 
         # Debug: Write outbound packet
         if self._packet_debugger:
-            self._packet_debugger.write_outbound_packet(join_req_packet)
+            self._packet_debugger.write_outbound_packet(join_req_packet, protocol.PACKET_SERVER_JOIN_REQ)
 
         self.writer.write(join_req_packet)
         await self.writer.drain()
@@ -120,12 +124,13 @@ class FreeCivClient:
                 # Read next packet (now returns 3-tuple including raw bytes)
                 packet_type, payload, raw_packet = await protocol.read_packet(
                     self.reader,
-                    use_two_byte_type=self._use_two_byte_type
+                    use_two_byte_type=self._use_two_byte_type,
+                    validate=self._validate_packets
                 )
 
                 # Debug: Write inbound packet
                 if self._packet_debugger:
-                    self._packet_debugger.write_inbound_packet(raw_packet)
+                    self._packet_debugger.write_inbound_packet(raw_packet, packet_type)
 
                 print(f"Received packet type: {packet_type}")
 
