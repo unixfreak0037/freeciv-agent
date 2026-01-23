@@ -13,6 +13,7 @@ PACKET_PROCESSING_STARTED = 0
 PACKET_PROCESSING_FINISHED = 1
 PACKET_SERVER_JOIN_REQ = 4
 PACKET_SERVER_JOIN_REPLY = 5
+PACKET_GAME_INFO = 16
 PACKET_CHAT_MSG = 25
 PACKET_SERVER_INFO = 29
 PACKET_RULESET_CONTROL = 155
@@ -1297,6 +1298,91 @@ def _decode_field(data: bytes, offset: int, type_name: str) -> Tuple[Any, int]:
         raise ValueError(f"Unsupported field type: {type_name}")
 
 
+def decode_array_diff(
+    data: bytes,
+    offset: int,
+    element_type: str,
+    array_size: int,
+    cached_array: list = None
+) -> Tuple[list, int]:
+    """
+    Decode an array transmitted using array-diff optimization.
+
+    Array-diff is a bandwidth optimization where only changed array elements
+    are transmitted as (index, value) pairs. The end of the list is marked
+    by a sentinel index equal to array_size.
+
+    Wire format:
+        [index1, value1, index2, value2, ..., sentinel_index]
+
+    Index encoding:
+        - 8-bit (uint8) if array_size <= 255
+        - 16-bit (uint16) if array_size > 255
+
+    Args:
+        data: Payload bytes
+        offset: Current offset in the payload
+        element_type: Type of array elements ('BOOL', 'SINT32', 'PLAYER', etc.)
+        array_size: Maximum array size (also used as sentinel value)
+        cached_array: Previously cached array (or None for first transmission)
+
+    Returns:
+        Tuple of (decoded_array, new_offset)
+
+    Raises:
+        ValueError: If index is out of bounds or invalid
+
+    Algorithm:
+        1. Initialize result array from cache (or zeros/defaults if no cache)
+        2. Loop reading (index, value) pairs:
+           - Read index (uint8 or uint16 based on array_size)
+           - If index == array_size: break (sentinel reached)
+           - If index > array_size: error (invalid index)
+           - Read value and update result[index]
+        3. Return updated array
+    """
+    # Determine index width based on array size
+    use_uint16_indices = array_size > 255
+
+    # Initialize result array from cache or defaults
+    if cached_array is not None and len(cached_array) == array_size:
+        result = cached_array.copy()
+    else:
+        # No cache or wrong size - initialize with default values
+        if element_type == 'BOOL':
+            result = [False] * array_size
+        elif element_type in ('SINT8', 'SINT16', 'SINT32', 'PLAYER'):
+            result = [0] * array_size
+        elif element_type in ('UINT8', 'UINT16', 'UINT32'):
+            result = [0] * array_size
+        else:
+            result = [None] * array_size
+
+    # Read (index, value) pairs until sentinel
+    while True:
+        # Read index
+        if use_uint16_indices:
+            index, offset = decode_uint16(data, offset)
+        else:
+            index, offset = decode_uint8(data, offset)
+
+        # Check for sentinel (index == array_size)
+        if index == array_size:
+            break
+
+        # Validate index
+        if index > array_size:
+            raise ValueError(
+                f"Array-diff index {index} exceeds array size {array_size}"
+            )
+
+        # Read value for this index
+        value, offset = _decode_field(data, offset, element_type)
+        result[index] = value
+
+    return result, offset
+
+
 def decode_delta_packet(
     payload: bytes,
     packet_spec: PacketSpec,
@@ -1361,8 +1447,19 @@ def decode_delta_packet(
             # No separate byte is transmitted for boolean fields
             fields[field_spec.name] = is_bit_set(bitvector, bit_index)
         elif is_bit_set(bitvector, bit_index):
-            # Field changed - read new value from payload
-            value, offset = _decode_field(payload, offset, field_spec.type_name)
+            # Field has changed - read new value from payload
+            if field_spec.is_array and field_spec.array_diff:
+                # Array with diff optimization - only changed elements transmitted
+                cached_array = cached.get(field_spec.name, None)
+                value, offset = decode_array_diff(
+                    payload, offset,
+                    field_spec.element_type,
+                    field_spec.array_size,
+                    cached_array
+                )
+            else:
+                # Regular field or full array transmission
+                value, offset = _decode_field(payload, offset, field_spec.type_name)
             fields[field_spec.name] = value
         else:
             # Field unchanged - use cached value

@@ -178,6 +178,7 @@ class GameState:
     def __init__(self):
         """Initialize a new game state with default values."""
         self.server_info = None
+        self.game_info: Optional[Dict[str, Any]] = None  # Game state information (PACKET_GAME_INFO)
         self.chat_history = []  # List of chat message dicts with timestamps
         self.ruleset_control: Optional[RulesetControl] = None  # Ruleset configuration (PACKET_RULESET_CONTROL)
         self.ruleset_summary: Optional[str] = None  # Ruleset summary text (PACKET_RULESET_SUMMARY)

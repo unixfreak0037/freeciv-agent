@@ -19,6 +19,10 @@ class FieldSpec:
         is_key: True if this is a key field (always transmitted, not in bitvector)
         is_bool: True if this is a boolean field (uses header folding optimization)
         default_value: Default value to use when field is not in cache
+        is_array: True if this field is an array
+        array_size: Maximum array size (e.g., A_LAST, B_LAST constants)
+        array_diff: True if array uses diff optimization (only changed elements transmitted)
+        element_type: Element type for arrays (e.g., 'BOOL', 'SINT32', 'PLAYER')
     """
     name: str
     type_name: str
@@ -26,10 +30,19 @@ class FieldSpec:
     is_bool: bool = False
     default_value: Any = None
 
+    # Array-diff support
+    is_array: bool = False
+    array_size: int = 0
+    array_diff: bool = False
+    element_type: str = None
+
     def __post_init__(self):
         """Set default value based on type if not provided."""
         if self.default_value is None:
-            if self.type_name == 'STRING':
+            if self.is_array:
+                # Arrays default to empty list
+                self.default_value = []
+            elif self.type_name == 'STRING':
                 self.default_value = ""
             elif self.type_name == 'BOOL':
                 self.default_value = False
@@ -189,6 +202,51 @@ PACKET_SPECS[247] = PacketSpec(
     has_delta=False,  # Simple packet, no delta encoding
     fields=[
         FieldSpec(name='text', type_name='STRING'),
+    ]
+)
+
+
+# PACKET_GAME_INFO = 16
+# From packets.def: PACKET_GAME_INFO = 16; sc, is-info
+# This packet contains comprehensive game state information including:
+# - Array-diff fields: global_advances[A_LAST], great_wonder_owners[B_LAST]
+# - Many game configuration parameters
+# Note: This is a minimal specification focusing on array-diff fields.
+# Full specification has 100+ fields (see packets.def for complete list).
+#
+# Constants from freeciv/common/fc_types.h:
+# - A_LAST = MAX_NUM_ADVANCES + 1 = 401 (technologies)
+# - B_LAST = MAX_NUM_BUILDINGS = 200 (buildings/wonders)
+PACKET_SPECS[16] = PacketSpec(
+    packet_type=16,
+    name="PACKET_GAME_INFO",
+    has_delta=True,
+    fields=[
+        # Key field for delta protocol (minimal set - actual packet has no key fields)
+        # Non-key fields (partial list - focusing on array-diff fields)
+        FieldSpec(name='global_advance_count', type_name='UINT16'),
+        # Array-diff field: Boolean array of discovered technologies
+        FieldSpec(
+            name='global_advances',
+            type_name='BOOL',  # Not used for array-diff, element_type is used instead
+            is_array=True,
+            array_diff=True,
+            element_type='BOOL',
+            array_size=401,  # A_LAST = MAX_NUM_ADVANCES + 1
+            default_value=[]
+        ),
+        # Array-diff field: Player IDs owning each wonder
+        FieldSpec(
+            name='great_wonder_owners',
+            type_name='SINT8',  # Not used for array-diff, element_type is used instead
+            is_array=True,
+            array_diff=True,
+            element_type='SINT8',  # PLAYER type maps to SINT8
+            array_size=200,  # B_LAST = MAX_NUM_BUILDINGS
+            default_value=[]
+        ),
+        # Additional fields would go here...
+        # (100+ more fields in actual packet - omitted for minimal implementation)
     ]
 )
 
