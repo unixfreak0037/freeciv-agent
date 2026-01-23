@@ -147,6 +147,158 @@ The project has a working async network client that can connect to FreeCiv serve
 4. **Turn Management**: Handle turn-based game loop and action submission
 5. **Action Encoding**: Implement packet encoding for player actions (move unit, build, etc.)
 
+### Implementation Status and Priorities
+
+This section tracks the implementation status of FreeCiv protocol features and prioritizes future work.
+
+**✅ Implemented Features:**
+
+1. **Basic Delta Protocol**
+   - Bitvector-based field presence indication
+   - Key field / non-key field handling
+   - Delta cache for bandwidth optimization
+   - Field transmission order: bitvector → key fields → non-key fields
+   - Implemented for: PACKET_SERVER_INFO (25), PACKET_CHAT_MSG (29)
+
+2. **Boolean Header Folding**
+   - BOOL field values stored in bitvector bits
+   - No payload bytes consumed for standalone BOOL fields
+   - 8x compression for boolean data
+   - Correctly handles BOOL vs BOOL array distinction
+
+3. **Basic Packet Handlers**
+   - PACKET_PROCESSING_STARTED (0)
+   - PACKET_PROCESSING_FINISHED (1)
+   - PACKET_SERVER_JOIN_REPLY (5)
+   - PACKET_SERVER_INFO (25) with delta support
+   - PACKET_CHAT_MSG (29) with delta support
+
+4. **Protocol Infrastructure**
+   - Async network I/O with asyncio
+   - Dynamic protocol version switching (1-byte → 2-byte packet types)
+   - Event-driven packet dispatch system
+   - Packet debugger for capturing raw server packets
+   - Delta cache management
+
+**❌ CRITICAL MISSING FEATURES:**
+
+1. **Packet Compression (HIGHEST PRIORITY)**
+   - Status: ❌ Not implemented
+   - Impact: **BLOCKS production use** - Real servers compress bulk updates
+   - Severity: 🔴 CRITICAL - Client will fail with compressed packets
+   - Required for: Game start, end of turn, reconnect scenarios
+   - Dependencies: Python zlib module (already in stdlib)
+   - Estimated effort: Medium (1-2 days implementation + testing)
+   - Implementation location: `fc_client/protocol.py`
+   - References: `freeciv/common/networking/packets.c:442-504`, `freeciv/doc/README.delta:42-74`
+
+   **Next Steps:**
+   - Implement compression detection in `read_packet()`
+   - Add zlib decompression function
+   - Handle recursive packet parsing from decompressed buffer
+   - Test with real FreeCiv server in large game scenarios
+   - Add PACKET_FREEZE_CLIENT (130) and PACKET_THAW_CLIENT (131) handlers
+
+**❌ IMPORTANT MISSING FEATURES:**
+
+2. **Array-Diff Optimization (HIGH PRIORITY)**
+   - Status: ❌ Not implemented
+   - Impact: Required for complex ruleset packets (PACKET_RULESET_GAME, etc.)
+   - Severity: 🟡 HIGH - Blocks implementation of ~50+ packet types
+   - Required for: Ruleset packets, technology trees, unit definitions
+   - Dependencies: None
+   - Estimated effort: Small (1 day implementation + testing)
+   - Implementation location: `fc_client/protocol.py`
+   - References: `freeciv/common/generate_packets.py:1273-1441`, `freeciv/doc/README.delta:23-29`
+
+   **Next Steps:**
+   - Implement generic array-diff decoder
+   - Parse packets.def to identify diff-marked arrays
+   - Add diff array support to field decoder
+   - Test with PACKET_RULESET_GAME veteran_name array
+
+3. **Additional Packet Handlers (~515 types)**
+   - Status: ❌ Only 5 of ~520 packet types implemented
+   - Impact: Limited game functionality - can join but not play
+   - Severity: 🟡 HIGH - Blocks AI gameplay
+   - Required for: Full game participation, AI decision-making
+   - Dependencies: Compression and array-diff must be implemented first
+   - Estimated effort: Large (ongoing work, prioritize by gameplay needs)
+
+   **Priority packet types to implement:**
+   - PACKET_PLAYER_INFO (43) - Track player state
+   - PACKET_TILE_INFO (30) - Map visibility
+   - PACKET_UNIT_INFO (26) - Unit tracking
+   - PACKET_CITY_INFO (31) - City management
+   - PACKET_RULESET_* (141-200+) - Game rules (requires array-diff)
+
+**🔮 NICE TO HAVE FEATURES:**
+
+4. **PACKET_FREEZE_CLIENT / PACKET_THAW_CLIENT Handling**
+   - Status: ❌ Not handled (packets ignored)
+   - Impact: GUI update batching not implemented (not critical for headless AI)
+   - Severity: 🟢 LOW - Useful for debugging and optimization
+   - Required for: Understanding compression boundaries, optimal state updates
+
+   **Next Steps:**
+   - Add basic handlers that log when compression grouping starts/ends
+   - Optionally batch state updates between FREEZE/THAW
+
+5. **Capability Variants**
+   - Status: ❌ Not implemented
+   - Impact: May encounter different packet field sets from different server versions
+   - Severity: 🟢 LOW - Current implementation works with FreeCiv 3.2.2
+   - Required for: Supporting multiple FreeCiv server versions
+
+   **Next Steps:**
+   - Document when packet variations are encountered
+   - Implement variant handling if server compatibility issues arise
+
+**Implementation Roadmap:**
+
+```
+Phase 1 (CRITICAL - Blocks production):
+├─ 1. Packet Compression
+│  ├─ Implement compression detection
+│  ├─ Add zlib decompression
+│  ├─ Handle recursive packet parsing
+│  └─ Test with real server
+
+Phase 2 (HIGH - Enables complex packets):
+├─ 2. Array-Diff Optimization
+│  ├─ Implement array-diff decoder
+│  ├─ Identify diff arrays in packets.def
+│  └─ Test with ruleset packets
+
+Phase 3 (ONGOING - Enables gameplay):
+├─ 3. Core Gameplay Packets
+│  ├─ PACKET_PLAYER_INFO (43)
+│  ├─ PACKET_TILE_INFO (30)
+│  ├─ PACKET_UNIT_INFO (26)
+│  ├─ PACKET_CITY_INFO (31)
+│  └─ Movement/action packets
+
+Phase 4 (ONGOING - Full protocol):
+├─ 4. Ruleset Packets (requires array-diff)
+│  ├─ PACKET_RULESET_GAME (141)
+│  ├─ PACKET_RULESET_TECH (148)
+│  ├─ PACKET_RULESET_UNIT (149)
+│  └─ Additional ruleset packets
+
+Phase 5 (OPTIONAL - Polish):
+├─ 5. Freeze/Thaw Handlers
+└─ 6. Capability Variants
+```
+
+**Testing Requirements:**
+
+Before considering each phase complete:
+- ✅ Unit tests with captured real server packets
+- ✅ Integration tests with mock server
+- ✅ Manual testing with real FreeCiv server
+- ✅ Coverage report showing >80% for new code
+- ✅ No regressions in existing packet handlers
+
 ## Dependencies
 
 **Runtime Dependencies:**
@@ -557,6 +709,142 @@ When implementing delta protocol handlers:
 
 See [DELTA_PROTOCOL.md](DELTA_PROTOCOL.md) for detailed algorithms, examples, and testing strategies.
 
+### Array-Diff Optimization
+
+**⚠️ IMPORTANT: Our client does NOT currently implement array-diff optimization! ⚠️**
+
+For array fields marked with the "diff" flag in packets.def, FreeCiv uses array-diff encoding to transmit only changed array elements. This optimization is **independent of delta protocol** and works within delta-encoded fields.
+
+**Format:**
+
+Array-diff encodes changed elements as index-value pairs followed by a sentinel:
+
+```
+[index₀] [value₀] [index₁] [value₁] ... [array_size_sentinel]
+```
+
+**Rules:**
+
+1. **Index is uint8**: Maximum array size is 255 elements
+2. **Only changed elements transmitted**: Compared to cached values
+3. **Sentinel value equals array size**: For array size 10, sentinel is 10
+4. **Protocol error if index > array_size**: Invalid packet
+5. **Independent of delta protocol**: Works within both delta and non-delta packets
+
+**Decoding Algorithm:**
+
+```python
+def decode_array_diff(payload, offset, array_size, element_decoder, cached_array=None):
+    """Decode array-diff encoded field.
+
+    Args:
+        payload: Raw packet bytes
+        offset: Current read position
+        array_size: Fixed size of the array
+        element_decoder: Function to decode single element from bytes
+        cached_array: Previously received array values (if any)
+
+    Returns:
+        (decoded_array, new_offset)
+    """
+    # Start with cached values or create empty array
+    result = list(cached_array) if cached_array else [None] * array_size
+
+    while True:
+        # Read index (uint8)
+        index = payload[offset]
+        offset += 1
+
+        # Check for sentinel (end marker)
+        if index == array_size:
+            break  # Done reading changes
+
+        # Protocol error check
+        if index > array_size:
+            raise ValueError(f"Invalid array-diff index {index} > {array_size}")
+
+        # Read value at this index
+        value, offset = element_decoder(payload, offset)
+        result[index] = value
+
+    return result, offset
+```
+
+**Encoding Example:**
+
+For an array of size 10 where elements 2, 5, and 7 changed:
+
+```
+Original:  [a, b, c, d, e, f, g, h, i, j]
+Changes:   [_, _, X, _, _, Y, _, Z, _, _]
+
+Encoded:   [2] [X] [5] [Y] [7] [Z] [10]
+           ^^^ ^^^ ^^^ ^^^ ^^^ ^^^ ^^^^
+           idx val idx val idx val sentinel
+```
+
+**Real-World Example:**
+
+PACKET_RULESET_GAME uses array-diff for veteran level names:
+
+```python
+# packets.def shows: veteran_name[veteran_levels](diff)
+# This means veteran_name array uses diff encoding
+
+# For 4 veteran levels, might transmit:
+# [0]["green"][1]["veteran"][2]["hardened"][3]["elite"][4]
+#  ^    ^      ^     ^        ^      ^       ^    ^     ^
+#  idx  val    idx   val      idx    val     idx  val   sentinel=4
+```
+
+**Detection:**
+
+In packets.def, array fields marked with `(diff)` use this encoding:
+
+```
+veteran_name[veteran_levels](diff)
+                             ^^^^^
+```
+
+**Implementation Requirements:**
+
+1. Parse packets.def or examine generated C code to identify diff arrays
+2. Implement array-diff decoder for each field type (string, uint16, etc.)
+3. Maintain cache of previous array values for diff comparison
+4. Handle sentinel value correctly (equals array size, NOT max index)
+
+**Testing Strategy:**
+
+```python
+# Test with real captured packet bytes
+def test_array_diff_veteran_names():
+    # Captured from packets/inbound_*_type141.packet
+    payload = bytes.fromhex("00 67 72 65 65 6e 00 01 76 65 74 65 72 61 6e 00 02 ...")
+
+    offset = 0
+    array_size = 4  # From veteran_levels field
+
+    result, new_offset = decode_array_diff(
+        payload, offset, array_size,
+        element_decoder=decode_string,  # Each element is a null-terminated string
+        cached_array=None
+    )
+
+    assert result == ["green", "veteran", "hardened", "elite"]
+    assert payload[new_offset-1] == 4  # Sentinel value
+```
+
+**Implementation References:**
+- Encoding logic: `freeciv/common/generate_packets.py:1273-1351`
+- Decoding logic: `freeciv/common/generate_packets.py:1390-1441`
+- Documentation: `freeciv/doc/README.delta` lines 23-29
+- Generated C code: Search for `DIO_BV_GET` in `packets_gen.c`
+
+**Current Status:**
+- ❌ Not implemented in our client
+- 🔍 Required for packets with diff-marked arrays (PACKET_RULESET_GAME, etc.)
+- 📝 Must be implemented before handling complex ruleset packets
+
 ## Packet Debugging
 
 The client includes an optional packet capture utility for debugging protocol issues.
@@ -639,6 +927,139 @@ The client dynamically switches packet type field size:
 - **Version 2**: Switches to 2-byte packet type field (0-65535) after successful JOIN_REPLY
 - This allows initial negotiation with stable packet numbers while supporting full protocol range
 
+**Complete Packet Header Formats:**
+
+FreeCiv uses different header formats depending on protocol version and packet size:
+
+**Initial Protocol (packets 0-255, before JOIN_REPLY):**
+```
+[uint16 length] [uint8 type] = 3 bytes total header
+```
+
+**Normal Protocol (after JOIN_REPLY, packets 0-65535):**
+```
+[uint16 length] [uint16 type] = 4 bytes total header
+```
+
+**Compressed Packet Headers:**
+```
+Normal compressed: [uint16 (length+16385)] = 2 bytes (no type field - contains multiple packets)
+Jumbo compressed:  [uint16 (65535)] [uint32 actual_length] = 6 bytes (for packets > 48KB)
+```
+
+**Constants:**
+- `COMPRESSION_BORDER = 16*1024 + 1 = 16385`
+- `JUMBO_SIZE = 0xffff = 65535`
+- `JUMBO_BORDER = 64*1024 - COMPRESSION_BORDER - 1 = 49150`
+
+**Source:** `freeciv/doc/HACKING` lines 183-195, `freeciv/common/networking/packets.c:58,53,63`
+
+### Packet Compression System
+
+**⚠️ CRITICAL: Our client does NOT currently implement packet compression! ⚠️**
+
+FreeCiv uses DEFLATE compression to bundle multiple packets together, reducing network traffic by 60-90%. This system can cause parsing failures if not properly handled.
+
+**How Compression Works:**
+
+1. Server sends `PACKET_FREEZE_CLIENT` (130) to start compression grouping
+2. Multiple packets are queued and compressed together using zlib DEFLATE
+3. Compressed data sent as a single "packet" with special header
+4. Server sends `PACKET_THAW_CLIENT` (131) to end compression grouping
+
+**Compression Detection Logic:**
+
+```python
+# Read first 2 bytes as uint16 length field
+length = struct.unpack('<H', header_bytes[:2])[0]
+
+if length == 65535:  # JUMBO_SIZE
+    # Read next 4 bytes as uint32 actual_length
+    # This is a "jumbo" compressed packet (for sizes > 48KB)
+    # Total header: 6 bytes
+    actual_length = struct.unpack('<I', next_4_bytes)[0]
+    compressed_data = reader.readexactly(actual_length)
+
+elif length >= 16385:  # COMPRESSION_BORDER
+    # This is a "normal" compressed packet
+    # actual_length = length - COMPRESSION_BORDER
+    # Total header: 2 bytes
+    actual_length = length - 16385
+    compressed_data = reader.readexactly(actual_length)
+
+else:
+    # Uncompressed packet (length < 16385)
+    # Read packet type and continue normal processing
+```
+
+**Decompression Process:**
+
+```python
+import zlib
+
+# Decompress the data
+decompressed = zlib.decompress(compressed_data)
+
+# Decompressed buffer contains multiple packets concatenated
+# Must recursively parse each packet from the buffer:
+offset = 0
+while offset < len(decompressed):
+    # Read packet header at current offset
+    packet_length = struct.unpack('<H', decompressed[offset:offset+2])[0]
+    packet_type = struct.unpack('<H', decompressed[offset+2:offset+4])[0]
+
+    # Extract packet payload
+    packet_payload = decompressed[offset+4:offset+packet_length]
+
+    # Process packet with appropriate handler
+    handle_packet(packet_type, packet_payload)
+
+    # Move to next packet
+    offset += packet_length
+```
+
+**PACKET_FREEZE_CLIENT / PACKET_THAW_CLIENT:**
+
+These packets (types 130 and 131) serve dual purposes:
+
+1. **Compression Control:**
+   - FREEZE_CLIENT signals the start of a compression group
+   - Server queues packets between FREEZE and THAW
+   - Sends queued packets as a single compressed unit
+   - THAW_CLIENT signals the end of compression
+
+2. **GUI Update Batching:**
+   - Clients should defer GUI updates during FREEZE/THAW bracket
+   - Prevents flickering from rapid successive updates
+   - Used for: game start, player reconnect, end-of-turn processing
+
+**When Compression is Used:**
+
+Servers compress packets during:
+- **Game start**: Entire world state (rulesets, map, cities, units)
+- **End of turn**: All unit movements, city updates, combat results
+- **Reconnect**: Full game state synchronization
+- **Large games**: More players, cities, units = more compression
+
+**Why We Haven't Hit This Yet:**
+
+- Server compression is optional (controlled by `FREECIV_COMPRESSION_LEVEL` environment variable)
+- Small test games may not trigger compression threshold (~16KB)
+- Our testing has been limited to minimal scenarios
+- Real games with multiple players and entities will trigger compression
+
+**Impact on Implementation:**
+
+- **Current status**: Compressed packets will cause parsing failures
+- **Required work**: Implement zlib decompression in `protocol.py`
+- **Testing**: Use `--debug-packets` with real servers to capture compressed packets
+- **Priority**: HIGH - Required for production use with real FreeCiv servers
+
+**Implementation References:**
+- Server implementation: `freeciv/common/networking/packets.c:442-504`
+- Documentation: `freeciv/doc/README.delta` lines 42-74
+- Constants: `freeciv/common/networking/packets.c:58,53,63`
+
 ### Delta Protocol Implementation
 
 The client implements delta protocol for bandwidth optimization:
@@ -701,6 +1122,8 @@ Approximately 515 additional packet types remain to be implemented. While packet
 **⚠️ CRITICAL: NEVER trust packets.def as your primary source! ⚠️**
 
 **When implementing a new packet decoder:**
+
+**⚠️ IMPORTANT: Test with both compressed and uncompressed packets! ⚠️**
 
 1. **ALWAYS start with captured packets:**
    - Enable packet debugger: `python3 fc_ai.py --debug-packets`
@@ -778,3 +1201,230 @@ Approximately 515 additional packet types remain to be implemented. While packet
 - Actual packet from FreeCiv 3.2.2: 4 unknown bytes, then veteran fields directly
 - Result: 100% of the specification was wrong for this packet
 - Solution: Captured real packet, decoded manually, found actual structure
+
+**Compression-Related Testing:**
+
+8. **Test packet handlers with compressed data:**
+   - Real servers send compressed packets during game start, end of turn, and reconnect
+   - Enable packet debugger and join a real game to capture compressed packets
+   - If client fails during bulk updates, suspect compression issues
+   - Look for packet length values >= 16385 (COMPRESSION_BORDER) in hex dumps
+
+9. **Scenarios that trigger compression:**
+   - **Game start**: Server sends entire world state (map, cities, units, rulesets)
+   - **End of turn**: Server sends all unit movements, city updates, combat results
+   - **Reconnect**: Server sends full game state to reconnecting client
+   - **Large games**: More players/cities/units = more likely to compress
+
+10. **Identifying compressed packets in hex dumps:**
+    ```bash
+    # Look for length field >= 16385 (0x4001)
+    xxd packets/inbound_0050_type000.packet | head -1
+    # If first 2 bytes are >= 0x01 0x40, packet is compressed
+
+    # Look for JUMBO packets (length = 65535 = 0xffff)
+    xxd packets/inbound_0050_type000.packet | head -1
+    # If first 2 bytes are 0xff 0xff, this is a jumbo compressed packet
+    ```
+
+11. **Array-diff detection:**
+    - Check packets.def for fields marked with `(diff)` flag
+    - Example: `veteran_name[veteran_levels](diff)`
+    - If implementing a packet with diff arrays, ensure array-diff decoder is used
+    - Test with multiple packets to verify only changed elements are transmitted
+
+## Agent Guidance
+
+This section provides guidance for specialized Claude Code agents that work with the FreeCiv AI client codebase. These instructions should be incorporated into agent system prompts.
+
+### freeciv-research Agent
+
+**Purpose:** Research FreeCiv open source project architecture, implementation details, and protocol features.
+
+**Enhanced Knowledge Base:**
+
+The freeciv-research agent should be aware of these critical FreeCiv protocol features:
+
+1. **Packet Compression System:**
+   - Implementation: `freeciv/common/networking/packets.c:442-504`
+   - Uses zlib DEFLATE compression for packets > 16KB
+   - Controlled by PACKET_FREEZE_CLIENT (130) and PACKET_THAW_CLIENT (131)
+   - Constants: COMPRESSION_BORDER=16385, JUMBO_SIZE=65535, JUMBO_BORDER=49150
+   - Documentation: `freeciv/doc/README.delta` lines 42-74
+   - **Critical**: Our client does NOT implement compression yet
+
+2. **Array-Diff Optimization:**
+   - Implementation: `freeciv/common/generate_packets.py:1273-1441`
+   - Encoding format: [index₀][value₀][index₁][value₁]...[array_size_sentinel]
+   - Used for array fields marked with `(diff)` flag in packets.def
+   - Documentation: `freeciv/doc/README.delta` lines 23-29
+   - Independent of delta protocol (works within delta-encoded fields)
+
+3. **Key Documentation Files:**
+   - `freeciv/doc/README.delta` - Delta protocol, compression, and array-diff specifications
+   - `freeciv/doc/HACKING` - Protocol details, packet headers, network architecture
+   - `freeciv/common/networking/packets.c` - Core packet handling and compression implementation
+   - `freeciv/common/networking/packets.def` - Packet specifications (UNRELIABLE - verify with generated code)
+   - `freeciv/common/packets_gen.c` - Generated send/receive functions (AUTHORITATIVE)
+   - `freeciv/common/packets_gen.h` - Generated packet structures
+   - `freeciv/common/generate_packets.py` - Packet code generator with delta/array-diff logic
+
+4. **Protocol Ground Truth Hierarchy:**
+   - **Most authoritative**: Captured packets from real FreeCiv server
+   - **Highly authoritative**: Generated C code in `packets_gen.c`
+   - **Authoritative**: Code generator logic in `generate_packets.py`
+   - **UNRELIABLE**: packets.def specification (often wrong or incomplete)
+
+5. **Common Research Tasks:**
+   - When asked about packet structure: Check `packets_gen.c` first, NOT packets.def
+   - When asked about encoding rules: Examine `generate_packets.py` logic
+   - When asked about compression: Reference `packets.c:442-504` and `README.delta:42-74`
+   - When asked about delta protocol: Reference `generate_packets.py:2267-2282` for field order
+   - When asked about boolean folding: Reference `generate_packets.py:1590-1730`
+
+6. **Search Patterns:**
+   ```bash
+   # Find packet send function
+   grep -A 100 "send_packet_<name>" freeciv/common/packets_gen.c
+
+   # Find packet receive function
+   grep -A 100 "receive_packet_<name>" freeciv/common/packets_gen.c
+
+   # Find compression implementation
+   grep -A 50 "compress_packet" freeciv/common/networking/packets.c
+
+   # Find array-diff encoding
+   grep -A 30 "DIO_BV_PUT" freeciv/common/generate_packets.py
+   ```
+
+### packet-handler-builder Agent
+
+**Purpose:** Implement FreeCiv packet handlers for the AI client following project patterns.
+
+**Enhanced Implementation Guidance:**
+
+The packet-handler-builder agent should incorporate these implementation requirements:
+
+1. **Array-Diff Awareness:**
+   - Some array fields use "diff" flag in packets.def (e.g., `veteran_name[veteran_levels](diff)`)
+   - These fields transmit as: [index₀][value₀][index₁][value₁]...[array_size_sentinel]
+   - Sentinel value equals array size (NOT max index)
+   - Must loop reading [index][value] pairs until index == array_size
+   - Check generated C code for `DIO_BV_GET` calls to identify diff arrays
+   - Example: PACKET_RULESET_GAME uses array-diff for veteran_name array
+
+2. **Compression Transparency:**
+   - Packet handlers receive decompressed payload (compression handled at protocol layer)
+   - Handlers don't need compression logic, but should be aware of PACKET_FREEZE_CLIENT (130) and PACKET_THAW_CLIENT (131)
+   - These packets bracket compressed packet groups
+   - Test handlers with real server packets captured during game start / end of turn
+
+3. **Header Format Awareness:**
+   - Handlers receive payload bytes AFTER packet header has been parsed
+   - Delta packets: payload = [bitvector][key fields][non-key fields]
+   - Non-delta packets: payload = [all fields in order]
+   - Never assume header is included in handler payload
+
+4. **Testing with Compression:**
+   - Real FreeCiv servers send compressed packets during:
+     - Game start (ruleset/map transmission)
+     - End of turn (bulk unit/city updates)
+     - Reconnect (full state sync)
+   - Use `--debug-packets` to capture real server packets for testing
+   - Compression groups multiple packets together, so handlers may be called in bursts
+   - Test fixtures should use real captured packet bytes, not synthetic data
+
+5. **Reference Implementation Lookup:**
+   - ALWAYS check `freeciv/common/packets_gen.c` for `receive_packet_<name>()` functions
+   - This shows EXACT field order and decoding logic (authoritative)
+   - Look for `dio_get_uint8`, `dio_get_uint16`, `dio_get_string`, `dio_get_bool8`, etc.
+   - Field order in generated C code is the ONLY reliable source
+   - NEVER trust packets.def field order without verification
+
+6. **Array-Diff Decoding Pattern:**
+   ```python
+   def decode_diff_array(payload, offset, array_size, element_decoder):
+       """Decode array-diff encoded field.
+
+       Returns: (decoded_array, new_offset)
+       """
+       result = [None] * array_size
+
+       while True:
+           index = payload[offset]
+           offset += 1
+
+           if index == array_size:
+               break  # Sentinel reached
+
+           if index > array_size:
+               raise ValueError(f"Invalid diff index {index}")
+
+           value, offset = element_decoder(payload, offset)
+           result[index] = value
+
+       return result, offset
+   ```
+
+7. **Common Pitfalls to Avoid:**
+   - ❌ Reading key fields before bitvector (bitvector comes first)
+   - ❌ Reading payload bytes for standalone BOOL fields (use bitvector bit)
+   - ❌ Using big-endian for bitvector (FreeCiv uses little-endian)
+   - ❌ Trusting packets.def field order (verify with generated C code)
+   - ❌ Forgetting sentinel value for array-diff (sentinel = array_size)
+   - ❌ Creating synthetic test data (use real captured packets)
+
+8. **Implementation Checklist:**
+   - [ ] Captured real server packet with `--debug-packets`
+   - [ ] Examined generated C code in `packets_gen.c`
+   - [ ] Identified delta vs non-delta packet
+   - [ ] Identified key fields (if delta packet)
+   - [ ] Checked for array-diff fields (search for `(diff)` in packets.def)
+   - [ ] Implemented field decoder following C code order
+   - [ ] Created test fixture from captured packet bytes
+   - [ ] Verified test passes with real packet data
+   - [ ] Updated packet_specs.py with PacketSpec
+   - [ ] Registered handler in client.py packet_handlers dict
+
+### Implementation Notes for Agent Developers
+
+**Location of Agent Definitions:**
+
+Agent instructions are typically defined in:
+- Claude Code system configuration files
+- `.clinerules` files in the project directory
+- Task tool agent type definitions
+
+**Updating Agent Instructions:**
+
+If you cannot directly edit agent system prompts:
+1. Document the required changes in this section of CLAUDE.md
+2. Notify the user that agent instructions should be updated
+3. Provide the specific text to add to each agent's system prompt
+4. Reference this section when invoking agents for consistent guidance
+
+**Testing Agent Behavior:**
+
+After updating agent instructions:
+1. Test freeciv-research agent with questions about compression and array-diff
+2. Test packet-handler-builder agent with implementing a diff-array packet
+3. Verify agents reference correct documentation files
+4. Confirm agents prioritize generated C code over packets.def
+
+**Example Agent Invocations:**
+
+```python
+# Test freeciv-research agent
+Task(
+    subagent_type="freeciv-research",
+    prompt="How does FreeCiv implement packet compression? Show me the C code."
+)
+# Should reference packets.c:442-504 and explain DEFLATE compression
+
+# Test packet-handler-builder agent
+Task(
+    subagent_type="packet-handler-builder",
+    prompt="Implement handler for PACKET_RULESET_GAME (141) with array-diff support"
+)
+# Should capture packets, check packets_gen.c, implement array-diff decoding
+```

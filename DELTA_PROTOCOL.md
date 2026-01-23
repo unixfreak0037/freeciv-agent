@@ -8,10 +8,12 @@ This document provides detailed technical documentation on FreeCiv's delta proto
 2. [Bitvector Representation](#bitvector-representation)
 3. [Cache Structure and Lifecycle](#cache-structure-and-lifecycle)
 4. [Encoding and Decoding Algorithms](#encoding-and-decoding-algorithms)
-5. [Packet Specification Flags](#packet-specification-flags)
-6. [Practical Implementation Examples](#practical-implementation-examples)
-7. [Common Pitfalls and Edge Cases](#common-pitfalls-and-edge-cases)
-8. [Testing Strategy](#testing-strategy)
+5. [Array-Diff Optimization](#array-diff-optimization)
+6. [Packet Specification Flags](#packet-specification-flags)
+7. [Practical Implementation Examples](#practical-implementation-examples)
+8. [Common Pitfalls and Edge Cases](#common-pitfalls-and-edge-cases)
+9. [Testing Strategy](#testing-strategy)
+10. [Related Protocol Features](#related-protocol-features)
 
 ---
 
@@ -453,6 +455,273 @@ if field_spec.is_bool:
         bitvector |= (1 << bit_index)
     # No payload bytes written
 ```
+
+---
+
+## Array-Diff Optimization
+
+**⚠️ IMPORTANT: Array-diff is independent of delta protocol! ⚠️**
+
+Array-diff is a separate optimization that works **within** both delta and non-delta packets. It transmits only changed array elements instead of the entire array.
+
+### What is Array-Diff?
+
+Array-diff is an optimization for array fields that transmits only the changed elements as index-value pairs, followed by a sentinel value indicating the end of changes.
+
+### When Array-Diff is Used
+
+Array-diff is enabled on specific array fields marked with the `(diff)` flag in packets.def:
+
+```c
+// Example from PACKET_RULESET_GAME
+veteran_name[veteran_levels](diff)
+               ^^^^^^^^^^^^^^^
+               This field uses array-diff encoding
+```
+
+### Array-Diff Format
+
+```
+[index₀] [value₀] [index₁] [value₁] ... [array_size_sentinel]
+```
+
+**Components:**
+- **index**: uint8 (0-254), the array index being updated
+- **value**: The new value for that array element (type varies)
+- **sentinel**: uint8 equal to the array size (signals end of changes)
+
+### Encoding Rules
+
+1. **Index is uint8**: Maximum array size is 255 elements
+2. **Only changed elements transmitted**: Compared to cached array values
+3. **Sentinel value = array size**: For array of size 10, sentinel is 10
+4. **Protocol error if index > array_size**: Invalid packet, must reject
+5. **Works with delta protocol**: Array-diff can be within delta-encoded fields
+
+### Decoding Algorithm
+
+```python
+def decode_array_diff(payload, offset, array_size, element_decoder, cached_array=None):
+    """Decode array-diff encoded field.
+
+    Args:
+        payload: Raw packet bytes
+        offset: Current read position in payload
+        array_size: Fixed size of the array (from packet spec)
+        element_decoder: Function to decode single element from bytes
+                        Signature: decoder(payload, offset) -> (value, new_offset)
+        cached_array: Previously received array values (for delta protocol)
+                     If None, creates empty array
+
+    Returns:
+        (decoded_array, new_offset)
+
+    Raises:
+        ValueError: If index > array_size (protocol error)
+    """
+    # Start with cached values or create empty array
+    if cached_array is not None:
+        result = list(cached_array)  # Copy cached values
+    else:
+        result = [None] * array_size  # Empty array
+
+    # Read index-value pairs until sentinel
+    while True:
+        # Read index (uint8)
+        index = payload[offset]
+        offset += 1
+
+        # Check for sentinel (end marker)
+        if index == array_size:
+            break  # Done reading changes
+
+        # Validate index
+        if index > array_size:
+            raise ValueError(f"Invalid array-diff index {index} > array_size {array_size}")
+
+        # Read value at this index
+        value, offset = element_decoder(payload, offset)
+        result[index] = value
+
+    return result, offset
+```
+
+### Encoding Algorithm
+
+```python
+def encode_array_diff(array, cached_array, array_size, element_encoder):
+    """Encode array using array-diff format.
+
+    Args:
+        array: Current array values
+        cached_array: Previously sent array values (or None for first send)
+        array_size: Size of the array
+        element_encoder: Function to encode single element to bytes
+                        Signature: encoder(value) -> bytes
+
+    Returns:
+        bytes: Encoded array-diff data
+    """
+    output = bytearray()
+
+    # Find changed elements
+    for index in range(array_size):
+        current = array[index]
+        cached = cached_array[index] if cached_array else None
+
+        # Check if element changed
+        if current != cached:
+            # Write index (uint8)
+            output.append(index)
+
+            # Write value
+            output.extend(element_encoder(current))
+
+    # Write sentinel (array_size)
+    output.append(array_size)
+
+    return bytes(output)
+```
+
+### Practical Example
+
+**Packet Specification:**
+```c
+// PACKET_RULESET_GAME (141)
+UINT8 veteran_levels;
+STRING veteran_name[veteran_levels](diff);
+```
+
+**Scenario:** Sending veteran names for 4 levels
+
+**First transmission (no cache):**
+```
+Payload: [0]["green"][1]["veteran"][2]["hardened"][3]["elite"][4]
+         ^ index   ^value    ^ index   ^value      ...         ^sentinel
+```
+
+**Breakdown:**
+- `[0]` = index 0 (uint8 = 0x00)
+- `["green"]` = null-terminated string "green\0"
+- `[1]` = index 1 (uint8 = 0x01)
+- `["veteran"]` = null-terminated string "veteran\0"
+- `[2]` = index 2 (uint8 = 0x02)
+- `["hardened"]` = null-terminated string "hardened\0"
+- `[3]` = index 3 (uint8 = 0x03)
+- `["elite"]` = null-terminated string "elite\0"
+- `[4]` = sentinel (uint8 = 0x04, equals array_size)
+
+**Second transmission (only element 2 changed):**
+```
+Payload: [2]["seasoned"][4]
+         ^ index  ^new value ^sentinel
+```
+
+Only the changed element is transmitted. Cache is updated for element 2, other elements remain unchanged.
+
+### Interaction with Delta Protocol
+
+Array-diff works **within** delta protocol fields:
+
+```
+Delta Packet Structure:
+[bitvector] [key_fields] [non_key_field_0] [array_diff_field] [non_key_field_2] ...
+                                            ^^^^^^^^^^^^^^^^^
+                                            This field uses array-diff encoding
+```
+
+**Decoding flow:**
+1. Read bitvector to determine which non-key fields are present
+2. Read key fields (always present)
+3. For each non-key field with bit set in bitvector:
+   - If field is array with `(diff)` flag: Use `decode_array_diff()`
+   - Else: Use standard field decoder
+
+### Implementation Requirements
+
+**For Packet Handler Implementers:**
+
+1. **Identify diff arrays**: Check packets.def for `(diff)` flag on array fields
+2. **Choose correct decoder**: Use `decode_array_diff()` for diff arrays, standard decoder otherwise
+3. **Provide array size**: Must know array size (from preceding field or packet spec)
+4. **Pass cached array**: For delta packets, pass cached array to preserve unchanged elements
+5. **Handle sentinel correctly**: Sentinel value equals array_size, NOT max valid index
+
+**Testing:**
+```python
+def test_array_diff_veteran_names():
+    # Captured from real FreeCiv server packet
+    # PACKET_RULESET_GAME veteran_name field
+    payload = bytes.fromhex(
+        "00 67 72 65 65 6e 00"      # [0]["green\0"]
+        "01 76 65 74 65 72 61 6e 00" # [1]["veteran\0"]
+        "02 68 61 72 64 65 6e 65 64 00" # [2]["hardened\0"]
+        "03 65 6c 69 74 65 00"      # [3]["elite\0"]
+        "04"                        # [4] = sentinel
+    )
+
+    offset = 0
+    array_size = 4  # From veteran_levels field
+
+    result, new_offset = decode_array_diff(
+        payload, offset, array_size,
+        element_decoder=decode_null_terminated_string,
+        cached_array=None  # First transmission
+    )
+
+    assert result == ["green", "veteran", "hardened", "elite"]
+    assert new_offset == len(payload)
+    assert payload[new_offset - 1] == 4  # Verify sentinel
+```
+
+### Common Mistakes
+
+❌ **Wrong: Treating sentinel as max index**
+```python
+# WRONG: sentinel is array_size, not max_index
+if index >= array_size:  # Off-by-one error
+    break
+```
+
+✅ **Correct: Sentinel equals array_size**
+```python
+# CORRECT: sentinel is array_size exactly
+if index == array_size:
+    break
+elif index > array_size:
+    raise ValueError("Invalid index")
+```
+
+❌ **Wrong: Using array-diff for all arrays**
+```python
+# WRONG: Not all arrays use diff encoding
+for field in packet_spec.fields:
+    if field.is_array:
+        decode_array_diff(...)  # May be wrong!
+```
+
+✅ **Correct: Check for diff flag**
+```python
+# CORRECT: Only use array-diff if marked with (diff)
+for field in packet_spec.fields:
+    if field.is_array and field.has_diff_flag:
+        decode_array_diff(...)
+    elif field.is_array:
+        decode_standard_array(...)
+```
+
+### Implementation References
+
+- **Encoding logic**: `freeciv/common/generate_packets.py:1273-1351`
+- **Decoding logic**: `freeciv/common/generate_packets.py:1390-1441`
+- **Documentation**: `freeciv/doc/README.delta` lines 23-29
+- **Generated C code**: Search for `DIO_BV_GET` and `DIO_BV_PUT` in `packets_gen.c`
+
+### Current Status in Our Client
+
+- ❌ **Not implemented** - Our client does not support array-diff yet
+- 🔍 **Required for**: PACKET_RULESET_GAME (141) and ~50+ other packets with diff arrays
+- 📝 **Next steps**: Implement generic array-diff decoder in `fc_client/protocol.py`
 
 ---
 
@@ -1310,3 +1579,90 @@ is_present = (bitvector & (1 << bit_index)) != 0
   - `fc_client/packet_specs.py` - Packet specifications
   - `fc_client/delta_cache.py` - Cache implementation
   - `CLAUDE.md` - Project documentation
+
+---
+
+## Related Protocol Features
+
+The delta protocol is one of several bandwidth optimization techniques used by FreeCiv. This section cross-references related features.
+
+### Packet Compression
+
+**⚠️ CRITICAL: Our client does NOT implement packet compression yet! ⚠️**
+
+FreeCiv uses DEFLATE compression to bundle multiple packets together, providing an additional 60-90% bandwidth reduction on top of delta protocol savings.
+
+**How it works:**
+- Server sends `PACKET_FREEZE_CLIENT` (130) to start compression grouping
+- Multiple packets (including delta-encoded packets) are queued
+- Queued packets compressed together using zlib DEFLATE
+- Compressed data sent as single "packet" with special header
+- Server sends `PACKET_THAW_CLIENT` (131) to end compression
+
+**Compression detection:**
+```python
+# Read packet length field
+length = struct.unpack('<H', header_bytes[:2])[0]
+
+if length == 65535:  # JUMBO_SIZE
+    # Jumbo compressed packet (>48KB)
+    actual_length = struct.unpack('<I', next_4_bytes)[0]
+
+elif length >= 16385:  # COMPRESSION_BORDER
+    # Normal compressed packet
+    actual_length = length - 16385
+
+else:
+    # Uncompressed packet
+    # Process normally with delta protocol if applicable
+```
+
+**Interaction with delta protocol:**
+- Compression happens AFTER delta encoding
+- Server first applies delta protocol to individual packets
+- Then compresses multiple delta packets together
+- Client decompresses first, then applies delta decoding to each packet
+
+**For complete details, see:**
+- `CLAUDE.md` - Section "Packet Compression System"
+- `freeciv/common/networking/packets.c:442-504` - Server compression implementation
+- `freeciv/doc/README.delta` lines 42-74 - Compression documentation
+
+**Current status:**
+- ❌ Not implemented in our client
+- 🔴 CRITICAL PRIORITY - Required for production use
+- 📝 Implementation blocked until compression support added to `fc_client/protocol.py`
+
+### Combined Optimization Impact
+
+When both delta protocol and compression are used:
+
+**Typical bandwidth savings:**
+```
+Original packet size:     1000 bytes
+After delta protocol:     100 bytes  (90% reduction)
+After compression:        20 bytes   (80% reduction of delta)
+Total reduction:          98%        (combined effect)
+```
+
+**Real-world example (PACKET_CITY_INFO with 100+ fields):**
+- Full packet: ~2000 bytes
+- Delta (2-3 fields changed): ~50 bytes (97.5% reduction)
+- Compressed (with 20 other packets): ~10 bytes effective (99.5% reduction)
+
+### Protocol Feature Summary
+
+| Feature | Purpose | Savings | Status in Our Client |
+|---------|---------|---------|---------------------|
+| Delta Protocol | Transmit only changed fields | 60-90% | ✅ Implemented |
+| Array-Diff | Transmit only changed array elements | 50-80% (for arrays) | ❌ Not implemented |
+| Compression | Bundle multiple packets with DEFLATE | 60-90% (on top of delta) | ❌ Not implemented |
+| Boolean Folding | Store BOOL values in bitvector | 8x (for booleans) | ✅ Implemented |
+
+**Implementation priority for remaining features:**
+1. **Packet Compression** (CRITICAL - blocks production use)
+2. **Array-Diff** (HIGH - blocks ~50+ packet types)
+
+---
+
+**End of Document**
