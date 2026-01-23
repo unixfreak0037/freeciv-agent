@@ -567,3 +567,31 @@ async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, 
 
     # Trigger shutdown
     client._shutdown_event.set()
+
+
+async def handle_freeze_client(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_FREEZE_CLIENT (130).
+
+    Signals start of compression group. Server queues packets until THAW.
+    For headless AI, this is informational only.
+    """
+    print("[FREEZE] Server started compression grouping")
+
+
+async def handle_thaw_client(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_THAW_CLIENT (131).
+
+    Signals end of compression group. Queued packets have been sent.
+    For headless AI, this is informational only.
+    """
+    print("[THAW] Server ended compression grouping")

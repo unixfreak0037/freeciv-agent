@@ -1,5 +1,6 @@
 import asyncio
 import struct
+import zlib
 from typing import Tuple, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,6 +33,15 @@ PATCH_VERSION = 2
 VERSION_LABEL = ""
 CAPABILITY = "+Freeciv-3.2-network ownernull16 unignoresync tu32 hap2clnt"
 
+# Compression constants (from freeciv/common/networking/packets.c:53,58,63)
+COMPRESSION_BORDER = 16385  # 16*1024 + 1 - packets >= this size are compressed
+JUMBO_SIZE = 65535          # 0xffff - marker for jumbo packets
+JUMBO_BORDER = 49150        # 64*1024 - COMPRESSION_BORDER - 1
+
+# Compression-related packet types
+PACKET_FREEZE_CLIENT = 130  # Start compression grouping
+PACKET_THAW_CLIENT = 131    # End compression grouping
+
 
 async def _recv_exact(reader: asyncio.StreamReader, num_bytes: int) -> bytes:
     """Read exactly num_bytes from stream, handling partial reads."""
@@ -40,6 +50,99 @@ async def _recv_exact(reader: asyncio.StreamReader, num_bytes: int) -> bytes:
         return data
     except asyncio.IncompleteReadError:
         raise ConnectionError("Socket closed while reading data")
+
+
+def _decompress_packet(compressed_data: bytes) -> bytes:
+    """
+    Decompress a zlib-compressed packet buffer.
+
+    Compressed packets contain multiple concatenated packets in DEFLATE format.
+
+    Args:
+        compressed_data: Raw compressed bytes (DEFLATE format)
+
+    Returns:
+        Decompressed buffer containing concatenated packets
+
+    Raises:
+        ValueError: If decompression fails (corrupt data, invalid format)
+    """
+    try:
+        decompressed = zlib.decompress(compressed_data)
+        return decompressed
+    except zlib.error as e:
+        raise ValueError(f"Decompression failed: {e}") from e
+
+
+async def _parse_packet_buffer(
+    buffer: bytes,
+    use_two_byte_type: bool
+) -> list:
+    """
+    Parse multiple packets from a decompressed buffer.
+
+    Decompressed buffers contain concatenated packets, each with normal
+    header (length + type).
+
+    Args:
+        buffer: Decompressed buffer containing multiple packets
+        use_two_byte_type: Whether to use 2-byte type field (after JOIN_REPLY)
+
+    Returns:
+        List of (packet_type, payload, raw_packet_bytes) tuples
+
+    Raises:
+        ValueError: If buffer contains invalid packet structure
+    """
+    packets = []
+    offset = 0
+
+    while offset < len(buffer):
+        # Need at least 3 bytes for minimum header
+        if len(buffer) - offset < 3:
+            raise ValueError(
+                f"Incomplete packet header at offset {offset}: "
+                f"only {len(buffer) - offset} bytes remaining"
+            )
+
+        # Read length (big-endian)
+        packet_length = struct.unpack('>H', buffer[offset:offset+2])[0]
+
+        # Read type field (1 or 2 bytes)
+        if use_two_byte_type:
+            header_size = 4
+            if len(buffer) - offset < header_size:
+                raise ValueError(
+                    f"Incomplete 2-byte type header at offset {offset}"
+                )
+            packet_type = struct.unpack('>H', buffer[offset+2:offset+4])[0]
+        else:
+            header_size = 3
+            packet_type = struct.unpack('B', buffer[offset+2:offset+3])[0]
+
+        # Validate length
+        if packet_length < header_size:
+            raise ValueError(
+                f"Invalid packet length {packet_length} at offset {offset}"
+            )
+
+        # Check if complete packet available
+        if offset + packet_length > len(buffer):
+            raise ValueError(
+                f"Incomplete packet at offset {offset}: "
+                f"need {packet_length} bytes, have {len(buffer) - offset}"
+            )
+
+        # Extract payload and raw packet
+        payload_start = offset + header_size
+        payload_length = packet_length - header_size
+        payload = buffer[payload_start:payload_start + payload_length]
+        raw_packet = buffer[offset:offset + packet_length]
+
+        packets.append((packet_type, payload, raw_packet))
+        offset += packet_length
+
+    return packets
 
 
 # Data type encoding functions
@@ -247,6 +350,75 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
 
     if validate:
         print(f"[VALIDATE] Length header: {packet_length} bytes")
+
+    # ============================================================================
+    # COMPRESSION DETECTION AND HANDLING
+    # ============================================================================
+
+    # Check for JUMBO compressed packet
+    if packet_length == JUMBO_SIZE:
+        # Read 4-byte actual length (big-endian)
+        jumbo_length_bytes = await _recv_exact(reader, 4)
+        actual_length = struct.unpack('>I', jumbo_length_bytes)[0]
+
+        if validate:
+            print(f"[VALIDATE] JUMBO compressed: {actual_length} bytes")
+
+        # Read compressed data (subtract 6-byte header)
+        compressed_size = actual_length - 6
+        compressed_data = await _recv_exact(reader, compressed_size)
+
+        # Decompress and parse
+        try:
+            decompressed = _decompress_packet(compressed_data)
+            packets = await _parse_packet_buffer(decompressed, use_two_byte_type)
+        except ValueError as e:
+            raise ConnectionError(f"JUMBO decompression failed: {e}") from e
+
+        if not packets:
+            raise ValueError("JUMBO packet contained no packets")
+
+        # Return first packet (raise if multiple)
+        if len(packets) > 1:
+            raise NotImplementedError(
+                f"JUMBO packet contains {len(packets)} packets, "
+                f"multi-packet buffering not implemented"
+            )
+
+        return packets[0]
+
+    # Check for normal compressed packet
+    elif packet_length >= COMPRESSION_BORDER:
+        compressed_size = packet_length - COMPRESSION_BORDER
+
+        if validate:
+            print(f"[VALIDATE] Compressed: {compressed_size} bytes")
+
+        # Read compressed data
+        compressed_data = await _recv_exact(reader, compressed_size)
+
+        # Decompress and parse
+        try:
+            decompressed = _decompress_packet(compressed_data)
+            packets = await _parse_packet_buffer(decompressed, use_two_byte_type)
+        except ValueError as e:
+            raise ConnectionError(f"Decompression failed: {e}") from e
+
+        if not packets:
+            raise ValueError("Compressed packet contained no packets")
+
+        # Return first packet (raise if multiple)
+        if len(packets) > 1:
+            raise NotImplementedError(
+                f"Compressed packet contains {len(packets)} packets, "
+                f"multi-packet buffering not implemented"
+            )
+
+        return packets[0]
+
+    # ============================================================================
+    # UNCOMPRESSED PACKET (EXISTING CODE - NO CHANGES BELOW THIS LINE)
+    # ============================================================================
 
     # Read packet type (1 or 2 bytes depending on connection state)
     if use_two_byte_type:
