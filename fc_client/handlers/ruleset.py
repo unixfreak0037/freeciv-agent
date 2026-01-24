@@ -437,6 +437,52 @@ async def handle_ruleset_disaster(
     print(f"  Requirements: {disaster.reqs_count}")
     print(f"  Effects: {effects_str}")
 
+
+async def handle_ruleset_achievement(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_ACHIEVEMENT (233) - achievement type configuration.
+
+    Achievements are special accomplishments players can earn during the game.
+    One packet is sent per achievement type during game initialization.
+
+    Updates game_state.achievements dict with the achievement type configuration.
+    """
+    from ..game_state import AchievementType
+
+    # Decode packet
+    data = protocol.decode_ruleset_achievement(payload)
+
+    # Create AchievementType object
+    achievement = AchievementType(
+        id=data['id'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        type=data['type'],
+        unique=data['unique']
+    )
+
+    # Store in game state
+    game_state.achievements[achievement.id] = achievement
+
+    # Map achievement type enum to human-readable names
+    type_names = {
+        0: "Spaceship", 1: "Map_Known", 2: "Multicultural",
+        3: "Cultured_City", 4: "Cultured_Nation", 5: "Lucky",
+        6: "Huts", 7: "Metropolis", 8: "Literate", 9: "Land_Ahoy"
+    }
+
+    type_str = type_names.get(achievement.type, f"Unknown({achievement.type})")
+    unique_str = "unique" if achievement.unique else "repeatable"
+
+    # Display summary
+    print(f"\n[ACHIEVEMENT {achievement.id}] {achievement.name} ({achievement.rule_name})")
+    print(f"  Type: {type_str}")
+    print(f"  Status: {unique_str}")
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -447,4 +493,5 @@ __all__ = [
     "handle_nation_availability",
     "handle_ruleset_game",
     "handle_ruleset_disaster",
+    "handle_ruleset_achievement",
 ]

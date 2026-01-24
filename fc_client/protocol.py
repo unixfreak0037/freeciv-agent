@@ -26,6 +26,7 @@ PACKET_RULESET_NATION_SETS = 236
 PACKET_NATION_AVAILABILITY = 237
 PACKET_RULESET_GAME = 141
 PACKET_RULESET_DISASTER = 224
+PACKET_RULESET_ACHIEVEMENT = 233
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1214,6 +1215,50 @@ def decode_ruleset_disaster(payload: bytes) -> dict:
         'reqs': reqs,
         'frequency': frequency,
         'effects': effects_byte
+    }
+
+
+def decode_ruleset_achievement(payload: bytes) -> dict:
+    """
+    Decode PACKET_RULESET_ACHIEVEMENT (233).
+
+    WARNING: packets.def is WRONG - there is NO 'value' field in real packets!
+
+    Real structure (verified from captured packet inbound_0599_type233.packet):
+    - UINT8 id
+    - STRING name
+    - STRING rule_name
+    - ACHIEVEMENT_TYPE type (UINT8 enum)
+    - BOOL unique
+
+    This is a non-delta protocol packet.
+    """
+    offset = 0
+
+    # Field 1: UINT8 id
+    achievement_id, offset = decode_uint8(payload, offset)
+
+    # Field 2: STRING name
+    name, offset = decode_string(payload, offset)
+
+    # Field 3: STRING rule_name
+    rule_name, offset = decode_string(payload, offset)
+
+    # Field 4: ACHIEVEMENT_TYPE type (UINT8 enum)
+    achievement_type, offset = decode_uint8(payload, offset)
+
+    # Field 5: BOOL unique
+    unique, offset = decode_bool(payload, offset)
+
+    # NOTE: packets.def incorrectly lists a UINT16 'value' field here.
+    # Real server packets do NOT include this field!
+
+    return {
+        'id': achievement_id,
+        'name': name,
+        'rule_name': rule_name,
+        'type': achievement_type,
+        'unique': unique
     }
 
 

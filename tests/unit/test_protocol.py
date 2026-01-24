@@ -36,6 +36,7 @@ from fc_client.protocol import (
     decode_ruleset_nation_sets,
     decode_ruleset_nation_groups,
     decode_nation_availability,
+    decode_ruleset_achievement,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -1542,3 +1543,52 @@ def test_decode_ruleset_game_max_veteran_levels():
     assert result['background_red'] == 50
     assert result['background_green'] == 100
     assert result['background_blue'] == 150
+
+
+@pytest.mark.unit
+def test_decode_ruleset_achievement_real_packet():
+    """Test with real captured packet from FreeCiv 3.2 server.
+
+    This proves packets.def is WRONG - there is no 'value' field!
+    Source: inbound_0599_type233.packet
+    """
+    # Real captured payload (minus length/type header)
+    payload = bytes([
+        0x26,  # id = 38
+        # name = "Spaceship Launch"
+        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
+        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
+        # rule_name = "Spaceship Launch"
+        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
+        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
+        0x00,  # type = 0 (ACHIEVEMENT_SPACESHIP)
+        0x01   # unique = True
+    ])
+
+    result = decode_ruleset_achievement(payload)
+
+    assert result['id'] == 38
+    assert result['name'] == "Spaceship Launch"
+    assert result['rule_name'] == "Spaceship Launch"
+    assert result['type'] == 0
+    assert result['unique'] is True
+
+
+@pytest.mark.unit
+def test_decode_ruleset_achievement_minimal():
+    """Test with minimal synthetic data."""
+    payload = (
+        encode_uint8(0) +
+        encode_string("Test") +
+        encode_string("test") +
+        encode_uint8(1) +
+        encode_bool(False)
+    )
+
+    result = decode_ruleset_achievement(payload)
+
+    assert result['id'] == 0
+    assert result['name'] == "Test"
+    assert result['rule_name'] == "test"
+    assert result['type'] == 1
+    assert result['unique'] is False

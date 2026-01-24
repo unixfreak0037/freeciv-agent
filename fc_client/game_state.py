@@ -172,6 +172,23 @@ class DisasterType:
     effects: int               # Bitvector of disaster_effect_id flags
 
 
+@dataclass
+class AchievementType:
+    """
+    Achievement type configuration from PACKET_RULESET_ACHIEVEMENT (packet 233).
+
+    Achievements are special accomplishments players can earn during the game.
+
+    NOTE: packets.def incorrectly lists a UINT16 'value' field that does NOT
+    exist in real server packets. Verified against captured packet data.
+    """
+    id: int                    # Achievement type ID (key)
+    name: str                  # Display name
+    rule_name: str             # Internal identifier
+    type: int                  # Achievement type enum (ACHIEVEMENT_TYPE)
+    unique: bool               # Whether only one player can achieve this
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -190,3 +207,4 @@ class GameState:
         self.nation_availability: Optional[Dict[str, Any]] = None  # Nation availability tracking (PACKET_NATION_AVAILABILITY)
         self.ruleset_game: Optional[RulesetGame] = None  # Core game configuration (PACKET_RULESET_GAME)
         self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)
+        self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)

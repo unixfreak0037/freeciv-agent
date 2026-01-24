@@ -1437,3 +1437,30 @@ async def test_handle_ruleset_game(mock_client, game_state):
     assert game_state.ruleset_game.background_red == 139
     assert game_state.ruleset_game.background_green == 140
     assert game_state.ruleset_game.background_blue == 141
+
+
+@pytest.mark.asyncio
+async def test_handle_ruleset_achievement(mock_client, game_state):
+    """Test RULESET_ACHIEVEMENT handler stores achievement correctly."""
+    # Real captured packet data
+    payload = bytes([
+        0x26,  # id = 38
+        # name = "Spaceship Launch"
+        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
+        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
+        # rule_name = "Spaceship Launch"
+        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
+        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
+        0x00,  # type = 0 (ACHIEVEMENT_SPACESHIP)
+        0x01   # unique = True
+    ])
+
+    await handlers.handle_ruleset_achievement(mock_client, game_state, payload)
+
+    # Verify storage
+    assert 38 in game_state.achievements
+    achievement = game_state.achievements[38]
+    assert achievement.name == "Spaceship Launch"
+    assert achievement.rule_name == "Spaceship Launch"
+    assert achievement.type == 0
+    assert achievement.unique is True
