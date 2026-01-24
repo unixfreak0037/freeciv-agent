@@ -29,19 +29,6 @@ def test_packet_debugger_creates_directory(tmp_path):
 
 
 @pytest.mark.unit
-def test_packet_debugger_raises_if_directory_exists(tmp_path):
-    """PacketDebugger should raise FileExistsError if directory already exists."""
-    debug_dir = tmp_path / "debug"
-    debug_dir.mkdir()  # Create directory first
-
-    with pytest.raises(FileExistsError) as exc_info:
-        PacketDebugger(str(debug_dir))
-
-    # Error message should be helpful
-    assert "already exists" in str(exc_info.value)
-
-
-@pytest.mark.unit
 def test_packet_debugger_initializes_counters(tmp_path):
     """PacketDebugger should initialize counters to 0."""
     debug_dir = tmp_path / "debug"

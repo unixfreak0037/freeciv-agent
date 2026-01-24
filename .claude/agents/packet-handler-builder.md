@@ -282,7 +282,25 @@ Create or update the appropriate handler module in `fc_client/handlers/`:
 - `ruleset.py` - For PACKET_RULESET_* packets
 - `connection.py` - For connection management packets
 - `game.py` - For game state packets
-- etc.
+
+We are grouping the functions as follows:
+
+- General (general.py)
+- Login/pregame/endgame (pregame.py)
+- Info (info.py)
+- Chat/event (chat.py)
+- City
+- Player
+- Unit
+- Diplomacy
+- Report
+- Connection
+- New turn
+- Spaceship
+- Ruleset (ruleset.py)
+- Scenario
+- Voting
+- Editor
 
 **CRITICAL:** Handler signature must have THREE parameters:
 

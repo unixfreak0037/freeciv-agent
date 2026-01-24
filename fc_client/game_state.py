@@ -198,6 +198,28 @@ class TradeRouteType:
     bonus_type: int     # Trade bonus type (TR_BONUS_TYPE enum)
 
 
+@dataclass
+class ActionType:
+    """Action type configuration from PACKET_RULESET_ACTION (246).
+
+    Actions define what units can do: establish embassies, create trade routes,
+    spy missions, combat actions, etc. Each action has requirements, targeting
+    rules, and can be blocked by other actions.
+    """
+    id: int                           # Action type ID (key)
+    ui_name: str                      # Display name (e.g., "Establish %sEmbassy%s")
+    quiet: bool                       # Whether to suppress UI notifications
+    result: int                       # Action result enum (ACTRES_*)
+    sub_results: int                  # Sub-results bitvector (success/failure conditions)
+    actor_consuming_always: bool      # Whether actor unit is always consumed
+    act_kind: int                     # Actor kind enum (0=Unit, 1=Player, 2=City, 3=Tile)
+    tgt_kind: int                     # Target kind enum (0=City, 1=Unit, 2=Units, 3=Tile, 4=Extras, 5=Self)
+    sub_tgt_kind: int                 # Sub-target kind enum
+    min_distance: int                 # Minimum distance to target
+    max_distance: int                 # Maximum distance to target (-1 = unlimited)
+    blocked_by: int                   # Bitvector of blocking actions
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -218,3 +240,4 @@ class GameState:
         self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)
         self.trade_routes: Dict[int, TradeRouteType] = {}  # Trade routes by ID (PACKET_RULESET_TRADE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
+        self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)

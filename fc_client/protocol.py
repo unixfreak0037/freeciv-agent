@@ -28,6 +28,7 @@ PACKET_RULESET_GAME = 141
 PACKET_RULESET_DISASTER = 224
 PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
+PACKET_RULESET_ACTION = 246
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1321,6 +1322,118 @@ def decode_ruleset_trade(payload: bytes) -> dict:
         'trade_pct': trade_pct,
         'cancelling': cancelling,
         'bonus_type': bonus_type
+    }
+
+
+def decode_ruleset_action(payload: bytes) -> dict:
+    """Decode PACKET_RULESET_ACTION (246).
+
+    Actions define what units can do (establish embassy, trade, attack, etc.).
+    Multiple packets sent (one per action type) during initialization.
+
+    Uses delta protocol with all fields conditional (cache keyed by action ID).
+
+    Wire format:
+    - Bytes 0-1: bitvector (12 bits, little-endian)
+    - Conditional fields based on bitvector:
+      - Bit 0: UINT8 id
+      - Bit 1: STRING ui_name
+      - Bit 2: BOOL quiet (header-folded, NO payload)
+      - Bit 3: UINT8 result
+      - Bit 4: BITVECTOR sub_results (1 byte, 4 bits)
+      - Bit 5: BOOL actor_consuming_always (header-folded, NO payload)
+      - Bit 6: UINT8 act_kind
+      - Bit 7: UINT8 tgt_kind
+      - Bit 8: UINT8 sub_tgt_kind
+      - Bit 9: SINT32 min_distance
+      - Bit 10: SINT32 max_distance
+      - Bit 11: BITVECTOR blocked_by (16 bytes, 128 bits for 125 actions)
+
+    Reference: freeciv-build/packets_gen.c:68608
+    """
+    offset = 0
+
+    # Read bitvector (12 bits = 2 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 12)
+
+    # Helper to check if bit is set
+    def has_field(bit_index):
+        return bool(bitvector & (1 << bit_index))
+
+    # Initialize with defaults (delta protocol cache)
+    action_id = 0
+    ui_name = ""
+    quiet = False
+    result = 0
+    sub_results = 0
+    actor_consuming_always = False
+    act_kind = 0
+    tgt_kind = 0
+    sub_tgt_kind = 0
+    min_distance = 0
+    max_distance = 0
+    blocked_by = 0
+
+    # Conditional fields based on bitvector
+    # Bit 0: id
+    if has_field(0):
+        action_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: ui_name
+    if has_field(1):
+        ui_name, offset = decode_string(payload, offset)
+
+    # Bit 2: quiet (HEADER-FOLDED - no payload bytes!)
+    quiet = has_field(2)
+
+    # Bit 3: result
+    if has_field(3):
+        result, offset = decode_uint8(payload, offset)
+
+    # Bit 4: sub_results (bitvector, 4 bits = 1 byte)
+    if has_field(4):
+        sub_results, offset = read_bitvector(payload, offset, 4)
+
+    # Bit 5: actor_consuming_always (HEADER-FOLDED - no payload bytes!)
+    actor_consuming_always = has_field(5)
+
+    # Bit 6: act_kind
+    if has_field(6):
+        act_kind, offset = decode_uint8(payload, offset)
+
+    # Bit 7: tgt_kind
+    if has_field(7):
+        tgt_kind, offset = decode_uint8(payload, offset)
+
+    # Bit 8: sub_tgt_kind
+    if has_field(8):
+        sub_tgt_kind, offset = decode_uint8(payload, offset)
+
+    # Bit 9: min_distance
+    if has_field(9):
+        min_distance, offset = decode_sint32(payload, offset)
+
+    # Bit 10: max_distance
+    if has_field(10):
+        max_distance, offset = decode_sint32(payload, offset)
+
+    # Bit 11: blocked_by (bitvector, 128 bits for 125 actions = 16 bytes)
+    if has_field(11):
+        blocked_by, offset = read_bitvector(payload, offset, 128)
+
+    return {
+        'id': action_id,
+        'ui_name': ui_name,
+        'quiet': quiet,
+        'result': result,
+        'sub_results': sub_results,
+        'actor_consuming_always': actor_consuming_always,
+        'act_kind': act_kind,
+        'tgt_kind': tgt_kind,
+        'sub_tgt_kind': sub_tgt_kind,
+        'min_distance': min_distance,
+        'max_distance': max_distance,
+        'blocked_by': blocked_by
     }
 
 

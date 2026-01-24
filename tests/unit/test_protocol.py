@@ -1630,3 +1630,110 @@ def test_decode_ruleset_trade_partial():
     assert result['trade_pct'] == 100
     assert result['cancelling'] == 0  # Not transmitted, uses default
     assert result['bonus_type'] == 1
+
+def test_decode_ruleset_action_from_captured_packet():
+    """Test decoding PACKET_RULESET_ACTION (246) with real server data.
+
+    Uses captured packet from packets/inbound_0617_type246.packet.
+    Bitvector 0x0402 (bits 1, 10 set) indicates:
+    - Bit 1: ui_name present ("Establish %sEmbassy%s")
+    - Bit 10: max_distance present (1)
+    """
+    # Real packet payload (minus 4-byte header: 2 bytes length + 2 bytes type)
+    # Hex: 02 04 "Establish %sEmbassy%s\0" 00 00 00 01
+    payload = (
+        b'\x02\x04'  # Bitvector: 0x0402 (bits 1, 10)
+        b'Establish %sEmbassy%s\x00'  # ui_name (23 bytes with null terminator)
+        b'\x00\x00\x00\x01'  # max_distance: 1 (sint32, big-endian)
+    )
+    
+    result = protocol.decode_ruleset_action(payload)
+    
+    # Verify all fields
+    assert result['id'] == 0  # Not transmitted, using default
+    assert result['ui_name'] == 'Establish %sEmbassy%s'
+    assert result['quiet'] is False
+    assert result['result'] == 0
+    assert result['sub_results'] == 0
+    assert result['actor_consuming_always'] is False
+    assert result['act_kind'] == 0
+    assert result['tgt_kind'] == 0
+    assert result['sub_tgt_kind'] == 0
+    assert result['min_distance'] == 0
+    assert result['max_distance'] == 1
+    assert result['blocked_by'] == 0
+
+
+def test_decode_ruleset_action_with_boolean_header_folding():
+    """Test boolean header folding for quiet and actor_consuming_always fields.
+    
+    Bits 2 and 5 are header-folded booleans - their bitvector bit IS the value,
+    consuming NO payload bytes.
+    """
+    # Bitvector: 0x24 = 0010 0100 (bits 2 and 5 set)
+    # Bit 2: quiet = True (header-folded)
+    # Bit 5: actor_consuming_always = True (header-folded)
+    payload = b'\x24\x00'  # 2-byte bitvector, no other fields
+    
+    result = protocol.decode_ruleset_action(payload)
+    
+    assert result['quiet'] is True
+    assert result['actor_consuming_always'] is True
+    # All other fields should be defaults
+    assert result['id'] == 0
+    assert result['ui_name'] == ''
+
+
+def test_decode_ruleset_action_with_bitvectors():
+    """Test decoding bitvector fields (sub_results and blocked_by)."""
+    # Bitvector: 0x0810 = 0001 0000 0001 0000 (bits 4 and 11 set)
+    # Bit 4: sub_results (1 byte, 4 bits)
+    # Bit 11: blocked_by (16 bytes, 128 bits)
+    payload = (
+        b'\x10\x08'  # Main bitvector: 0x0810
+        b'\x0A'  # sub_results: 0x0A = bits 1 and 3 set
+        b'\xFF\x00\x00\x00\x00\x00\x00\x00'  # blocked_by bytes 0-7
+        b'\x00\x00\x00\x00\x00\x00\x00\x01'  # blocked_by bytes 8-15 (bit 120 set)
+    )
+    
+    result = protocol.decode_ruleset_action(payload)
+    
+    assert result['sub_results'] == 0x0A
+    # blocked_by: 0xFF in byte 0 = bits 0-7, bit 120 in byte 15
+    expected_blocked_by = 0xFF | (1 << 120)
+    assert result['blocked_by'] == expected_blocked_by
+
+
+def test_decode_ruleset_action_all_fields():
+    """Test decoding with all fields present."""
+    # Bitvector: 0x0FFF = all 12 bits set
+    payload = (
+        b'\xFF\x0F'  # Bitvector: 0x0FFF (all 12 bits)
+        b'\x2A'  # id: 42
+        b'Test Action\x00'  # ui_name
+        # Bit 2 (quiet) is True (header-folded)
+        b'\x05'  # result: 5
+        b'\x03'  # sub_results: 3 (1 byte)
+        # Bit 5 (actor_consuming_always) is True (header-folded)
+        b'\x01'  # act_kind: 1 (Player)
+        b'\x02'  # tgt_kind: 2 (Units)
+        b'\x00'  # sub_tgt_kind: 0
+        b'\x00\x00\x00\x01'  # min_distance: 1 (sint32, big-endian)
+        b'\x00\x00\x00\x05'  # max_distance: 5 (sint32, big-endian)
+        b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'  # blocked_by: 16 bytes of zeros
+    )
+    
+    result = protocol.decode_ruleset_action(payload)
+    
+    assert result['id'] == 42
+    assert result['ui_name'] == 'Test Action'
+    assert result['quiet'] is True
+    assert result['result'] == 5
+    assert result['sub_results'] == 3
+    assert result['actor_consuming_always'] is True
+    assert result['act_kind'] == 1
+    assert result['tgt_kind'] == 2
+    assert result['sub_tgt_kind'] == 0
+    assert result['min_distance'] == 1
+    assert result['max_distance'] == 5
+    assert result['blocked_by'] == 0

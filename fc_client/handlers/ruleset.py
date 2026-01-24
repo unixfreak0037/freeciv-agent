@@ -523,6 +523,70 @@ async def handle_ruleset_trade(
     print(f"  Illegal Route Handling: {cancelling_str}")
     print(f"  Bonus Type: {bonus_str}")
 
+
+async def handle_ruleset_action(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_ACTION (246) - action type configuration.
+
+    Actions define what units can do in the game: establish embassies,
+    create trade routes, spy missions, combat actions, etc. One packet
+    is sent per action type during game initialization.
+
+    Updates game_state.actions dict with the action type configuration.
+    """
+    from ..game_state import ActionType
+
+    # Decode packet
+    data = protocol.decode_ruleset_action(payload)
+
+    # Create ActionType object
+    action = ActionType(
+        id=data['id'],
+        ui_name=data['ui_name'],
+        quiet=data['quiet'],
+        result=data['result'],
+        sub_results=data['sub_results'],
+        actor_consuming_always=data['actor_consuming_always'],
+        act_kind=data['act_kind'],
+        tgt_kind=data['tgt_kind'],
+        sub_tgt_kind=data['sub_tgt_kind'],
+        min_distance=data['min_distance'],
+        max_distance=data['max_distance'],
+        blocked_by=data['blocked_by']
+    )
+
+    # Store in game state
+    game_state.actions[action.id] = action
+
+    # Map enum values for display
+    actor_kind_names = {0: "Unit", 1: "Player", 2: "City", 3: "Tile"}
+    target_kind_names = {0: "City", 1: "Unit", 2: "Units", 3: "Tile", 4: "Extras", 5: "Self"}
+
+    actor_str = actor_kind_names.get(action.act_kind, f"Unknown({action.act_kind})")
+    target_str = target_kind_names.get(action.tgt_kind, f"Unknown({action.tgt_kind})")
+
+    # Display distance constraints
+    if action.max_distance == -1:
+        distance_str = f"min={action.min_distance}, unlimited"
+    else:
+        distance_str = f"{action.min_distance}-{action.max_distance}"
+
+    # Count blocking actions
+    blocking_count = bin(action.blocked_by).count('1')
+
+    # Display summary
+    print(f"\n[ACTION {action.id}] {action.ui_name}")
+    print(f"  Actor: {actor_str}, Target: {target_str}")
+    print(f"  Distance: {distance_str}")
+    print(f"  Consumes actor: {action.actor_consuming_always}")
+    print(f"  Blocked by: {blocking_count} actions")
+    if action.quiet:
+        print(f"  (quiet mode)")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -535,4 +599,5 @@ __all__ = [
     "handle_ruleset_disaster",
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
+    "handle_ruleset_action",
 ]
