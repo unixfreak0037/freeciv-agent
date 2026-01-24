@@ -57,8 +57,6 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_RULESET_NATION_SETS, handlers.handle_ruleset_nation_sets)
         self.register_handler(protocol.PACKET_RULESET_DISASTER, handlers.handle_ruleset_disaster)
         self.register_handler(protocol.PACKET_NATION_AVAILABILITY, handlers.handle_nation_availability)
-        self.register_handler(protocol.PACKET_FREEZE_CLIENT, handlers.handle_freeze_client)
-        self.register_handler(protocol.PACKET_THAW_CLIENT, handlers.handle_thaw_client)
 
     def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
         """

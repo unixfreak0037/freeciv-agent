@@ -1,153 +1,10 @@
-"""
-Packet handler functions for the FreeCiv client.
-
-Each handler is an async function that processes a specific packet type.
-Handlers receive the client instance and the packet payload, and are
-responsible for decoding the payload and updating client state as needed.
-"""
-
 from typing import TYPE_CHECKING
-from . import protocol
-from .game_state import GameState, RulesetControl
+
+from fc_client import protocol
+from fc_client.game_state import GameState, RulesetControl
 
 if TYPE_CHECKING:
-    from .client import FreeCivClient
-
-
-async def handle_processing_started(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_PROCESSING_STARTED.
-
-    This packet indicates the server is starting to process something.
-    No payload to decode.
-    """
-    print("Received PROCESSING_STARTED packet")
-
-
-async def handle_processing_finished(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_PROCESSING_FINISHED.
-
-    This packet indicates the server has finished processing.
-    No payload to decode.
-    """
-    print("Received PROCESSING_FINISHED packet")
-
-
-async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_SERVER_JOIN_REPLY.
-
-    This packet contains the server's response to our join request.
-    If successful, set the join_successful event. Otherwise, trigger shutdown.
-    """
-    # Decode the join reply payload
-    data = protocol.decode_server_join_reply(payload)
-
-    if data['you_can_join']:
-        print(f"Join successful: {data['message']}")
-
-        # CRITICAL: Switch to 2-byte packet type format after successful join
-        # The FreeCiv protocol switches from UINT8 to UINT16 packet types after JOIN_REPLY
-        client._use_two_byte_type = True
-
-        # Signal that join was successful
-        client._join_successful.set()
-    else:
-        print(f"Join failed: {data['message']}")
-        # Trigger shutdown on join failure
-        client._shutdown_event.set()
-
-
-async def handle_server_info(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_SERVER_INFO.
-
-    Uses delta protocol to decode server version information.
-    Updates game_state.server_info with server version information.
-    """
-    # Decode using delta protocol
-    packet_spec = protocol.PACKET_SPECS[protocol.PACKET_SERVER_INFO]
-    server_info = protocol.decode_delta_packet(payload, packet_spec, client._delta_cache)
-
-    game_state.server_info = server_info
-
-    print(f"Server version: {server_info['version_label']} "
-          f"({server_info['major_version']}.{server_info['minor_version']}."
-          f"{server_info['patch_version']}-{server_info['emerg_version']})")
-
-
-async def handle_game_info(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_GAME_INFO (16) - comprehensive game state information.
-
-    This packet uses delta protocol and contains array-diff fields:
-    - global_advances[A_LAST]: Boolean array of discovered technologies
-    - great_wonder_owners[B_LAST]: Player IDs owning each wonder
-
-    Array-diff optimization transmits only changed array elements as (index, value) pairs.
-
-    Updates game_state.game_info with decoded packet data.
-    """
-    from .packet_specs import PACKET_SPECS
-
-    # Decode using delta protocol (handles array-diff automatically)
-    spec = PACKET_SPECS[16]
-    data = protocol.decode_delta_packet(payload, spec, client._delta_cache)
-
-    # Store in game state
-    game_state.game_info = data
-
-    # Display array-diff fields for verification
-    global_advances = data.get('global_advances', [])
-    great_wonder_owners = data.get('great_wonder_owners', [])
-    global_advance_count = data.get('global_advance_count', 0)
-
-    # Count discovered techs
-    discovered_count = sum(1 for advance in global_advances if advance) if global_advances else 0
-
-    # Count wonders owned
-    owned_wonders = sum(1 for owner in great_wonder_owners if owner >= 0) if great_wonder_owners else 0
-
-    print(f"\n[GAME_INFO] Packet received")
-    print(f"  Global advances: {discovered_count}/{len(global_advances)} discovered (count field: {global_advance_count})")
-    print(f"  Great wonders: {owned_wonders}/{len(great_wonder_owners)} owned")
-
-
-async def handle_chat_msg(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
-    """
-    Handle PACKET_CHAT_MSG.
-
-    Decodes chat message using delta protocol, stores in game state with timestamp,
-    and displays to console.
-    """
-    from datetime import datetime
-
-    # Decode packet using delta protocol
-    packet_spec = protocol.PACKET_SPECS[protocol.PACKET_CHAT_MSG]
-    data = protocol.decode_delta_packet(payload, packet_spec, client._delta_cache)
-
-    # Create history entry with timestamp
-    timestamp = datetime.now().isoformat()
-    history_entry = {
-        'timestamp': timestamp,
-        'message': data['message'],
-        'tile': data['tile'],
-        'event': data['event'],
-        'turn': data['turn'],
-        'phase': data['phase'],
-        'conn_id': data['conn_id']
-    }
-
-    # Store in game state
-    game_state.chat_history.append(history_entry)
-
-    # Display to console
-    time_str = datetime.fromisoformat(timestamp).strftime('%H:%M:%S')
-    print(f"\n[CHAT {time_str}] {data['message']}")
-    print(f"  Turn: {data['turn']} | Phase: {data['phase']} | "
-          f"Event: {data['event']} | Tile: {data['tile']} | Conn: {data['conn_id']}")
-
+    from fc_client.client import FreeCivClient
 
 async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
@@ -182,7 +39,6 @@ async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState,
     print(f"  Terrain: {ruleset.terrain_count}")
     print(f"  Governments: {ruleset.government_count}")
 
-
 async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
     Handle PACKET_RULESET_SUMMARY.
@@ -207,7 +63,6 @@ async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState,
 
     print(f"\n[RULESET SUMMARY]")
     print(preview)
-
 
 async def handle_ruleset_description_part(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
     """
@@ -283,7 +138,7 @@ async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameSt
 
     Updates game_state.nation_sets with list of NationSet objects.
     """
-    from .game_state import NationSet
+    from ..game_state import NationSet
 
     # Decode packet
     data = protocol.decode_ruleset_nation_sets(payload)
@@ -323,7 +178,7 @@ async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: Game
 
     Updates game_state.nation_groups with list of NationGroup objects.
     """
-    from .game_state import NationGroup
+    from ..game_state import NationGroup
 
     # Decode packet
     data = protocol.decode_ruleset_nation_groups(payload)
@@ -358,7 +213,7 @@ async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, 
 
     Updates game_state.nations dict with Nation objects keyed by nation ID.
     """
-    from .game_state import Nation
+    from ..game_state import Nation
 
     # Decode packet using manual decoder
     data = protocol.decode_ruleset_nation(payload)
@@ -466,7 +321,7 @@ async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, pa
 
     Updates game_state.ruleset_game with the complete game configuration.
     """
-    from .game_state import RulesetGame
+    from ..game_state import RulesetGame
 
     # Decode packet
     data = protocol.decode_ruleset_game(payload)
@@ -526,7 +381,7 @@ async def handle_ruleset_disaster(
 
     Updates game_state.disasters dict with the disaster type configuration.
     """
-    from .game_state import DisasterType, Requirement
+    from ..game_state import DisasterType, Requirement
 
     # Decode packet
     data = protocol.decode_ruleset_disaster(payload)
@@ -582,53 +437,14 @@ async def handle_ruleset_disaster(
     print(f"  Requirements: {disaster.reqs_count}")
     print(f"  Effects: {effects_str}")
 
-
-async def handle_unknown_packet(client: 'FreeCivClient', game_state: GameState, packet_type: int, payload: bytes) -> None:
-    """
-    Handle unknown/unimplemented packet types.
-
-    This handler logs detailed information about the packet and triggers
-    shutdown to force incremental implementation of packet handlers.
-    """
-    print(f"\n!!! UNKNOWN PACKET RECEIVED !!!")
-    print(f"Packet Type: {packet_type}")
-    print(f"Payload Length: {len(payload)} bytes")
-
-    # Hex dump first 64 bytes
-    dump_size = min(64, len(payload))
-    hex_dump = ' '.join(f'{b:02x}' for b in payload[:dump_size])
-    print(f"First {dump_size} bytes: {hex_dump}")
-
-    print(f"\n>>> Need to implement handler for packet type {packet_type}")
-    print(">>> Stopping application...\n")
-
-    # Trigger shutdown
-    client._shutdown_event.set()
-
-
-async def handle_freeze_client(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
-) -> None:
-    """
-    Handle PACKET_FREEZE_CLIENT (130).
-
-    Signals start of compression group. Server queues packets until THAW.
-    For headless AI, this is informational only.
-    """
-    print("[FREEZE] Server started compression grouping")
-
-
-async def handle_thaw_client(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
-) -> None:
-    """
-    Handle PACKET_THAW_CLIENT (131).
-
-    Signals end of compression group. Queued packets have been sent.
-    For headless AI, this is informational only.
-    """
-    print("[THAW] Server ended compression grouping")
+__all__ = [
+    "handle_ruleset_control",
+    "handle_ruleset_summary",
+    "handle_ruleset_description_part",
+    "handle_ruleset_nation_sets",
+    "handle_ruleset_nation_groups",
+    "handle_ruleset_nation",
+    "handle_nation_availability",
+    "handle_ruleset_game",
+    "handle_ruleset_disaster",
+]
