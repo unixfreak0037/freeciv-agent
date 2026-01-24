@@ -26,6 +26,7 @@ PACKET_RULESET_NATION_SETS = 236
 PACKET_NATION_AVAILABILITY = 237
 PACKET_RULESET_GAME = 141
 PACKET_RULESET_DISASTER = 224
+PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
 
 # Version constants
@@ -1259,6 +1260,67 @@ def decode_ruleset_achievement(payload: bytes) -> dict:
         'rule_name': rule_name,
         'type': achievement_type,
         'unique': unique
+    }
+
+
+def decode_ruleset_trade(payload: bytes) -> dict:
+    """Decode PACKET_RULESET_TRADE (227).
+
+    Trade routes define how cities establish commercial connections.
+    Multiple packets sent (one per trade route type) during initialization.
+
+    Uses delta protocol with no key fields - cache is initialized with zeros.
+    Fields are transmitted only if different from cached values.
+
+    Wire format:
+    - Byte 0: bitvector (4 bits used for 4 fields)
+    - Conditional fields based on bitvector:
+      - Bit 0 set: UINT8 id
+      - Bit 1 set: UINT16 trade_pct (big-endian)
+      - Bit 2 set: UINT8 cancelling
+      - Bit 3 set: UINT8 bonus_type
+
+    Enum values:
+    - cancelling: 0=Active, 1=Inactive, 2=Cancel
+    - bonus_type: 0=None, 1=Gold, 2=Science, 3=Both
+    """
+    offset = 0
+
+    # Read bitvector
+    bitvector, offset = decode_uint8(payload, offset)
+
+    # Helper to check if bit is set
+    def has_field(bit_index):
+        return bool(bitvector & (1 << bit_index))
+
+    # Initialize with defaults (cache starts at zero for packets with no key fields)
+    trade_id = 0
+    trade_pct = 0
+    cancelling = 0
+    bonus_type = 0
+
+    # Conditional fields based on bitvector
+    # Bit 0: id
+    if has_field(0):
+        trade_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: trade_pct
+    if has_field(1):
+        trade_pct, offset = decode_uint16(payload, offset)
+
+    # Bit 2: cancelling
+    if has_field(2):
+        cancelling, offset = decode_uint8(payload, offset)
+
+    # Bit 3: bonus_type
+    if has_field(3):
+        bonus_type, offset = decode_uint8(payload, offset)
+
+    return {
+        'id': trade_id,
+        'trade_pct': trade_pct,
+        'cancelling': cancelling,
+        'bonus_type': bonus_type
     }
 
 

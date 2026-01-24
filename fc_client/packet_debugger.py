@@ -2,6 +2,7 @@
 Packet debugging utility for capturing FreeCiv network packets.
 """
 import os
+import shutil
 
 
 class PacketDebugger:
@@ -27,10 +28,8 @@ class PacketDebugger:
             FileExistsError: If debug_dir already exists (prevents accidental overwrites)
         """
         if os.path.exists(debug_dir):
-            raise FileExistsError(
-                f"Packet debug directory '{debug_dir}' already exists. "
-                "Remove it or choose a different directory."
-            )
+            print(f"Packet debug directory '{debug_dir}' already exists. Removing it.")
+            shutil.rmtree(debug_dir)
 
         os.makedirs(debug_dir)
         self._debug_dir = debug_dir

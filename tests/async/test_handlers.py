@@ -1464,3 +1464,18 @@ async def test_handle_ruleset_achievement(mock_client, game_state):
     assert achievement.rule_name == "Spaceship Launch"
     assert achievement.type == 0
     assert achievement.unique is True
+
+
+async def test_handle_ruleset_trade(mock_client, game_state):
+    """Test handle_ruleset_trade processes packet correctly."""
+    # Delta protocol: bitvector=0x0E (bits 1,2,3), trade_pct=100, cancelling=0, bonus_type=1
+    payload = bytes([0x0E, 0, 100, 0, 1])  # bitvector, pct (big-endian), cancel, bonus
+
+    await handlers.handle_ruleset_trade(mock_client, game_state, payload)
+
+    assert 0 in game_state.trade_routes
+    trade = game_state.trade_routes[0]
+    assert trade.id == 0  # Not in payload, defaults to 0
+    assert trade.trade_pct == 100
+    assert trade.cancelling == 0
+    assert trade.bonus_type == 1

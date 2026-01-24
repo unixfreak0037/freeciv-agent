@@ -483,6 +483,46 @@ async def handle_ruleset_achievement(
     print(f"  Type: {type_str}")
     print(f"  Status: {unique_str}")
 
+
+async def handle_ruleset_trade(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_TRADE (227) - trade route configuration."""
+    from ..game_state import TradeRouteType
+
+    # Decode packet
+    data = protocol.decode_ruleset_trade(payload)
+
+    # Create TradeRouteType object
+    trade_route = TradeRouteType(
+        id=data['id'],
+        trade_pct=data['trade_pct'],
+        cancelling=data['cancelling'],
+        bonus_type=data['bonus_type']
+    )
+
+    # Store in game state
+    game_state.trade_routes[trade_route.id] = trade_route
+
+    # Map enum values for display
+    cancelling_names = {0: "Active", 1: "Inactive", 2: "Cancel"}
+    bonus_type_names = {0: "None", 1: "Gold", 2: "Science", 3: "Both"}
+
+    cancelling_str = cancelling_names.get(
+        trade_route.cancelling, f"Unknown({trade_route.cancelling})"
+    )
+    bonus_str = bonus_type_names.get(
+        trade_route.bonus_type, f"Unknown({trade_route.bonus_type})"
+    )
+
+    # Display summary
+    print(f"\n[TRADE ROUTE {trade_route.id}]")
+    print(f"  Trade Percentage: {trade_route.trade_pct}%")
+    print(f"  Illegal Route Handling: {cancelling_str}")
+    print(f"  Bonus Type: {bonus_str}")
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -493,5 +533,6 @@ __all__ = [
     "handle_nation_availability",
     "handle_ruleset_game",
     "handle_ruleset_disaster",
+    "handle_ruleset_trade",
     "handle_ruleset_achievement",
 ]

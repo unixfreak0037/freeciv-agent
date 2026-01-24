@@ -189,6 +189,15 @@ class AchievementType:
     unique: bool               # Whether only one player can achieve this
 
 
+@dataclass
+class TradeRouteType:
+    """Trade route type configuration from PACKET_RULESET_TRADE (227)."""
+    id: int              # Trade route type ID
+    trade_pct: int      # Trade percentage (0-65535)
+    cancelling: int     # Illegal route handling (TRI enum)
+    bonus_type: int     # Trade bonus type (TR_BONUS_TYPE enum)
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -207,4 +216,5 @@ class GameState:
         self.nation_availability: Optional[Dict[str, Any]] = None  # Nation availability tracking (PACKET_NATION_AVAILABILITY)
         self.ruleset_game: Optional[RulesetGame] = None  # Core game configuration (PACKET_RULESET_GAME)
         self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)
+        self.trade_routes: Dict[int, TradeRouteType] = {}  # Trade routes by ID (PACKET_RULESET_TRADE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)

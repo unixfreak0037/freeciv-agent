@@ -37,6 +37,7 @@ from fc_client.protocol import (
     decode_ruleset_nation_groups,
     decode_nation_availability,
     decode_ruleset_achievement,
+    decode_ruleset_trade,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -1592,3 +1593,40 @@ def test_decode_ruleset_achievement_minimal():
     assert result['rule_name'] == "test"
     assert result['type'] == 1
     assert result['unique'] is False
+
+
+def test_decode_ruleset_trade():
+    """Test decoding PACKET_RULESET_TRADE with delta protocol."""
+    # bitvector=0x0F (all 4 bits set), id=1, trade_pct=150, cancelling=2, bonus_type=3
+    payload = bytes([
+        0x0F,       # bitvector (bits 0,1,2,3 all set)
+        1,          # id
+        0, 150,     # trade_pct (big-endian UINT16)
+        2,          # cancelling
+        3,          # bonus_type
+    ])
+
+    result = decode_ruleset_trade(payload)
+
+    assert result['id'] == 1
+    assert result['trade_pct'] == 150
+    assert result['cancelling'] == 2
+    assert result['bonus_type'] == 3
+
+
+def test_decode_ruleset_trade_partial():
+    """Test decoding PACKET_RULESET_TRADE with partial fields (delta)."""
+    # Real packet example: bitvector=0x0B (bits 0,1,3), id=2, trade_pct=100, bonus_type=1
+    payload = bytes([
+        0x0B,       # bitvector (bits 0,1,3 set, bit 2 clear)
+        2,          # id
+        0, 100,     # trade_pct (big-endian UINT16)
+        1,          # bonus_type
+    ])
+
+    result = decode_ruleset_trade(payload)
+
+    assert result['id'] == 2
+    assert result['trade_pct'] == 100
+    assert result['cancelling'] == 0  # Not transmitted, uses default
+    assert result['bonus_type'] == 1
