@@ -1,5 +1,6 @@
 .venv/
 freeciv/
+freeciv-build/
 *.pyc
 __pycache__/
 *.swp

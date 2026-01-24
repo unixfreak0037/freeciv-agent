@@ -115,10 +115,11 @@ Calculation: 0x02 * 256 + 0x3c = 512 + 60 = 572
 **CRITICAL:** When researching network protocol implementation, consult sources in this order:
 
 1. **Generated code first** (implementation truth):
-   - `freeciv/common/packets_gen.c` - Actual send/receive functions
-   - `freeciv/common/packets_gen.h` - Generated packet structures
+   - `freeciv-build/packets_gen.c` - Actual send/receive functions (2.8 MB, 92K lines)
+   - `freeciv-build/packets_gen.h` - Generated packet structures (83 KB, 2.7K lines)
    - Look for `send_packet_*` and `receive_packet_*` functions
    - These show the ACTUAL byte-level encoding/decoding
+   - **Note:** These files are in `freeciv-build/` directory, not in `freeciv/common/`
 
 2. **Code generator second** (encoding logic):
    - `freeciv/common/generate_packets.py` - The generator that creates packets_gen.c

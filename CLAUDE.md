@@ -61,12 +61,27 @@ xxd packets/inbound_*_typeNNN.packet
 ```
 Real server behavior is the ONLY definitive source.
 
-### 2. Generated C code (AUTHORITATIVE)
+### 2. Generated C code (AUTHORITATIVE) - freeciv-build directory
 ```bash
-grep -A 100 "send_packet_<name>" freeciv/common/packets_gen.c
-grep -A 100 "receive_packet_<name>" freeciv/common/packets_gen.c
+# Find the receive (decode) function for your packet
+grep -n "receive_packet_<name>_100" freeciv-build/packets_gen.c
+
+# Read the implementation (replace NNNN with line number from grep)
+sed -n 'NNNN,+150p' freeciv-build/packets_gen.c
+
+# Find the struct definition
+grep -A 20 "struct packet_<name> {" freeciv-build/packets_gen.h
 ```
-Shows HOW packets are actually encoded/decoded by the server.
+
+**Key Files:**
+- `freeciv-build/packets_gen.c` (2.8 MB) - Complete encoder/decoder implementations
+- `freeciv-build/packets_gen.h` (83 KB) - Struct definitions with field types
+
+**What to Look For:**
+- `DIO_BV_GET()` - Bitvector read (always first!)
+- `BV_ISSET(fields, N)` - Field N is conditional (in bitvector)
+- `DIO_GET(uint8)`, `DIO_GET(uint16)`, `DIO_GET(string)` - Field encoding types
+- Field order in `BV_ISSET()` blocks matches bitvector bit indices
 
 ### 3. Code generator (REVEALS IMPLEMENTATION DETAILS)
 - `freeciv/common/generate_packets.py` - Shows encoding rules, field order, optimizations
@@ -80,6 +95,40 @@ Shows HOW packets are actually encoded/decoded by the server.
 - Example failure: PACKET_RULESET_GAME (141) specification was completely wrong
 
 **Lesson learned:** We wasted hours implementing based on packets.def, only to discover the actual packet structure was completely different. Always start with captured packets or generated code.
+
+### Implementing New Packet Handlers
+
+When you need to implement a new packet handler, use the **packet-handler-builder** agent.
+
+### How to Use freeciv-build Generated Files
+
+**Step 1: Locate the packet decoder**
+```bash
+# Example: Finding PACKET_RULESET_TRADE decoder
+grep -n "receive_packet_ruleset_trade_100" freeciv-build/packets_gen.c
+# Output: 68298:static struct packet_ruleset_trade *receive_packet_ruleset_trade_100
+```
+
+**Step 2: Read the implementation**
+```bash
+# Read ~150 lines starting from the function (adjust count as needed)
+sed -n '68298,68450p' freeciv-build/packets_gen.c
+```
+
+**Step 3: Identify encoding pattern**
+
+Look for these patterns in order:
+1. **Bitvector read**: `DIO_BV_GET(&din, &field_addr, fields);`
+2. **Conditional field reads**: `if (BV_ISSET(fields, 0)) { DIO_GET(uint8, ..., &real_packet->id); }`
+3. **Field types**: uint8, uint16, uint32, sint16, string, bool8
+4. **Array loops**: `for (i = 0; i < count; i++) { DIO_GET(...); }`
+
+**Step 4: Check struct definition for context**
+```bash
+grep -A 10 "struct packet_ruleset_trade {" freeciv-build/packets_gen.h
+```
+
+This shows field types and enum annotations that reveal semantic meaning.
 
 ## Delta Protocol Essentials
 
@@ -153,7 +202,7 @@ When tests fail:
   - `async read_packet()`: Reads from StreamReader with protocol version support
   - `decode_delta_packet()`: Delta protocol with bitvector and cache
   - Synchronous encode/decode functions for specific packets
-- **fc_client/handlers.py**: Packet handler functions
+- **fc_client/handlers/**: Packet handler functions
 - **fc_client/packet_specs.py**: Declarative packet specifications
 - **fc_client/delta_cache.py**: Delta protocol cache management
 - **fc_client/game_state.py**: Game state tracking
@@ -172,16 +221,6 @@ Examples:
 - Debugging decoding errors
 - Protocol analysis
 - Writing unit tests with known-good data
-
-## Protocol Implementation Workflow
-
-1. **Capture packets:** `python3 fc_ai.py --debug-packets`
-2. **Examine raw bytes:** `xxd packets/inbound_*_typeNNN.packet`
-3. **Check generated C code:** `grep -A 100 "receive_packet_<name>" freeciv/common/packets_gen.c`
-4. **Identify encoding:** Look for `dio_get_uint8`, `dio_get_string`, etc.
-5. **Create test fixture:** Use real captured bytes
-6. **Implement decoder:** Follow C code field order exactly
-7. **Verify:** Test against multiple captured packets
 
 ## Dependencies
 
