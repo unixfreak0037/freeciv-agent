@@ -35,6 +35,7 @@ PACKET_RULESET_ACTION_AUTO = 252
 PACKET_RULESET_TECH = 144
 PACKET_RULESET_GOVERNMENT = 145
 PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
+PACKET_RULESET_UNIT_CLASS_FLAG = 230
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1724,6 +1725,67 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_UNIT_CLASS_FLAG (230) - unit class flag definition.
+
+    Structure from freeciv-build/packets_gen.c:49592:
+    - 3-bit bitvector (1 byte)
+    - Bit 0: id (UINT8)
+    - Bit 1: name (STRING)
+    - Bit 2: helptxt (STRING)
+    - Cache: hash_const (all packets share same cache entry)
+
+    Returns:
+        Dictionary with decoded fields: id, name, helptxt
+    """
+    offset = 0
+
+    # Read 3-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 3)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_UNIT_CLASS_FLAG, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        flag_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        helptxt = cached.get('helptxt', '')
+    else:
+        flag_id = 0
+        name = ''
+        helptxt = ''
+
+    # Bit 0: id
+    if has_field(0):
+        flag_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if has_field(1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: helptxt
+    if has_field(2):
+        helptxt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': flag_id,
+        'name': name,
+        'helptxt': helptxt
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_UNIT_CLASS_FLAG, (), result)
 
     return result
 

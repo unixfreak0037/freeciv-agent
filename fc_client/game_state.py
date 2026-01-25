@@ -264,6 +264,18 @@ class TechFlag:
 
 
 @dataclass
+class UnitClassFlag:
+    """Unit class flag from PACKET_RULESET_UNIT_CLASS_FLAG (230).
+
+    Unit class flags are properties that can be assigned to unit classes
+    in the ruleset to define game mechanics and requirements.
+    """
+    id: int           # Unit class flag ID (key)
+    name: str         # Flag name
+    helptxt: str      # Help text describing the flag
+
+
+@dataclass
 class Tech:
     """Technology from PACKET_RULESET_TECH (144).
 
@@ -334,6 +346,7 @@ class GameState:
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
+        self.unit_class_flags: Dict[int, UnitClassFlag] = {}  # Unit class flags by ID (PACKET_RULESET_UNIT_CLASS_FLAG)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)
