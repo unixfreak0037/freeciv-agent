@@ -263,6 +263,28 @@ class TechFlag:
     helptxt: str      # Help text describing the flag
 
 
+@dataclass
+class Tech:
+    """Technology from PACKET_RULESET_TECH (144).
+
+    Technologies represent scientific advances that players can research.
+    """
+    id: int
+    root_req: int
+    research_reqs_count: int
+    research_reqs: List[Requirement]
+    tclass: int
+    removed: bool
+    flags: int  # Bitvector of tech flags
+    cost: float  # Research cost (decoded from UFLOAT)
+    num_reqs: int
+    name: str
+    rule_name: str
+    helptext: str
+    graphic_str: str
+    graphic_alt: str
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -287,3 +309,4 @@ class GameState:
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
+        self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)

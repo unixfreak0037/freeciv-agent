@@ -765,6 +765,81 @@ async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameStat
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_tech(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_TECH (144) - technology definition.
+
+    Technologies represent scientific advances that players can research.
+    Updates game_state.techs dict with technology configuration.
+    """
+    from ..game_state import Tech, Requirement
+
+    # Decode packet with delta cache
+    data = protocol.decode_ruleset_tech(payload, client._delta_cache)
+
+    # Convert research requirements to Requirement objects
+    research_requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['research_reqs']
+    ]
+
+    # Create Tech object
+    tech = Tech(
+        id=data['id'],
+        root_req=data['root_req'],
+        research_reqs_count=data['research_reqs_count'],
+        research_reqs=research_requirements,
+        tclass=data['tclass'],
+        removed=data['removed'],
+        flags=data['flags'],
+        cost=data['cost'],
+        num_reqs=data['num_reqs'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        helptext=data['helptext'],
+        graphic_str=data['graphic_str'],
+        graphic_alt=data['graphic_alt']
+    )
+
+    # Store in game state
+    game_state.techs[tech.id] = tech
+
+    # Display summary
+    status = "REMOVED" if tech.removed else "active"
+    print(f"\n[TECH {tech.id}] {tech.name} ({tech.rule_name}) - {status}")
+    print(f"  Cost: {tech.cost} beakers")
+    print(f"  Class: {tech.tclass}")
+
+    if tech.root_req != 0:
+        print(f"  Root requirement: Tech {tech.root_req}")
+
+    if tech.research_reqs_count > 0:
+        print(f"  Research requirements: {tech.research_reqs_count}")
+        if tech.research_reqs_count <= 3:
+            for i, req in enumerate(research_requirements):
+                present_str = "present" if req.present else "absent"
+                print(f"    Req {i}: type={req.type}, value={req.value}, {present_str}")
+
+    if tech.flags != 0:
+        flag_count = bin(tech.flags).count('1')
+        print(f"  Flags: {flag_count} active (0x{tech.flags:x})")
+
+    if tech.helptext:
+        help_preview = tech.helptext[:80] + '...' if len(tech.helptext) > 80 else tech.helptext
+        print(f"  Help: {help_preview}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -778,6 +853,7 @@ __all__ = [
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
+    "handle_ruleset_tech",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",

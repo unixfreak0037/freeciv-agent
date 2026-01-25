@@ -32,6 +32,7 @@ PACKET_RULESET_TECH_FLAG = 234
 PACKET_RULESET_ACTION_ENABLER = 235
 PACKET_RULESET_ACTION = 246
 PACKET_RULESET_ACTION_AUTO = 252
+PACKET_RULESET_TECH = 144
 
 # Version constants
 MAJOR_VERSION = 3
@@ -303,6 +304,26 @@ def decode_sint32(data: bytes, offset: int) -> Tuple[int, int]:
     """
     value = struct.unpack('>i', data[offset:offset+4])[0]
     return value, offset + 4
+
+
+def decode_ufloat(data: bytes, offset: int, factor: int) -> Tuple[float, int]:
+    """
+    Decode UFLOAT (unsigned float encoded as UINT16 with scaling factor).
+
+    FreeCiv encodes floats as integers: wire_value = int(float_value * factor)
+    Decode: float_value = wire_value / factor
+
+    Args:
+        data: Byte array to read from
+        offset: Starting position
+        factor: Scaling factor (100 for UFLOAT10x3, 10000 for UFLOAT)
+
+    Returns:
+        Tuple of (float_value, new_offset)
+    """
+    uint_value, offset = decode_uint16(data, offset)
+    float_value = float(uint_value) / factor
+    return float_value, offset
 
 
 def encode_packet(packet_type: int, payload: bytes) -> bytes:
@@ -1701,6 +1722,142 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_TECH (144) - technology definition.
+
+    Structure from freeciv-build/packets_gen.c:52170:
+    - 2-byte bitvector (14 bits)
+    - 14 conditional fields
+    - Cache: hash_const (all packets share same cache entry)
+    """
+    offset = 0
+
+    # Read 14-bit bitvector (2 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 14)
+    # DEBUG
+    # print(f"[DEBUG] TECH bitvector: 0x{bitvector:04x}, bits: {[i for i in range(14) if is_bit_set(bitvector, i)]}")
+
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_TECH, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        tech_id = cached.get('id', 0)
+        root_req = cached.get('root_req', 0)
+        research_reqs_count = cached.get('research_reqs_count', 0)
+        research_reqs = cached.get('research_reqs', []).copy()
+        tclass = cached.get('tclass', 0)
+        removed = cached.get('removed', False)
+        flags = cached.get('flags', 0)
+        cost = cached.get('cost', 0.0)
+        num_reqs = cached.get('num_reqs', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        helptext = cached.get('helptext', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+    else:
+        tech_id = 0
+        root_req = 0
+        research_reqs_count = 0
+        research_reqs = []
+        tclass = 0
+        removed = False
+        flags = 0
+        cost = 0.0
+        num_reqs = 0
+        name = ''
+        rule_name = ''
+        helptext = ''
+        graphic_str = ''
+        graphic_alt = ''
+
+    # Bit 0: id (UINT16)
+    if has_field(0):
+        tech_id, offset = decode_uint16(payload, offset)
+
+    # Bit 1: root_req (UINT16)
+    if has_field(1):
+        root_req, offset = decode_uint16(payload, offset)
+
+    # Bit 2: research_reqs_count (UINT8)
+    if has_field(2):
+        research_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 3: research_reqs (REQUIREMENT array)
+    if has_field(3):
+        research_reqs = []
+        for _ in range(research_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            research_reqs.append(req)
+
+    # Bit 4: tclass (UINT8)
+    if has_field(4):
+        tclass, offset = decode_uint8(payload, offset)
+
+    # Bit 5: removed (BOOL) - Header folded! Bit IS value, no payload byte
+    removed = has_field(5)
+
+    # Bit 6: flags (BV_TECH_FLAGS - 2 bytes for 13 flags)
+    if has_field(6):
+        flags, offset = read_bitvector(payload, offset, 16)
+
+    # Bit 7: cost (UFLOAT10x3 with factor 100)
+    if has_field(7):
+        cost, offset = decode_ufloat(payload, offset, 100)
+
+    # Bit 8: num_reqs (UINT32)
+    if has_field(8):
+        num_reqs, offset = decode_uint32(payload, offset)
+
+    # Bit 9: name (STRING)
+    if has_field(9):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 10: rule_name (STRING)
+    if has_field(10):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 11: helptext (STRING)
+    if has_field(11):
+        helptext, offset = decode_string(payload, offset)
+
+    # Bit 12: graphic_str (STRING)
+    if has_field(12):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 13: graphic_alt (STRING)
+    if has_field(13):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': tech_id,
+        'root_req': root_req,
+        'research_reqs_count': research_reqs_count,
+        'research_reqs': research_reqs,
+        'tclass': tclass,
+        'removed': removed,
+        'flags': flags,
+        'cost': cost,
+        'num_reqs': num_reqs,
+        'name': name,
+        'rule_name': rule_name,
+        'helptext': helptext,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_TECH, (), result)
 
     return result
 

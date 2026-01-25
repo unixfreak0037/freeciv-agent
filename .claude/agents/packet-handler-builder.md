@@ -159,6 +159,15 @@ For detailed documentation, see [freeciv/doc/README.delta](freeciv/doc/README.de
 
   **Critical Rule:** If bit 2 (array) is SET but bit 1 (count) is NOT set, the wire contains N array items where N comes from the CACHED count value, not 0.
 
+##### Delta protocol with hash_const is different from keyed caching:
+  - Normal packets: Each entity (like Nation ID 5, Nation ID 6) has its own cache entry
+  - hash_const packets: ONE shared cache entry for ALL packets of that type
+  - This is used for "settings" style packets where there's only one instance being updated incrementally
+
+The generated C code shows this explicitly:
+  #define hash_packet_ruleset_tech_100 hash_const  // Returns 0 for all packets
+  #define cmp_packet_ruleset_tech_100 cmp_const     // Returns TRUE for all packets
+
 ### 2. Design Phase
 
 **Create PacketSpec**: In `fc_client/packet_specs.py`, define a new `PacketSpec` for the packet:
