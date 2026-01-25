@@ -733,6 +733,38 @@ async def handle_ruleset_action_auto(
             print(f"    Req {i}: type={req.type}, value={req.value}, {present_str}")
 
 
+async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_TECH_FLAG (234).
+
+    Technology flags are properties that can be assigned to technologies
+    in the ruleset to define game mechanics and requirements.
+
+    Updates game_state.tech_flags dictionary with the technology flag.
+    """
+    from ..game_state import TechFlag
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_tech_flag(payload, client._delta_cache)
+
+    # Create TechFlag object
+    tech_flag = TechFlag(
+        id=data['id'],
+        name=data['name'],
+        helptxt=data['helptxt']
+    )
+
+    # Store in game state (keyed by ID)
+    game_state.tech_flags[tech_flag.id] = tech_flag
+
+    # Display summary
+    print(f"\n[TECH FLAG {tech_flag.id}] {tech_flag.name}")
+    if tech_flag.helptxt:
+        # Truncate long help text for console display
+        help_preview = tech_flag.helptxt[:100] + '...' if len(tech_flag.helptxt) > 100 else tech_flag.helptxt
+        print(f"  Help: {help_preview}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -745,6 +777,7 @@ __all__ = [
     "handle_ruleset_disaster",
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
+    "handle_ruleset_tech_flag",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",

@@ -566,3 +566,112 @@ def test_decode_server_info_integration():
     assert result['minor_version'] == 0
     assert result['patch_version'] == 90
     assert result['emerg_version'] == 0
+
+
+# ============================================================================
+# PACKET_RULESET_TECH_FLAG Integration Tests
+# ============================================================================
+
+
+@pytest.mark.integration
+def test_ruleset_tech_flag_handler_stores_in_game_state(freeciv_client, game_state):
+    """Test that handle_ruleset_tech_flag stores tech flag in game_state.tech_flags."""
+    from fc_client.handlers.ruleset import handle_ruleset_tech_flag
+    from fc_client.protocol import encode_string
+
+    # Build packet payload with all fields
+    payload = (
+        b'\x07'  # All 3 bits set
+        b'\x01'  # id: 1
+        b'Prerequisite\x00'  # name
+        b'Technology has a prerequisite.\x00'  # helptxt
+    )
+
+    # Call handler
+    import asyncio
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload))
+
+    # Verify tech flag was stored
+    assert 1 in game_state.tech_flags
+    tech_flag = game_state.tech_flags[1]
+    assert tech_flag.id == 1
+    assert tech_flag.name == 'Prerequisite'
+    assert tech_flag.helptxt == 'Technology has a prerequisite.'
+
+
+@pytest.mark.integration
+def test_ruleset_tech_flag_handler_multiple_flags(freeciv_client, game_state):
+    """Test that multiple tech flags are stored correctly."""
+    from fc_client.handlers.ruleset import handle_ruleset_tech_flag
+
+    # First tech flag
+    payload1 = (
+        b'\x07'  # All fields
+        b'\x00'  # id: 0
+        b'Bonus_Tech\x00'
+        b'Provides research bonus.\x00'
+    )
+
+    # Second tech flag
+    payload2 = (
+        b'\x07'  # All fields
+        b'\x01'  # id: 1
+        b'Root_Req\x00'
+        b'Root requirement flag.\x00'
+    )
+
+    # Third tech flag
+    payload3 = (
+        b'\x07'  # All fields
+        b'\x02'  # id: 2
+        b'Special\x00'
+        b'Special technology flag.\x00'
+    )
+
+    # Call handlers
+    import asyncio
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload1))
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload2))
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload3))
+
+    # Verify all three are stored
+    assert len(game_state.tech_flags) == 3
+    assert 0 in game_state.tech_flags
+    assert 1 in game_state.tech_flags
+    assert 2 in game_state.tech_flags
+
+    # Verify each tech flag
+    assert game_state.tech_flags[0].name == 'Bonus_Tech'
+    assert game_state.tech_flags[1].name == 'Root_Req'
+    assert game_state.tech_flags[2].name == 'Special'
+
+
+@pytest.mark.integration
+def test_ruleset_tech_flag_handler_with_delta_cache(freeciv_client, game_state):
+    """Test that handler works correctly with delta cache updates."""
+    from fc_client.handlers.ruleset import handle_ruleset_tech_flag
+
+    # First packet: all fields
+    payload1 = (
+        b'\x07'  # All fields
+        b'\x05'  # id: 5
+        b'Initial_Name\x00'
+        b'Initial help text.\x00'
+    )
+
+    # Second packet: only name changes (uses delta cache)
+    payload2 = (
+        b'\x02'  # Only bit 1 set (name)
+        b'Updated_Name\x00'
+    )
+
+    # Call handlers
+    import asyncio
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload1))
+    asyncio.run(handle_ruleset_tech_flag(freeciv_client, game_state, payload2))
+
+    # Verify final state has updated name but cached id and helptxt
+    tech_flag = game_state.tech_flags[5]
+    assert tech_flag.id == 5  # From cache (not transmitted in 2nd packet)
+    assert tech_flag.name == 'Updated_Name'  # Updated value
+    assert tech_flag.helptxt == 'Initial help text.'  # From cache

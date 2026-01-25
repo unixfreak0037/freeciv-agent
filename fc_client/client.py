@@ -58,6 +58,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_RULESET_DISASTER, handlers.handle_ruleset_disaster)
         self.register_handler(protocol.PACKET_RULESET_TRADE, handlers.handle_ruleset_trade)
         self.register_handler(protocol.PACKET_RULESET_ACHIEVEMENT, handlers.handle_ruleset_achievement)
+        self.register_handler(protocol.PACKET_RULESET_TECH_FLAG, handlers.handle_ruleset_tech_flag)
         self.register_handler(protocol.PACKET_RULESET_ACTION, handlers.handle_ruleset_action)
         self.register_handler(protocol.PACKET_RULESET_ACTION_ENABLER, handlers.handle_ruleset_action_enabler)
         self.register_handler(protocol.PACKET_RULESET_ACTION_AUTO, handlers.handle_ruleset_action_auto)

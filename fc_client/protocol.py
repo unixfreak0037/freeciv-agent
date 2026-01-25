@@ -28,6 +28,7 @@ PACKET_RULESET_GAME = 141
 PACKET_RULESET_DISASTER = 224
 PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
+PACKET_RULESET_TECH_FLAG = 234
 PACKET_RULESET_ACTION_ENABLER = 235
 PACKET_RULESET_ACTION = 246
 PACKET_RULESET_ACTION_AUTO = 252
@@ -1631,6 +1632,75 @@ def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dic
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_ACTION_AUTO, (), result)
+
+    return result
+
+
+def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_TECH_FLAG (234).
+
+    Technology flags are properties that can be assigned to technologies
+    in the ruleset to define game mechanics and requirements.
+
+    Structure (from freeciv-build/packets_gen.c:53225):
+    - 1-byte bitvector (3 bits used)
+    - Bit 0: id (UINT8) - Technology flag identifier
+    - Bit 1: name (STRING) - Flag name
+    - Bit 2: helptxt (STRING) - Help text
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+
+    Args:
+        payload: Raw packet bytes (after packet header)
+        delta_cache: Delta cache for retrieving cached field values
+
+    Returns:
+        Dictionary with decoded fields: id, name, helptxt
+    """
+    offset = 0
+
+    # Read 3-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 3)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_TECH_FLAG, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        tech_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        helptxt = cached.get('helptxt', '')
+    else:
+        tech_id = 0
+        name = ''
+        helptxt = ''
+
+    # Bit 0: id
+    if has_field(0):
+        tech_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if has_field(1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: helptxt
+    if has_field(2):
+        helptxt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': tech_id,
+        'name': name,
+        'helptxt': helptxt
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_TECH_FLAG, (), result)
 
     return result
 

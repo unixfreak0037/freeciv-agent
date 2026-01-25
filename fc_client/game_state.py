@@ -140,7 +140,6 @@ class RulesetGame:
 
 
 @dataclass
-@dataclass
 class Requirement:
     """
     Game requirement for disasters, buildings, techs, etc.
@@ -252,6 +251,18 @@ class ActionAutoPerformer:
     alternatives: List[int]           # Alternative action IDs (tried in order)
 
 
+@dataclass
+class TechFlag:
+    """Technology flag from PACKET_RULESET_TECH_FLAG (234).
+
+    Technology flags are properties that can be assigned to technologies
+    in the ruleset to define game mechanics and requirements.
+    """
+    id: int           # Technology flag ID (key)
+    name: str         # Flag name
+    helptxt: str      # Help text describing the flag
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -275,3 +286,4 @@ class GameState:
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
+        self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)

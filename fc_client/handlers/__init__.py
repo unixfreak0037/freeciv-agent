@@ -18,5 +18,4 @@ from .pregame import *
 from .info import *
 from .chat import *
 from .ruleset import *
-from .ruleset import *
 from .unknown import *

@@ -38,12 +38,14 @@ from fc_client.protocol import (
     decode_nation_availability,
     decode_ruleset_achievement,
     decode_ruleset_trade,
+    decode_ruleset_tech_flag,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
     _decode_field,
     # Constants
     PACKET_SERVER_JOIN_REQ,
+    PACKET_RULESET_TECH_FLAG,
     MAJOR_VERSION,
     MINOR_VERSION,
     PATCH_VERSION,
@@ -1838,3 +1840,141 @@ def test_decode_ruleset_action_auto_all_fields(delta_cache):
     assert req['survives'] is True
     assert req['present'] is True
     assert req['quiet'] is False
+
+
+# ============================================================================
+# PACKET_RULESET_TECH_FLAG Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_all_fields(delta_cache):
+    """Test decoding PACKET_RULESET_TECH_FLAG with all fields present (no cache)."""
+    # Bitvector: 0x07 (bits 0, 1, 2 set)
+    payload = (
+        b'\x07'  # All 3 bits set
+        b'\x05'  # id: 5
+        b'Bonus_Tech\x00'  # name
+        b'This flag grants bonus research points.\x00'  # helptxt
+    )
+
+    result = decode_ruleset_tech_flag(payload, delta_cache)
+
+    assert result['id'] == 5
+    assert result['name'] == 'Bonus_Tech'
+    assert result['helptxt'] == 'This flag grants bonus research points.'
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_delta_id_only(delta_cache):
+    """Test delta update with only id changing."""
+    # First packet: populate cache
+    payload1 = (
+        b'\x07'  # All fields present
+        b'\x01'  # id: 1
+        b'Tech_A\x00'
+        b'Help text A\x00'
+    )
+    result1 = decode_ruleset_tech_flag(payload1, delta_cache)
+
+    # Second packet: only id changes (bit 0)
+    payload2 = (
+        b'\x01'  # Only bit 0 set
+        b'\x02'  # id: 2
+    )
+    result2 = decode_ruleset_tech_flag(payload2, delta_cache)
+
+    assert result2['id'] == 2  # New value
+    assert result2['name'] == 'Tech_A'  # From cache
+    assert result2['helptxt'] == 'Help text A'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_delta_name_only(delta_cache):
+    """Test delta update with only name changing."""
+    # First packet: populate cache
+    payload1 = (
+        b'\x07'  # All fields present
+        b'\x03'  # id: 3
+        b'Original_Name\x00'
+        b'Original help\x00'
+    )
+    decode_ruleset_tech_flag(payload1, delta_cache)
+
+    # Second packet: only name changes (bit 1)
+    payload2 = (
+        b'\x02'  # Only bit 1 set
+        b'Updated_Name\x00'
+    )
+    result2 = decode_ruleset_tech_flag(payload2, delta_cache)
+
+    assert result2['id'] == 3  # From cache
+    assert result2['name'] == 'Updated_Name'  # New value
+    assert result2['helptxt'] == 'Original help'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_delta_helptxt_only(delta_cache):
+    """Test delta update with only helptxt changing."""
+    # First packet: populate cache
+    payload1 = (
+        b'\x07'  # All fields present
+        b'\x04'  # id: 4
+        b'Flag_Name\x00'
+        b'Initial description\x00'
+    )
+    decode_ruleset_tech_flag(payload1, delta_cache)
+
+    # Second packet: only helptxt changes (bit 2)
+    payload2 = (
+        b'\x04'  # Only bit 2 set
+        b'Updated description with more details\x00'
+    )
+    result2 = decode_ruleset_tech_flag(payload2, delta_cache)
+
+    assert result2['id'] == 4  # From cache
+    assert result2['name'] == 'Flag_Name'  # From cache
+    assert result2['helptxt'] == 'Updated description with more details'  # New value
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_delta_multiple_fields(delta_cache):
+    """Test delta update with multiple fields changing."""
+    # First packet: populate cache
+    payload1 = (
+        b'\x07'  # All fields present
+        b'\x10'  # id: 16
+        b'Flag1\x00'
+        b'Help1\x00'
+    )
+    decode_ruleset_tech_flag(payload1, delta_cache)
+
+    # Second packet: id and name change (bits 0, 1)
+    payload2 = (
+        b'\x03'  # Bits 0 and 1 set
+        b'\x11'  # id: 17
+        b'Flag2\x00'  # name
+    )
+    result2 = decode_ruleset_tech_flag(payload2, delta_cache)
+
+    assert result2['id'] == 17  # New value
+    assert result2['name'] == 'Flag2'  # New value
+    assert result2['helptxt'] == 'Help1'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_tech_flag_empty_strings(delta_cache):
+    """Test handling of empty strings."""
+    # All fields present, but name and helptxt are empty
+    payload = (
+        b'\x07'  # All fields present
+        b'\x00'  # id: 0
+        b'\x00'  # Empty name
+        b'\x00'  # Empty helptxt
+    )
+
+    result = decode_ruleset_tech_flag(payload, delta_cache)
+
+    assert result['id'] == 0
+    assert result['name'] == ''
+    assert result['helptxt'] == ''
