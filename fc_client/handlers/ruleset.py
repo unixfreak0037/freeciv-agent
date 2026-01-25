@@ -587,6 +587,85 @@ async def handle_ruleset_action(
         print(f"  (quiet mode)")
 
 
+async def handle_ruleset_action_enabler(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_ACTION_ENABLER (235) - action enabler configuration.
+
+    Action enablers define conditions for when game actions can be performed.
+    Each enabler specifies requirements for the actor (unit/city/player) and
+    target (recipient of action). Multiple enablers can exist for the same action.
+
+    Updates game_state.action_enablers list by appending each new enabler.
+    """
+    from ..game_state import ActionEnabler, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_action_enabler(payload, client._delta_cache)
+
+    # Convert actor requirements to Requirement objects
+    actor_requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['actor_reqs']
+    ]
+
+    # Convert target requirements to Requirement objects
+    target_requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['target_reqs']
+    ]
+
+    # Create ActionEnabler object
+    enabler = ActionEnabler(
+        enabled_action=data['enabled_action'],
+        actor_reqs_count=data['actor_reqs_count'],
+        actor_reqs=actor_requirements,
+        target_reqs_count=data['target_reqs_count'],
+        target_reqs=target_requirements
+    )
+
+    # Append to game state (multiple enablers can exist for same action)
+    game_state.action_enablers.append(enabler)
+
+    # Look up action name (if action has been received already)
+    action_name = "Unknown"
+    if enabler.enabled_action in game_state.actions:
+        action_name = game_state.actions[enabler.enabled_action].ui_name
+
+    # Display summary
+    print(f"\n[ACTION ENABLER] Action {enabler.enabled_action} ({action_name})")
+    print(f"  Actor requirements: {enabler.actor_reqs_count}")
+    print(f"  Target requirements: {enabler.target_reqs_count}")
+
+    # If requirement count is small (<=3), show detailed view
+    if enabler.actor_reqs_count <= 3 and enabler.actor_reqs_count > 0:
+        for i, req in enumerate(actor_requirements):
+            present_str = "present" if req.present else "absent"
+            print(f"    Actor req {i}: type={req.type}, value={req.value}, {present_str}")
+
+    if enabler.target_reqs_count <= 3 and enabler.target_reqs_count > 0:
+        for i, req in enumerate(target_requirements):
+            present_str = "present" if req.present else "absent"
+            print(f"    Target req {i}: type={req.type}, value={req.value}, {present_str}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -600,4 +679,5 @@ __all__ = [
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
     "handle_ruleset_action",
+    "handle_ruleset_action_enabler",
 ]

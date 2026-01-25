@@ -140,6 +140,7 @@ class RulesetGame:
 
 
 @dataclass
+@dataclass
 class Requirement:
     """
     Game requirement for disasters, buildings, techs, etc.
@@ -220,6 +221,21 @@ class ActionType:
     blocked_by: int                   # Bitvector of blocking actions
 
 
+@dataclass
+class ActionEnabler:
+    """Action enabler from PACKET_RULESET_ACTION_ENABLER (235).
+
+    Action enablers define conditions for when game actions can be performed.
+    Each enabler specifies requirements for the actor (unit/city/player) and
+    target (recipient of action).
+    """
+    enabled_action: int               # Action ID this enabler applies to
+    actor_reqs_count: int             # Number of actor requirements
+    actor_reqs: List[Requirement]     # Requirements for the actor
+    target_reqs_count: int            # Number of target requirements
+    target_reqs: List[Requirement]    # Requirements for the target
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -241,3 +257,4 @@ class GameState:
         self.trade_routes: Dict[int, TradeRouteType] = {}  # Trade routes by ID (PACKET_RULESET_TRADE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
+        self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)

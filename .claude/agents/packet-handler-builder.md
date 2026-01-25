@@ -149,6 +149,16 @@ This code is **automatically generated** from packets.def during the FreeCiv bui
 
 For detailed documentation, see [freeciv/doc/README.delta](freeciv/doc/README.delta).
 
+##### Delta Protocol: Variable-Length Arrays - CRITICAL
+
+  **Problem:** When manually implementing delta protocol decoders for packets with variable-length arrays, array count fields and array data fields have SEPARATE bitvector bits.
+
+  **Example:** PACKET_RULESET_ACTION_ENABLER has:
+  - Bit 1: `actor_reqs_count` (UINT8)
+  - Bit 2: `actor_reqs` (REQUIREMENT array)
+
+  **Critical Rule:** If bit 2 (array) is SET but bit 1 (count) is NOT set, the wire contains N array items where N comes from the CACHED count value, not 0.
+
 ### 2. Design Phase
 
 **Create PacketSpec**: In `fc_client/packet_specs.py`, define a new `PacketSpec` for the packet:

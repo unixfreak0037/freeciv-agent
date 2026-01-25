@@ -28,6 +28,7 @@ PACKET_RULESET_GAME = 141
 PACKET_RULESET_DISASTER = 224
 PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
+PACKET_RULESET_ACTION_ENABLER = 235
 PACKET_RULESET_ACTION = 246
 
 # Version constants
@@ -1435,6 +1436,100 @@ def decode_ruleset_action(payload: bytes) -> dict:
         'max_distance': max_distance,
         'blocked_by': blocked_by
     }
+
+
+def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_ACTION_ENABLER (235).
+
+    Action enablers define conditions for when game actions can be performed.
+    Each enabler specifies requirements for the actor (unit/city/player) and
+    target (recipient of action).
+
+    Structure (from freeciv-build/packets_gen.c:69222):
+    - 1-byte bitvector (5 bits used)
+    - Bit 0: enabled_action (UINT8) - Action ID
+    - Bit 1: actor_reqs_count (UINT8) - Number of actor requirements
+    - Bit 2: actor_reqs (REQUIREMENT array) - Requirements for actor
+    - Bit 3: target_reqs_count (UINT8) - Number of target requirements
+    - Bit 4: target_reqs (REQUIREMENT array) - Requirements for target
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+
+    Args:
+        payload: Raw packet bytes (after packet header)
+        delta_cache: Delta cache for retrieving cached field values
+
+    Returns:
+        Dictionary with decoded fields
+    """
+    offset = 0
+
+    # Read 5-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 5)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_ACTION_ENABLER, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        enabled_action = cached.get('enabled_action', 0)
+        actor_reqs_count = cached.get('actor_reqs_count', 0)
+        actor_reqs = cached.get('actor_reqs', []).copy()
+        target_reqs_count = cached.get('target_reqs_count', 0)
+        target_reqs = cached.get('target_reqs', []).copy()
+    else:
+        enabled_action = 0
+        actor_reqs_count = 0
+        actor_reqs = []
+        target_reqs_count = 0
+        target_reqs = []
+
+    # Bit 0: enabled_action
+    if has_field(0):
+        enabled_action, offset = decode_uint8(payload, offset)
+
+    # Bit 1: actor_reqs_count
+    if has_field(1):
+        actor_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 2: actor_reqs (array of REQUIREMENT, each 10 bytes)
+    # Uses current actor_reqs_count (from cache or just read)
+    if has_field(2):
+        actor_reqs = []
+        for _ in range(actor_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            actor_reqs.append(req)
+
+    # Bit 3: target_reqs_count
+    if has_field(3):
+        target_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 4: target_reqs (array of REQUIREMENT, each 10 bytes)
+    # Uses current target_reqs_count (from cache or just read)
+    if has_field(4):
+        target_reqs = []
+        for _ in range(target_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            target_reqs.append(req)
+
+    # Build result
+    result = {
+        'enabled_action': enabled_action,
+        'actor_reqs_count': actor_reqs_count,
+        'actor_reqs': actor_reqs,
+        'target_reqs_count': target_reqs_count,
+        'target_reqs': target_reqs
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_ACTION_ENABLER, (), result)
+
+    return result
 
 
 # ============================================================================
