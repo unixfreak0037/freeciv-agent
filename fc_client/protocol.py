@@ -30,6 +30,7 @@ PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
 PACKET_RULESET_ACTION_ENABLER = 235
 PACKET_RULESET_ACTION = 246
+PACKET_RULESET_ACTION_AUTO = 252
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1528,6 +1529,108 @@ def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> 
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_ACTION_ENABLER, (), result)
+
+    return result
+
+
+def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_ACTION_AUTO (252).
+
+    Defines rules for automatically performing actions when specific triggers occur,
+    without player input (e.g., disbanding unit on upkeep failure, auto-attack when
+    moving adjacent to enemy).
+
+    Structure (from freeciv-build/packets_gen.c:69769):
+    - 1-byte bitvector (6 bits used)
+    - Bit 0: id (UINT8) - Auto action configuration ID
+    - Bit 1: cause (UINT8) - Trigger cause enum (AAPC_*)
+    - Bit 2: reqs_count (UINT8) - Number of requirements
+    - Bit 3: reqs (REQUIREMENT array) - Requirements that must be met
+    - Bit 4: alternatives_count (UINT8) - Number of alternative actions
+    - Bit 5: alternatives (ACTION_ID array, UINT8 each) - Alternative action IDs
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+
+    Args:
+        payload: Raw packet bytes (after packet header)
+        delta_cache: Delta cache for retrieving cached field values
+
+    Returns:
+        Dictionary with decoded fields
+    """
+    offset = 0
+
+    # Read 6-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 6)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_ACTION_AUTO, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        id = cached.get('id', 0)
+        cause = cached.get('cause', 0)
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', []).copy()
+        alternatives_count = cached.get('alternatives_count', 0)
+        alternatives = cached.get('alternatives', []).copy()
+    else:
+        id = 0
+        cause = 0
+        reqs_count = 0
+        reqs = []
+        alternatives_count = 0
+        alternatives = []
+
+    # Bit 0: id
+    if has_field(0):
+        id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: cause
+    if has_field(1):
+        cause, offset = decode_uint8(payload, offset)
+
+    # Bit 2: reqs_count
+    if has_field(2):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 3: reqs (array of REQUIREMENT, each 10 bytes)
+    # Uses current reqs_count (from cache or just read)
+    if has_field(3):
+        reqs = []
+        for _ in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 4: alternatives_count
+    if has_field(4):
+        alternatives_count, offset = decode_uint8(payload, offset)
+
+    # Bit 5: alternatives (array of ACTION_ID, each UINT8)
+    # Uses current alternatives_count (from cache or just read)
+    if has_field(5):
+        alternatives = []
+        for _ in range(alternatives_count):
+            action_id, offset = decode_uint8(payload, offset)
+            alternatives.append(action_id)
+
+    # Build result
+    result = {
+        'id': id,
+        'cause': cause,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'alternatives_count': alternatives_count,
+        'alternatives': alternatives
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_ACTION_AUTO, (), result)
 
     return result
 

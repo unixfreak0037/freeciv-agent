@@ -1737,3 +1737,104 @@ def test_decode_ruleset_action_all_fields():
     assert result['min_distance'] == 1
     assert result['max_distance'] == 5
     assert result['blocked_by'] == 0
+
+
+def test_decode_ruleset_action_auto_from_captured_packet(delta_cache):
+    """Test decoding PACKET_RULESET_ACTION_AUTO (252) with real server data.
+
+    Uses captured packet from packets/inbound_0827_type252.packet.
+    Bitvector 0x0c (bits 2, 3 set) indicates:
+    - Bit 2: reqs_count present (2)
+    - Bit 3: reqs array present (2 requirements)
+
+    Other fields (id, cause, alternatives_count, alternatives) use cache/defaults.
+    """
+    # Real packet payload (minus 4-byte header)
+    # Hex: 0c 02 0a 00 00 00 00 00 00 01 01 07 00 00 00 11 00 00 00 01
+    payload = (
+        b'\x0c'  # Bitvector: 0x0c (bits 2, 3)
+        b'\x02'  # reqs_count: 2
+        # Requirement 1 (9 bytes): type=10, value=0, range=0, survives=False, present=True, quiet=True
+        b'\x0a'  # type: 10
+        b'\x00\x00\x00\x00'  # value: 0 (sint32 big-endian)
+        b'\x00'  # range: 0
+        b'\x00'  # survives: False
+        b'\x01'  # present: True
+        b'\x01'  # quiet: True
+        # Requirement 2 (9 bytes): type=7, value=17, range=0, survives=False, present=False, quiet=True
+        b'\x07'  # type: 7
+        b'\x00\x00\x00\x11'  # value: 17 (sint32 big-endian: 0x00000011)
+        b'\x00'  # range: 0
+        b'\x00'  # survives: False
+        b'\x00'  # present: False
+        b'\x01'  # quiet: True
+    )
+
+    result = protocol.decode_ruleset_action_auto(payload, delta_cache)
+
+    # Verify fields
+    assert result['id'] == 0  # Not transmitted, using default
+    assert result['cause'] == 0  # Not transmitted, using default
+    assert result['reqs_count'] == 2
+    assert len(result['reqs']) == 2
+    assert result['alternatives_count'] == 0  # Not transmitted, using default
+    assert result['alternatives'] == []  # Not transmitted, using default
+
+    # Verify requirement 1
+    req1 = result['reqs'][0]
+    assert req1['type'] == 10
+    assert req1['value'] == 0
+    assert req1['range'] == 0
+    assert req1['survives'] is False
+    assert req1['present'] is True
+    assert req1['quiet'] is True
+
+    # Verify requirement 2
+    req2 = result['reqs'][1]
+    assert req2['type'] == 7
+    assert req2['value'] == 17  # 0x00000011 in big-endian
+    assert req2['range'] == 0
+    assert req2['survives'] is False
+    assert req2['present'] is False
+    assert req2['quiet'] is True
+
+
+def test_decode_ruleset_action_auto_all_fields(delta_cache):
+    """Test decoding PACKET_RULESET_ACTION_AUTO with all fields present."""
+    # Bitvector: 0x3f (all 6 bits set)
+    payload = (
+        b'\x3f'  # Bitvector: 0x3f (bits 0-5 all set)
+        b'\x05'  # id: 5
+        b'\x02'  # cause: 2 (POST_ACTION)
+        b'\x01'  # reqs_count: 1
+        # Requirement (9 bytes): type=3, value=42, range=1, survives=True, present=True, quiet=False
+        b'\x03'  # type: 3
+        b'\x00\x00\x00\x2a'  # value: 42 (sint32 big-endian)
+        b'\x01'  # range: 1
+        b'\x01'  # survives: True
+        b'\x01'  # present: True
+        b'\x00'  # quiet: False
+        b'\x03'  # alternatives_count: 3
+        b'\x0a'  # alternative[0]: 10
+        b'\x0b'  # alternative[1]: 11
+        b'\x0c'  # alternative[2]: 12
+    )
+
+    result = protocol.decode_ruleset_action_auto(payload, delta_cache)
+
+    # Verify all fields
+    assert result['id'] == 5
+    assert result['cause'] == 2
+    assert result['reqs_count'] == 1
+    assert len(result['reqs']) == 1
+    assert result['alternatives_count'] == 3
+    assert result['alternatives'] == [10, 11, 12]
+
+    # Verify requirement
+    req = result['reqs'][0]
+    assert req['type'] == 3
+    assert req['value'] == 42
+    assert req['range'] == 1
+    assert req['survives'] is True
+    assert req['present'] is True
+    assert req['quiet'] is False

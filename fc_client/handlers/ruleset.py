@@ -666,6 +666,73 @@ async def handle_ruleset_action_enabler(
             print(f"    Target req {i}: type={req.type}, value={req.value}, {present_str}")
 
 
+async def handle_ruleset_action_auto(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_ACTION_AUTO (252) - automatic action configuration.
+
+    Defines rules for automatically performing actions when specific triggers occur,
+    without player input (e.g., disbanding unit on upkeep failure, auto-attack when
+    moving adjacent to enemy).
+
+    Updates game_state.action_auto_performers list by appending each new configuration.
+    """
+    from ..game_state import ActionAutoPerformer, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_action_auto(payload, client._delta_cache)
+
+    # Convert requirements to Requirement objects
+    requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['reqs']
+    ]
+
+    # Create ActionAutoPerformer object
+    auto_performer = ActionAutoPerformer(
+        id=data['id'],
+        cause=data['cause'],
+        reqs_count=data['reqs_count'],
+        reqs=requirements,
+        alternatives_count=data['alternatives_count'],
+        alternatives=data['alternatives']
+    )
+
+    # Append to game state (multiple auto performers can exist)
+    game_state.action_auto_performers.append(auto_performer)
+
+    # Cause enum names for display
+    cause_names = {
+        0: "UNIT_UPKEEP",
+        1: "UNIT_MOVED_ADJ",
+        2: "POST_ACTION",
+        3: "CITY_GONE",
+        4: "UNIT_STACK_DEATH"
+    }
+    cause_name = cause_names.get(auto_performer.cause, f"UNKNOWN({auto_performer.cause})")
+
+    # Display summary
+    print(f"\n[ACTION AUTO] ID {auto_performer.id}, Cause: {cause_name}")
+    print(f"  Requirements: {auto_performer.reqs_count}")
+    print(f"  Alternative actions: {auto_performer.alternatives_count} - {auto_performer.alternatives}")
+
+    # If requirement count is small (<=3), show detailed view
+    if auto_performer.reqs_count <= 3 and auto_performer.reqs_count > 0:
+        for i, req in enumerate(requirements):
+            present_str = "present" if req.present else "absent"
+            print(f"    Req {i}: type={req.type}, value={req.value}, {present_str}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -680,4 +747,5 @@ __all__ = [
     "handle_ruleset_achievement",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
+    "handle_ruleset_action_auto",
 ]

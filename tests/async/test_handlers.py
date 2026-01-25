@@ -1479,3 +1479,48 @@ async def test_handle_ruleset_trade(mock_client, game_state):
     assert trade.trade_pct == 100
     assert trade.cancelling == 0
     assert trade.bonus_type == 1
+
+
+async def test_handle_ruleset_action_auto(mock_client, game_state):
+    """Test RULESET_ACTION_AUTO handler stores auto performer correctly."""
+    # Synthetic payload with all fields present (bitvector 0x3f)
+    # id=5, cause=2 (POST_ACTION), reqs_count=1, alternatives_count=2
+    payload = bytes([
+        0x3f,  # Bitvector: all 6 bits set
+        0x05,  # id: 5
+        0x02,  # cause: 2 (POST_ACTION)
+        0x01,  # reqs_count: 1
+        # Requirement: type=3, value=42, range=1, survives=True, present=True, quiet=False
+        0x03,  # type
+        0x00, 0x00, 0x00, 0x2a,  # value: 42 (sint32 big-endian)
+        0x01,  # range
+        0x01,  # survives
+        0x01,  # present
+        0x00,  # quiet
+        0x02,  # alternatives_count: 2
+        0x0a,  # alternative[0]: 10
+        0x0b,  # alternative[1]: 11
+    ])
+
+    await handlers.handle_ruleset_action_auto(mock_client, game_state, payload)
+
+    # Verify storage in list
+    assert len(game_state.action_auto_performers) == 1
+    auto_performer = game_state.action_auto_performers[0]
+
+    # Verify fields
+    assert auto_performer.id == 5
+    assert auto_performer.cause == 2
+    assert auto_performer.reqs_count == 1
+    assert len(auto_performer.reqs) == 1
+    assert auto_performer.alternatives_count == 2
+    assert auto_performer.alternatives == [10, 11]
+
+    # Verify requirement structure
+    req = auto_performer.reqs[0]
+    assert req.type == 3
+    assert req.value == 42
+    assert req.range == 1
+    assert req.survives is True
+    assert req.present is True
+    assert req.quiet is False

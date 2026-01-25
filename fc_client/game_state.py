@@ -236,6 +236,22 @@ class ActionEnabler:
     target_reqs: List[Requirement]    # Requirements for the target
 
 
+@dataclass
+class ActionAutoPerformer:
+    """Automatic action configuration from PACKET_RULESET_ACTION_AUTO (252).
+
+    Defines rules for automatically performing actions when specific triggers occur,
+    without player input (e.g., disbanding unit on upkeep failure, auto-attack when
+    moving adjacent to enemy).
+    """
+    id: int                           # Configuration ID
+    cause: int                        # enum action_auto_perf_cause (AAPC_*)
+    reqs_count: int                   # Number of requirements
+    reqs: List[Requirement]           # Requirements that must be met
+    alternatives_count: int           # Number of alternative actions
+    alternatives: List[int]           # Alternative action IDs (tried in order)
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -258,3 +274,4 @@ class GameState:
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
+        self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
