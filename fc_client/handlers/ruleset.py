@@ -848,6 +848,39 @@ async def handle_ruleset_unit_class_flag(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_unit_flag(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_UNIT_FLAG (229) - unit flag definition.
+
+    Unit flags are properties that can be assigned to units
+    in the ruleset to define game mechanics and requirements.
+    """
+    from ..game_state import UnitFlag
+
+    # Decode packet
+    data = protocol.decode_ruleset_unit_flag(payload, client._delta_cache)
+
+    # Create UnitFlag object
+    unit_flag = UnitFlag(
+        id=data['id'],
+        name=data['name'],
+        helptxt=data['helptxt']
+    )
+
+    # Store in game state
+    game_state.unit_flags[unit_flag.id] = unit_flag
+
+    # Display summary
+    print(f"\n[UNIT FLAG {unit_flag.id}] {unit_flag.name}")
+    if unit_flag.helptxt:
+        help_preview = unit_flag.helptxt[:100] + '...' if len(unit_flag.helptxt) > 100 else unit_flag.helptxt
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_tech(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1024,6 +1057,7 @@ __all__ = [
     "handle_ruleset_tech_flag",
     "handle_ruleset_unit_class",
     "handle_ruleset_unit_class_flag",
+    "handle_ruleset_unit_flag",
     "handle_ruleset_tech",
     "handle_ruleset_government_ruler_title",
     "handle_ruleset_government",

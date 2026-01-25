@@ -37,6 +37,7 @@ PACKET_RULESET_GOVERNMENT = 145
 PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 PACKET_RULESET_UNIT_CLASS = 152
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
+PACKET_RULESET_UNIT_FLAG = 229
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1893,6 +1894,60 @@ def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT_CLASS_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_UNIT_FLAG (229) - unit flag definition.
+
+    Structure from freeciv-build/packets_gen.c:49341:
+    - 3-bit bitvector (1 byte)
+    - Bit 0: id (UINT8)
+    - Bit 1: name (STRING)
+    - Bit 2: helptxt (STRING)
+    - Cache: hash_const (empty tuple key)
+    """
+    offset = 0
+
+    # Read bitvector
+    bitvector, offset = read_bitvector(payload, offset, 3)
+
+    # Get cached packet (hash_const uses empty tuple)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_UNIT_FLAG, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        flag_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        helptxt = cached.get('helptxt', '')
+    else:
+        flag_id = 0
+        name = ''
+        helptxt = ''
+
+    # Bit 0: id
+    if is_bit_set(bitvector, 0):
+        flag_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: helptxt
+    if is_bit_set(bitvector, 2):
+        helptxt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': flag_id,
+        'name': name,
+        'helptxt': helptxt,
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_UNIT_FLAG, (), result)
 
     return result
 
