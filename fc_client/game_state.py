@@ -285,6 +285,22 @@ class Tech:
     graphic_alt: str
 
 
+@dataclass
+class Government:
+    """Government type from PACKET_RULESET_GOVERNMENT (145)."""
+    id: int
+    reqs_count: int
+    reqs: List[Requirement]
+    name: str
+    rule_name: str
+    graphic_str: str
+    graphic_alt: str
+    sound_str: str
+    sound_alt: str
+    sound_alt2: str
+    helptext: str
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -310,3 +326,4 @@ class GameState:
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
+        self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)

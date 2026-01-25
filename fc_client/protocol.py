@@ -33,6 +33,7 @@ PACKET_RULESET_ACTION_ENABLER = 235
 PACKET_RULESET_ACTION = 246
 PACKET_RULESET_ACTION_AUTO = 252
 PACKET_RULESET_TECH = 144
+PACKET_RULESET_GOVERNMENT = 145
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1858,6 +1859,99 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH, (), result)
+
+    return result
+
+
+def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_GOVERNMENT (145).
+
+    Delta protocol with empty tuple cache key (hash_const).
+    Reference: freeciv-build/packets_gen.c:53476
+    """
+    offset = 0
+
+    # Read 11-bit bitvector (2 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 11)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_GOVERNMENT, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        gov_id = cached.get('id', 0)
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', []).copy()
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        sound_str = cached.get('sound_str', '')
+        sound_alt = cached.get('sound_alt', '')
+        sound_alt2 = cached.get('sound_alt2', '')
+        helptext = cached.get('helptext', '')
+    else:
+        gov_id = 0
+        reqs_count = 0
+        reqs = []
+        name = rule_name = graphic_str = graphic_alt = ''
+        sound_str = sound_alt = sound_alt2 = helptext = ''
+
+    # Decode conditional fields based on bitvector
+    if is_bit_set(bitvector, 0):
+        gov_id, offset = decode_sint8(payload, offset)
+
+    if is_bit_set(bitvector, 1):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    if is_bit_set(bitvector, 2):
+        reqs = []
+        for _ in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    if is_bit_set(bitvector, 3):
+        name, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 4):
+        rule_name, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 5):
+        graphic_str, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 6):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 7):
+        sound_str, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 8):
+        sound_alt, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 9):
+        sound_alt2, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 10):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': gov_id,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'name': name,
+        'rule_name': rule_name,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'sound_str': sound_str,
+        'sound_alt': sound_alt,
+        'sound_alt2': sound_alt2,
+        'helptext': helptext
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_GOVERNMENT, (), result)
 
     return result
 

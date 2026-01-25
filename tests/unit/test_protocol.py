@@ -1978,3 +1978,180 @@ def test_decode_ruleset_tech_flag_empty_strings(delta_cache):
     assert result['id'] == 0
     assert result['name'] == ''
     assert result['helptxt'] == ''
+
+
+# ============================================================================
+# PACKET_RULESET_GOVERNMENT Tests
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_all_fields(delta_cache):
+    """Test decoding PACKET_RULESET_GOVERNMENT with all fields present (no cache)."""
+    # Bitvector: 0x07ff (all 11 bits set)
+    payload = (
+        b'\xff\x07'  # All 11 bits set (little-endian)
+        b'\x00'  # id: 0 (SINT8)
+        b'\x00'  # reqs_count: 0
+        # no requirements array (count is 0)
+        b'Anarchy\x00'  # name
+        b'Anarchy\x00'  # rule_name
+        b'gov.anarchy\x00'  # graphic_str
+        b'-\x00'  # graphic_alt
+        b'g_anarchy\x00'  # sound_str
+        b'-\x00'  # sound_alt
+        b'-\x00'  # sound_alt2
+        b'A chaotic form of government.\x00'  # helptext
+    )
+
+    result = protocol.decode_ruleset_government(payload, delta_cache)
+
+    assert result['id'] == 0
+    assert result['reqs_count'] == 0
+    assert result['reqs'] == []
+    assert result['name'] == 'Anarchy'
+    assert result['rule_name'] == 'Anarchy'
+    assert result['graphic_str'] == 'gov.anarchy'
+    assert result['graphic_alt'] == '-'
+    assert result['sound_str'] == 'g_anarchy'
+    assert result['sound_alt'] == '-'
+    assert result['sound_alt2'] == '-'
+    assert result['helptext'] == 'A chaotic form of government.'
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_with_requirements(delta_cache):
+    """Test government with requirements array."""
+    # Bitvector: 0x07ff (all 11 bits set)
+    payload = (
+        b'\xff\x07'  # All bits set
+        b'\x01'  # id: 1 (SINT8)
+        b'\x02'  # reqs_count: 2
+        # Requirement 1: 10 bytes
+        b'\x03'  # type: 3
+        b'\x00\x00\x00\x05'  # value: 5 (sint32, big-endian)
+        b'\x02'  # range: 2
+        b'\x00'  # survives: false
+        b'\x01'  # present: true
+        b'\x00'  # quiet: false
+        # Requirement 2: 10 bytes
+        b'\x04'  # type: 4
+        b'\x00\x00\x00\x0a'  # value: 10 (sint32, big-endian)
+        b'\x01'  # range: 1
+        b'\x01'  # survives: true
+        b'\x01'  # present: true
+        b'\x00'  # quiet: false
+        b'Republic\x00'  # name
+        b'Republic\x00'  # rule_name
+        b'gov.republic\x00'  # graphic_str
+        b'-\x00'  # graphic_alt
+        b'g_republic\x00'  # sound_str
+        b'-\x00'  # sound_alt
+        b'-\x00'  # sound_alt2
+        b'A democratic government.\x00'  # helptext
+    )
+
+    result = protocol.decode_ruleset_government(payload, delta_cache)
+
+    assert result['id'] == 1
+    assert result['reqs_count'] == 2
+    assert len(result['reqs']) == 2
+    assert result['reqs'][0]['type'] == 3
+    assert result['reqs'][0]['value'] == 5
+    assert result['reqs'][0]['present'] is True
+    assert result['reqs'][1]['type'] == 4
+    assert result['reqs'][1]['value'] == 10
+    assert result['name'] == 'Republic'
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_delta_update(delta_cache):
+    """Test delta update with only some fields changing."""
+    # First packet: populate cache with all fields
+    payload1 = (
+        b'\xff\x07'  # All bits set
+        b'\x00'  # id: 0
+        b'\x00'  # reqs_count: 0
+        b'Anarchy\x00'
+        b'Anarchy\x00'
+        b'gov.anarchy\x00'
+        b'-\x00'
+        b'g_anarchy\x00'
+        b'-\x00'
+        b'-\x00'
+        b'Original help.\x00'
+    )
+    protocol.decode_ruleset_government(payload1, delta_cache)
+
+    # Second packet: only id and name change (bits 0, 3)
+    payload2 = (
+        b'\x09\x00'  # Bits 0 and 3 set (0x0009 = 0b00001001)
+        b'\x01'  # id: 1
+        b'Democracy\x00'  # name
+    )
+    result2 = protocol.decode_ruleset_government(payload2, delta_cache)
+
+    assert result2['id'] == 1  # New value
+    assert result2['name'] == 'Democracy'  # New value
+    assert result2['rule_name'] == 'Anarchy'  # From cache
+    assert result2['graphic_str'] == 'gov.anarchy'  # From cache
+    assert result2['helptext'] == 'Original help.'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_strings_only(delta_cache):
+    """Test delta update with only string fields (bits 3-10), like captured packet."""
+    # First packet: set id and reqs_count
+    payload1 = (
+        b'\x03\x00'  # Bits 0, 1 set
+        b'\x00'  # id: 0
+        b'\x00'  # reqs_count: 0
+    )
+    protocol.decode_ruleset_government(payload1, delta_cache)
+
+    # Second packet: update only strings (bits 3-10), like inbound_0933_type145.packet
+    payload2 = (
+        b'\xf8\x07'  # Bits 3-10 set (0x07f8)
+        b'Anarchy\x00'  # name
+        b'Anarchy\x00'  # rule_name
+        b'gov.anarchy\x00'  # graphic_str
+        b'-\x00'  # graphic_alt
+        b'g_anarchy\x00'  # sound_str
+        b'-\x00'  # sound_alt
+        b'-\x00'  # sound_alt2
+        b'Anarchy is simply the absence of any recognizable government.\x00'  # helptext
+    )
+    result2 = protocol.decode_ruleset_government(payload2, delta_cache)
+
+    assert result2['id'] == 0  # From cache
+    assert result2['reqs_count'] == 0  # From cache
+    assert result2['name'] == 'Anarchy'  # New value
+    assert result2['rule_name'] == 'Anarchy'  # New value
+    assert result2['graphic_str'] == 'gov.anarchy'  # New value
+    assert result2['helptext'].startswith('Anarchy is simply')  # New value
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_empty_strings(delta_cache):
+    """Test handling of empty optional strings."""
+    payload = (
+        b'\xff\x07'  # All bits set
+        b'\x02'  # id: 2
+        b'\x00'  # reqs_count: 0
+        b'Test Gov\x00'  # name
+        b'test_gov\x00'  # rule_name
+        b'\x00'  # graphic_str: empty
+        b'\x00'  # graphic_alt: empty
+        b'\x00'  # sound_str: empty
+        b'\x00'  # sound_alt: empty
+        b'\x00'  # sound_alt2: empty
+        b'\x00'  # helptext: empty
+    )
+
+    result = protocol.decode_ruleset_government(payload, delta_cache)
+
+    assert result['id'] == 2
+    assert result['name'] == 'Test Gov'
+    assert result['graphic_str'] == ''
+    assert result['sound_str'] == ''
+    assert result['helptext'] == ''

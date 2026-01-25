@@ -840,6 +840,60 @@ async def handle_ruleset_tech(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_government(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_GOVERNMENT (145) - government type definition.
+
+    Updates game_state.governments dict with government configuration.
+    """
+    from ..game_state import Government, Requirement
+
+    # Decode packet with delta cache
+    data = protocol.decode_ruleset_government(payload, client._delta_cache)
+
+    # Convert requirements to Requirement objects
+    requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['reqs']
+    ]
+
+    # Create Government object
+    government = Government(
+        id=data['id'],
+        reqs_count=data['reqs_count'],
+        reqs=requirements,
+        name=data['name'],
+        rule_name=data['rule_name'],
+        graphic_str=data['graphic_str'],
+        graphic_alt=data['graphic_alt'],
+        sound_str=data['sound_str'],
+        sound_alt=data['sound_alt'],
+        sound_alt2=data['sound_alt2'],
+        helptext=data['helptext']
+    )
+
+    # Store in game state
+    game_state.governments[government.id] = government
+
+    # Display summary
+    print(f"\n[GOVERNMENT {government.id}] {government.name} ({government.rule_name})")
+    print(f"  Graphics: {government.graphic_str}")
+
+    if government.reqs_count > 0:
+        print(f"  Requirements: {government.reqs_count}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -854,6 +908,7 @@ __all__ = [
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
     "handle_ruleset_tech",
+    "handle_ruleset_government",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",

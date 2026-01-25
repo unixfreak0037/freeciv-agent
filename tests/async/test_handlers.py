@@ -1524,3 +1524,157 @@ async def test_handle_ruleset_action_auto(mock_client, game_state):
     assert req.survives is True
     assert req.present is True
     assert req.quiet is False
+
+
+# ============================================================================
+# handle_ruleset_government Tests
+# ============================================================================
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_all_fields(mock_client, game_state):
+    """Test handle_ruleset_government with all fields present."""
+    # Bitvector: 0x07ff (all 11 bits set)
+    payload = bytes([
+        0xff, 0x07,  # All 11 bits set
+        0x00,  # id: 0 (SINT8)
+        0x00,  # reqs_count: 0
+        # name: "Anarchy"
+        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # rule_name: "Anarchy"
+        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # graphic_str: "gov.anarchy"
+        0x67, 0x6f, 0x76, 0x2e, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # graphic_alt: "-"
+        0x2d, 0x00,
+        # sound_str: "g_anarchy"
+        0x67, 0x5f, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # sound_alt: "-"
+        0x2d, 0x00,
+        # sound_alt2: "-"
+        0x2d, 0x00,
+        # helptext: "A chaotic form of government."
+        0x41, 0x20, 0x63, 0x68, 0x61, 0x6f, 0x74, 0x69, 0x63, 0x20,
+        0x66, 0x6f, 0x72, 0x6d, 0x20, 0x6f, 0x66, 0x20, 0x67, 0x6f,
+        0x76, 0x65, 0x72, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x00,
+    ])
+
+    await handlers.handle_ruleset_government(mock_client, game_state, payload)
+
+    # Verify storage in dict
+    assert 0 in game_state.governments
+    gov = game_state.governments[0]
+
+    # Verify fields
+    assert gov.id == 0
+    assert gov.name == 'Anarchy'
+    assert gov.rule_name == 'Anarchy'
+    assert gov.graphic_str == 'gov.anarchy'
+    assert gov.graphic_alt == '-'
+    assert gov.sound_str == 'g_anarchy'
+    assert gov.sound_alt == '-'
+    assert gov.sound_alt2 == '-'
+    assert gov.helptext == 'A chaotic form of government.'
+    assert gov.reqs_count == 0
+    assert gov.reqs == []
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_with_requirements(mock_client, game_state):
+    """Test government with requirements array."""
+    # Bitvector: 0x07ff (all 11 bits set)
+    payload = bytes([
+        0xff, 0x07,  # All bits set
+        0x01,  # id: 1 (SINT8)
+        0x01,  # reqs_count: 1
+        # Requirement: 10 bytes
+        0x03,  # type: 3
+        0x00, 0x00, 0x00, 0x05,  # value: 5 (sint32, big-endian)
+        0x02,  # range: 2
+        0x00,  # survives: false
+        0x01,  # present: true
+        0x00,  # quiet: false
+        # name: "Republic"
+        0x52, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
+        # rule_name: "Republic"
+        0x52, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
+        # graphic_str: "gov.republic"
+        0x67, 0x6f, 0x76, 0x2e, 0x72, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
+        # graphic_alt: "-"
+        0x2d, 0x00,
+        # sound_str: "g_republic"
+        0x67, 0x5f, 0x72, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
+        # sound_alt: "-"
+        0x2d, 0x00,
+        # sound_alt2: "-"
+        0x2d, 0x00,
+        # helptext: "A democratic government."
+        0x41, 0x20, 0x64, 0x65, 0x6d, 0x6f, 0x63, 0x72, 0x61, 0x74,
+        0x69, 0x63, 0x20, 0x67, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6d,
+        0x65, 0x6e, 0x74, 0x2e, 0x00,
+    ])
+
+    await handlers.handle_ruleset_government(mock_client, game_state, payload)
+
+    # Verify storage
+    assert 1 in game_state.governments
+    gov = game_state.governments[1]
+
+    # Verify fields
+    assert gov.id == 1
+    assert gov.name == 'Republic'
+    assert gov.reqs_count == 1
+    assert len(gov.reqs) == 1
+
+    # Verify requirement
+    req = gov.reqs[0]
+    assert req.type == 3
+    assert req.value == 5
+    assert req.range == 2
+    assert req.survives is False
+    assert req.present is True
+    assert req.quiet is False
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_real_packet(mock_client, game_state):
+    """Test with structure similar to captured packet inbound_0933_type145.packet."""
+    # First packet: set id and reqs_count
+    payload1 = bytes([
+        0x03, 0x00,  # Bits 0, 1 set
+        0x00,  # id: 0
+        0x00,  # reqs_count: 0
+    ])
+    await handlers.handle_ruleset_government(mock_client, game_state, payload1)
+
+    # Second packet: update strings only (like real captured packet)
+    payload2 = bytes([
+        0xf8, 0x07,  # Bits 3-10 set (0x07f8)
+        # name: "Anarchy"
+        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # rule_name: "Anarchy"
+        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # graphic_str: "gov.anarchy"
+        0x67, 0x6f, 0x76, 0x2e, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # graphic_alt: "-"
+        0x2d, 0x00,
+        # sound_str: "g_anarchy"
+        0x67, 0x5f, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
+        # sound_alt: "-"
+        0x2d, 0x00,
+        # sound_alt2: "-"
+        0x2d, 0x00,
+        # helptext: "Anarchy government."
+        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x20, 0x67, 0x6f,
+        0x76, 0x65, 0x72, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x00,
+    ])
+    await handlers.handle_ruleset_government(mock_client, game_state, payload2)
+
+    # Verify final state (should have both id from cache and new strings)
+    assert 0 in game_state.governments
+    gov = game_state.governments[0]
+    assert gov.id == 0  # From first packet
+    assert gov.reqs_count == 0  # From first packet
+    assert gov.name == 'Anarchy'  # From second packet
+    assert gov.rule_name == 'Anarchy'  # From second packet
+    assert gov.graphic_str == 'gov.anarchy'  # From second packet
