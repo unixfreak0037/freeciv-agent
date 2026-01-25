@@ -881,6 +881,62 @@ async def handle_ruleset_unit_flag(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_unit_bonus(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_UNIT_BONUS (228) - unit combat bonus configuration.
+
+    Defines conditional bonuses that units receive when fighting against enemies
+    with specific flags (e.g., Pikemen get +50% defense vs Mounted units).
+
+    Updates game_state.unit_bonuses list by appending each new bonus.
+    """
+    from ..game_state import UnitBonus
+
+    # Decode packet with delta cache
+    data = protocol.decode_ruleset_unit_bonus(payload, client._delta_cache)
+
+    # Create UnitBonus object
+    bonus = UnitBonus(
+        unit=data['unit'],
+        flag=data['flag'],
+        type=data['type'],
+        value=data['value'],
+        quiet=data['quiet']
+    )
+
+    # Append to game state (multiple bonuses can exist)
+    game_state.unit_bonuses.append(bonus)
+
+    # Map enum values for display
+    bonus_type_names = {
+        0: "DefenseMultiplier",
+        1: "DefenseDivider",
+        2: "FirepowerMultiplier",
+        3: "FirepowerDivider"
+    }
+
+    type_str = bonus_type_names.get(bonus.type, f"Unknown({bonus.type})")
+    quiet_str = " (quiet)" if bonus.quiet else ""
+
+    # Look up unit name if available
+    unit_name = f"Unit {bonus.unit}"
+    if bonus.unit in game_state.unit_types:
+        unit_name = game_state.unit_types[bonus.unit].name
+
+    # Look up flag name if available
+    flag_name = f"Flag {bonus.flag}"
+    if bonus.flag in game_state.unit_flags:
+        flag_name = game_state.unit_flags[bonus.flag].name
+
+    # Display summary
+    print(f"\n[UNIT BONUS] {unit_name} vs {flag_name}")
+    print(f"  Type: {type_str}, Value: {bonus.value}{quiet_str}")
+
+
 async def handle_ruleset_tech(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1180,6 +1236,7 @@ __all__ = [
     "handle_ruleset_unit_class",
     "handle_ruleset_unit_class_flag",
     "handle_ruleset_unit_flag",
+    "handle_ruleset_unit_bonus",
     "handle_ruleset_tech",
     "handle_ruleset_government_ruler_title",
     "handle_ruleset_government",

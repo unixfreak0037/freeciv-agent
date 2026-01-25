@@ -291,6 +291,19 @@ PACKET_SPECS[229] = PacketSpec(
     ]
 )
 
+PACKET_SPECS[228] = PacketSpec(
+    packet_type=228,
+    name="PACKET_RULESET_UNIT_BONUS",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='unit', type_name='UINT16', is_key=True),
+        FieldSpec(name='flag', type_name='UINT8', is_key=True),
+        FieldSpec(name='type', type_name='UINT8', is_key=True),
+        FieldSpec(name='value', type_name='SINT16', is_key=True),
+        FieldSpec(name='quiet', type_name='BOOL', is_key=True),
+    ]
+)
+
 
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(

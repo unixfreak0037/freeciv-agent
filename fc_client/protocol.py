@@ -38,6 +38,7 @@ PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 PACKET_RULESET_UNIT_CLASS = 152
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
 PACKET_RULESET_UNIT_FLAG = 229
+PACKET_RULESET_UNIT_BONUS = 228
 PACKET_RULESET_UNIT = 140
 
 # FreeCiv constants
@@ -1952,6 +1953,85 @@ def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_unit_bonus(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_UNIT_BONUS (228) - unit combat bonus configuration.
+
+    Structure from freeciv-build/packets_gen.c:49001-49149:
+    - 5-bit bitvector (1 byte)
+    - Bit 0: unit (UINT16)
+    - Bit 1: flag (UINT8)
+    - Bit 2: type (UINT8)
+    - Bit 3: value (SINT16, signed)
+    - Bit 4: quiet (standalone BOOL - no payload)
+    - Cache: hash_key_full (all 5 fields as key)
+    """
+    offset = 0
+
+    # Read bitvector
+    bitvector, offset = read_bitvector(payload, offset, 5)
+
+    # All 5 fields are key fields - need all to form cache key
+    # Start with defaults
+    unit = 0
+    flag = 0
+    btype = 0
+    value = 0
+    quiet = False
+
+    # Bit 0: unit (key field)
+    if is_bit_set(bitvector, 0):
+        unit, offset = decode_uint16(payload, offset)
+
+    # Bit 1: flag (key field)
+    if is_bit_set(bitvector, 1):
+        flag, offset = decode_uint8(payload, offset)
+
+    # Bit 2: type (key field)
+    if is_bit_set(bitvector, 2):
+        btype, offset = decode_uint8(payload, offset)
+
+    # Bit 3: value (key field, signed)
+    if is_bit_set(bitvector, 3):
+        value, offset = decode_sint16(payload, offset)
+
+    # Bit 4: quiet (standalone BOOL - value in bitvector, no payload)
+    quiet = is_bit_set(bitvector, 4)
+
+    # Build cache key from all 5 fields
+    cache_key = (unit, flag, btype, value, quiet)
+
+    # Get cached packet
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_UNIT_BONUS, cache_key)
+
+    # If cached, use cached values for fields not in bitvector
+    if cached:
+        if not is_bit_set(bitvector, 0):
+            unit = cached.get('unit', 0)
+        if not is_bit_set(bitvector, 1):
+            flag = cached.get('flag', 0)
+        if not is_bit_set(bitvector, 2):
+            btype = cached.get('type', 0)
+        if not is_bit_set(bitvector, 3):
+            value = cached.get('value', 0)
+        if not is_bit_set(bitvector, 4):
+            quiet = cached.get('quiet', False)
+
+    # Build result
+    result = {
+        'unit': unit,
+        'flag': flag,
+        'type': btype,
+        'value': value,
+        'quiet': quiet
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_UNIT_BONUS, cache_key, result)
 
     return result
 

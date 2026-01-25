@@ -288,6 +288,22 @@ class UnitFlag:
 
 
 @dataclass
+class UnitBonus:
+    """
+    Represents a unit combat bonus from PACKET_RULESET_UNIT_BONUS (packet 228).
+
+    Defines conditional combat bonuses that units receive when fighting against
+    enemies with specific flags. For example, Pikemen might get +50% defense
+    against Mounted units.
+    """
+    unit: int           # Unit type ID (uint16)
+    flag: int           # Unit type flag ID (uint8)
+    type: int           # Combat bonus type enum (uint8): 0=DefenseMultiplier, etc.
+    value: int          # Bonus value (sint16, signed)
+    quiet: bool         # If true, don't show bonus in UI help text
+
+
+@dataclass
 class UnitClass:
     """Unit class from PACKET_RULESET_UNIT_CLASS (152).
 
@@ -455,6 +471,7 @@ class GameState:
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
         self.unit_class_flags: Dict[int, UnitClassFlag] = {}  # Unit class flags by ID (PACKET_RULESET_UNIT_CLASS_FLAG)
         self.unit_flags: Dict[int, UnitFlag] = {}  # Unit flags by ID (PACKET_RULESET_UNIT_FLAG)
+        self.unit_bonuses: List[UnitBonus] = []  # Combat bonuses by unit/flag combinations (PACKET_RULESET_UNIT_BONUS)
         self.unit_classes: Dict[int, UnitClass] = {}  # Unit classes by ID (PACKET_RULESET_UNIT_CLASS)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
