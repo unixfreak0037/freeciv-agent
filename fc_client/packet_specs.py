@@ -251,6 +251,19 @@ PACKET_SPECS[16] = PacketSpec(
 )
 
 
+PACKET_SPECS[143] = PacketSpec(
+    packet_type=143,
+    name="PACKET_RULESET_GOVERNMENT_RULER_TITLE",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='gov', type_name='SINT8', is_key=False),
+        FieldSpec(name='nation', type_name='SINT16', is_key=False),
+        FieldSpec(name='male_title', type_name='STRING', is_key=False),
+        FieldSpec(name='female_title', type_name='STRING', is_key=False),
+    ]
+)
+
+
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(
 #     packet_type=<packet_num>,

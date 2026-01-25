@@ -1678,3 +1678,95 @@ async def test_handle_ruleset_government_real_packet(mock_client, game_state):
     assert gov.name == 'Anarchy'  # From second packet
     assert gov.rule_name == 'Anarchy'  # From second packet
     assert gov.graphic_str == 'gov.anarchy'  # From second packet
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_ruler_title(mock_client, game_state):
+    """Test PACKET_RULESET_GOVERNMENT_RULER_TITLE handler."""
+    # All fields present
+    payload = bytes([
+        0x0f,  # All 4 bits set
+        0x02,  # gov: 2
+        0x00, 0x05,  # nation: 5 (SINT16, big-endian)
+        # male_title: "King"
+        0x4b, 0x69, 0x6e, 0x67, 0x00,
+        # female_title: "Queen"
+        0x51, 0x75, 0x65, 0x65, 0x6e, 0x00,
+    ])
+
+    await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload)
+
+    # Verify storage
+    assert len(game_state.government_ruler_titles) == 1
+    title = game_state.government_ruler_titles[0]
+
+    # Verify fields
+    assert title.gov == 2
+    assert title.nation == 5
+    assert title.male_title == 'King'
+    assert title.female_title == 'Queen'
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_ruler_title_multiple(mock_client, game_state):
+    """Test multiple ruler titles."""
+    # First title
+    payload1 = bytes([
+        0x0f,  # All 4 bits set
+        0x00,  # gov: 0
+        0x00, 0x00,  # nation: 0
+        # male_title: "Chief"
+        0x43, 0x68, 0x69, 0x65, 0x66, 0x00,
+        # female_title: "Chieftess"
+        0x43, 0x68, 0x69, 0x65, 0x66, 0x74, 0x65, 0x73, 0x73, 0x00,
+    ])
+
+    await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload1)
+
+    # Second title (delta update - only gov and nation)
+    payload2 = bytes([
+        0x03,  # Bits 0, 1 set
+        0x01,  # gov: 1
+        0x00, 0x02,  # nation: 2
+    ])
+
+    await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload2)
+
+    # Verify storage
+    assert len(game_state.government_ruler_titles) == 2
+
+    # First title
+    title1 = game_state.government_ruler_titles[0]
+    assert title1.gov == 0
+    assert title1.nation == 0
+    assert title1.male_title == 'Chief'
+    assert title1.female_title == 'Chieftess'
+
+    # Second title (should have ids from packet, titles from cache)
+    title2 = game_state.government_ruler_titles[1]
+    assert title2.gov == 1
+    assert title2.nation == 2
+    assert title2.male_title == 'Chief'  # From cache
+    assert title2.female_title == 'Chieftess'  # From cache
+
+
+@pytest.mark.async_test
+async def test_handle_ruleset_government_ruler_title_empty_strings(mock_client, game_state):
+    """Test ruler title with empty string values."""
+    payload = bytes([
+        0x0f,  # All 4 bits set
+        0x01,  # gov: 1
+        0x00, 0x03,  # nation: 3
+        0x00,  # male_title: empty
+        0x00,  # female_title: empty
+    ])
+
+    await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload)
+
+    # Verify storage
+    assert len(game_state.government_ruler_titles) == 1
+    title = game_state.government_ruler_titles[0]
+    assert title.gov == 1
+    assert title.nation == 3
+    assert title.male_title == ''
+    assert title.female_title == ''

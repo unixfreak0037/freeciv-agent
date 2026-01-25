@@ -39,6 +39,7 @@ from fc_client.protocol import (
     decode_ruleset_achievement,
     decode_ruleset_trade,
     decode_ruleset_tech_flag,
+    decode_ruleset_government_ruler_title,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -2155,3 +2156,111 @@ def test_decode_ruleset_government_empty_strings(delta_cache):
     assert result['graphic_str'] == ''
     assert result['sound_str'] == ''
     assert result['helptext'] == ''
+
+# ============================================================================
+# PACKET_RULESET_GOVERNMENT_RULER_TITLE Tests
+# ============================================================================
+
+@pytest.mark.unit
+def test_decode_ruleset_government_ruler_title_all_fields(delta_cache):
+    """Test decoding with all fields present."""
+    payload = (
+        b'\x0f'  # All 4 bits set (0x0f = 0b00001111)
+        b'\x02'  # gov: 2 (SINT8)
+        b'\x00\x05'  # nation: 5 (SINT16, big-endian)
+        b'King\x00'  # male_title
+        b'Queen\x00'  # female_title
+    )
+
+    result = protocol.decode_ruleset_government_ruler_title(payload, delta_cache)
+
+    assert result['gov'] == 2
+    assert result['nation'] == 5
+    assert result['male_title'] == 'King'
+    assert result['female_title'] == 'Queen'
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_ruler_title_delta_update(delta_cache):
+    """Test delta update with only some fields changing."""
+    # First packet: populate cache with all fields
+    payload1 = (
+        b'\x0f'  # All bits set
+        b'\x00'  # gov: 0
+        b'\x00\x00'  # nation: 0
+        b'Chief\x00'  # male_title
+        b'Chieftess\x00'  # female_title
+    )
+    protocol.decode_ruleset_government_ruler_title(payload1, delta_cache)
+
+    # Second packet: only gov and nation change (bits 0, 1)
+    payload2 = (
+        b'\x03'  # Bits 0 and 1 set (0x03 = 0b00000011)
+        b'\x03'  # gov: 3
+        b'\x00\x0a'  # nation: 10
+    )
+    result2 = protocol.decode_ruleset_government_ruler_title(payload2, delta_cache)
+
+    assert result2['gov'] == 3  # New value
+    assert result2['nation'] == 10  # New value
+    assert result2['male_title'] == 'Chief'  # From cache
+    assert result2['female_title'] == 'Chieftess'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_ruler_title_titles_only(delta_cache):
+    """Test delta update with only title fields."""
+    # First packet: set gov and nation
+    payload1 = (
+        b'\x03'  # Bits 0, 1 set
+        b'\x01'  # gov: 1
+        b'\x00\x03'  # nation: 3
+    )
+    protocol.decode_ruleset_government_ruler_title(payload1, delta_cache)
+
+    # Second packet: update only titles (bits 2, 3)
+    payload2 = (
+        b'\x0c'  # Bits 2 and 3 set (0x0c = 0b00001100)
+        b'Emperor\x00'  # male_title
+        b'Empress\x00'  # female_title
+    )
+    result2 = protocol.decode_ruleset_government_ruler_title(payload2, delta_cache)
+
+    assert result2['gov'] == 1  # From cache
+    assert result2['nation'] == 3  # From cache
+    assert result2['male_title'] == 'Emperor'  # New value
+    assert result2['female_title'] == 'Empress'  # New value
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_ruler_title_empty_titles(delta_cache):
+    """Test handling of empty title strings."""
+    payload = (
+        b'\x0f'  # All bits set
+        b'\x00'  # gov: 0
+        b'\x00\x00'  # nation: 0
+        b'\x00'  # male_title: empty
+        b'\x00'  # female_title: empty
+    )
+
+    result = protocol.decode_ruleset_government_ruler_title(payload, delta_cache)
+
+    assert result['gov'] == 0
+    assert result['nation'] == 0
+    assert result['male_title'] == ''
+    assert result['female_title'] == ''
+
+
+@pytest.mark.unit
+def test_decode_ruleset_government_ruler_title_negative_ids(delta_cache):
+    """Test handling of negative government and nation IDs."""
+    payload = (
+        b'\x03'  # Bits 0, 1 set
+        b'\xff'  # gov: -1 (SINT8)
+        b'\xff\xff'  # nation: -1 (SINT16, big-endian)
+    )
+
+    result = protocol.decode_ruleset_government_ruler_title(payload, delta_cache)
+
+    assert result['gov'] == -1
+    assert result['nation'] == -1

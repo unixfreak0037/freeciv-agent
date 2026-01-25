@@ -301,6 +301,15 @@ class Government:
     helptext: str
 
 
+@dataclass
+class GovernmentRulerTitle:
+    """Ruler title for government/nation combination from PACKET_RULESET_GOVERNMENT_RULER_TITLE (143)."""
+    gov: int            # Government type ID
+    nation: int         # Nation type ID
+    male_title: str     # Male ruler title (e.g., "King", "Emperor")
+    female_title: str   # Female ruler title (e.g., "Queen", "Empress")
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -327,3 +336,4 @@ class GameState:
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
+        self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)

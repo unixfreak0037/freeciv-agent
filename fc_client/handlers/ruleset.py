@@ -840,6 +840,38 @@ async def handle_ruleset_tech(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_government_ruler_title(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_GOVERNMENT_RULER_TITLE (143) - ruler title definition.
+
+    Updates game_state.government_ruler_titles list with ruler titles for
+    government/nation combinations.
+    """
+    from ..game_state import GovernmentRulerTitle
+
+    # Decode packet with delta cache
+    data = protocol.decode_ruleset_government_ruler_title(payload, client._delta_cache)
+
+    # Create GovernmentRulerTitle object
+    ruler_title = GovernmentRulerTitle(
+        gov=data['gov'],
+        nation=data['nation'],
+        male_title=data['male_title'],
+        female_title=data['female_title']
+    )
+
+    # Store in game state
+    game_state.government_ruler_titles.append(ruler_title)
+
+    # Display summary
+    print(f"[RULER TITLE] Gov {ruler_title.gov}, Nation {ruler_title.nation}: "
+          f"{ruler_title.male_title}/{ruler_title.female_title}")
+
+
 async def handle_ruleset_government(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -908,6 +940,7 @@ __all__ = [
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
     "handle_ruleset_tech",
+    "handle_ruleset_government_ruler_title",
     "handle_ruleset_government",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",

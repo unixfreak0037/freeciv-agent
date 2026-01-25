@@ -34,6 +34,7 @@ PACKET_RULESET_ACTION = 246
 PACKET_RULESET_ACTION_AUTO = 252
 PACKET_RULESET_TECH = 144
 PACKET_RULESET_GOVERNMENT = 145
+PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 
 # Version constants
 MAJOR_VERSION = 3
@@ -1859,6 +1860,71 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH, (), result)
+
+    return result
+
+
+def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_GOVERNMENT_RULER_TITLE (143).
+
+    Ruler titles define the male/female titles for government/nation combinations.
+    Multiple packets sent (one per government/nation pair) during initialization.
+
+    Delta protocol with empty tuple cache key (hash_const).
+    Reference: freeciv-build/packets_gen.c:51860
+
+    Wire format:
+    - Byte 0: bitvector (4 bits used for 4 fields)
+    - Conditional fields based on bitvector:
+      - Bit 0 set: SINT8 gov (government type ID)
+      - Bit 1 set: SINT16 nation (nation type ID)
+      - Bit 2 set: STRING male_title
+      - Bit 3 set: STRING female_title
+    """
+    offset = 0
+
+    # Read 4-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 4)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_GOVERNMENT_RULER_TITLE, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        gov = cached.get('gov', 0)
+        nation = cached.get('nation', 0)
+        male_title = cached.get('male_title', '')
+        female_title = cached.get('female_title', '')
+    else:
+        gov = 0
+        nation = 0
+        male_title = ''
+        female_title = ''
+
+    # Decode conditional fields based on bitvector
+    if is_bit_set(bitvector, 0):
+        gov, offset = decode_sint8(payload, offset)
+
+    if is_bit_set(bitvector, 1):
+        nation, offset = decode_sint16(payload, offset)
+
+    if is_bit_set(bitvector, 2):
+        male_title, offset = decode_string(payload, offset)
+
+    if is_bit_set(bitvector, 3):
+        female_title, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'gov': gov,
+        'nation': nation,
+        'male_title': male_title,
+        'female_title': female_title
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_GOVERNMENT_RULER_TITLE, (), result)
 
     return result
 
