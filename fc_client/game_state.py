@@ -351,6 +351,84 @@ class GovernmentRulerTitle:
     female_title: str   # Female ruler title (e.g., "Queen", "Empress")
 
 
+@dataclass
+class UnitType:
+    """Unit type from PACKET_RULESET_UNIT (140)."""
+    # Identity
+    id: int
+    name: str
+    rule_name: str
+
+    # Graphics and sound
+    graphic_str: str
+    graphic_alt: str
+    graphic_alt2: str
+    sound_move: str
+    sound_move_alt: str
+    sound_fight: str
+    sound_fight_alt: str
+
+    # Classification and costs
+    unit_class_id: int
+    build_cost: int
+    pop_cost: int
+    happy_cost: int
+    upkeep: List[int]  # Length O_LAST (6): FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE
+
+    # Combat stats
+    attack_strength: int
+    defense_strength: int
+    firepower: int
+    hp: int
+
+    # Movement
+    move_rate: int
+    fuel: int
+
+    # Requirements
+    build_reqs_count: int
+    build_reqs: List[Requirement]
+
+    # Vision and transport
+    vision_radius_sq: int
+    transport_capacity: int
+    cargo: int  # Bitvector (BV_UNIT_CLASSES)
+    embarks: int  # Bitvector (BV_UNIT_CLASSES)
+    disembarks: int  # Bitvector (BV_UNIT_CLASSES)
+
+    # Obsolescence/conversion
+    obsoleted_by: int
+    converted_to: int
+    convert_time: int
+
+    # Special abilities
+    bombard_rate: int
+    paratroopers_range: int
+    city_size: int
+    city_slots: int
+
+    # Combat/vision
+    tp_defense: int  # Enum (transp_def_type)
+    targets: int  # Bitvector (BV_UNIT_CLASSES)
+    vlayer: int  # Enum (vision_layer)
+
+    # Veteran system
+    veteran_levels: int
+    veteran_name: List[str]
+    power_fact: List[int]  # UINT16
+    move_bonus: List[int]  # UINT32
+    base_raise_chance: List[int]  # UINT8
+    work_raise_chance: List[int]  # UINT8
+
+    # Flags and abilities
+    flags: int  # Bitvector (BV_UTYPE_FLAGS)
+    roles: int  # Bitvector (BV_UTYPE_ROLES)
+    worker: bool
+
+    # Help text
+    helptext: str
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -381,3 +459,4 @@ class GameState:
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)
+        self.unit_types: Dict[int, UnitType] = {}  # Unit types by ID (PACKET_RULESET_UNIT)

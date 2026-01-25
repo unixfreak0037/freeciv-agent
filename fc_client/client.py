@@ -65,6 +65,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_RULESET_TECH, handlers.handle_ruleset_tech)
         self.register_handler(protocol.PACKET_RULESET_GOVERNMENT_RULER_TITLE, handlers.handle_ruleset_government_ruler_title)
         self.register_handler(protocol.PACKET_RULESET_GOVERNMENT, handlers.handle_ruleset_government)
+        self.register_handler(protocol.PACKET_RULESET_UNIT, handlers.handle_ruleset_unit)
         self.register_handler(protocol.PACKET_RULESET_ACTION, handlers.handle_ruleset_action)
         self.register_handler(protocol.PACKET_RULESET_ACTION_ENABLER, handlers.handle_ruleset_action_enabler)
         self.register_handler(protocol.PACKET_RULESET_ACTION_AUTO, handlers.handle_ruleset_action_auto)

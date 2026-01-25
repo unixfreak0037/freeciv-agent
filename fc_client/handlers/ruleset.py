@@ -1042,6 +1042,128 @@ async def handle_ruleset_government(
         print(f"  Requirements: {government.reqs_count}")
 
 
+async def handle_ruleset_unit(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_UNIT (140) - unit type definition.
+
+    Defines characteristics of military/civilian units (Warrior, Settler, etc.).
+    One packet sent per unit type during ruleset initialization.
+    """
+    from ..game_state import UnitType, Requirement
+
+    # Decode with delta cache
+    data = protocol.decode_ruleset_unit(payload, client._delta_cache)
+
+    # Convert requirements dicts to Requirement objects
+    requirements = [
+        Requirement(
+            type=req['type'],
+            value=req['value'],
+            range=req['range'],
+            survives=req['survives'],
+            present=req['present'],
+            quiet=req['quiet']
+        )
+        for req in data['build_reqs']
+    ]
+
+    # Create UnitType object
+    unit_type = UnitType(
+        id=data['id'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        graphic_str=data['graphic_str'],
+        graphic_alt=data['graphic_alt'],
+        graphic_alt2=data['graphic_alt2'],
+        sound_move=data['sound_move'],
+        sound_move_alt=data['sound_move_alt'],
+        sound_fight=data['sound_fight'],
+        sound_fight_alt=data['sound_fight_alt'],
+        unit_class_id=data['unit_class_id'],
+        build_cost=data['build_cost'],
+        pop_cost=data['pop_cost'],
+        happy_cost=data['happy_cost'],
+        upkeep=data['upkeep'],
+        attack_strength=data['attack_strength'],
+        defense_strength=data['defense_strength'],
+        firepower=data['firepower'],
+        hp=data['hp'],
+        move_rate=data['move_rate'],
+        fuel=data['fuel'],
+        build_reqs_count=data['build_reqs_count'],
+        build_reqs=requirements,
+        vision_radius_sq=data['vision_radius_sq'],
+        transport_capacity=data['transport_capacity'],
+        cargo=data['cargo'],
+        embarks=data['embarks'],
+        disembarks=data['disembarks'],
+        obsoleted_by=data['obsoleted_by'],
+        converted_to=data['converted_to'],
+        convert_time=data['convert_time'],
+        bombard_rate=data['bombard_rate'],
+        paratroopers_range=data['paratroopers_range'],
+        city_size=data['city_size'],
+        city_slots=data['city_slots'],
+        tp_defense=data['tp_defense'],
+        targets=data['targets'],
+        vlayer=data['vlayer'],
+        veteran_levels=data['veteran_levels'],
+        veteran_name=data['veteran_name'],
+        power_fact=data['power_fact'],
+        move_bonus=data['move_bonus'],
+        base_raise_chance=data['base_raise_chance'],
+        work_raise_chance=data['work_raise_chance'],
+        flags=data['flags'],
+        roles=data['roles'],
+        worker=data['worker'],
+        helptext=data['helptext']
+    )
+
+    # Store in game state
+    game_state.unit_types[unit_type.id] = unit_type
+
+    # Display summary
+    print(f"\n[UNIT {unit_type.id}] {unit_type.name} ({unit_type.rule_name})")
+    print(f"  Cost: {unit_type.build_cost} shields", end='')
+    if unit_type.pop_cost > 0:
+        print(f", {unit_type.pop_cost} pop", end='')
+    print()
+
+    print(f"  Combat: {unit_type.attack_strength}/{unit_type.defense_strength}/{unit_type.hp} HP", end='')
+    if unit_type.firepower > 1:
+        print(f", firepower {unit_type.firepower}", end='')
+    print()
+
+    print(f"  Movement: {unit_type.move_rate}", end='')
+    if unit_type.fuel > 0:
+        print(f", fuel {unit_type.fuel}", end='')
+    print()
+
+    # Display special abilities
+    abilities = []
+    if unit_type.worker:
+        abilities.append("worker")
+    if unit_type.transport_capacity > 0:
+        abilities.append(f"transport({unit_type.transport_capacity})")
+    if unit_type.bombard_rate > 0:
+        abilities.append(f"bombard({unit_type.bombard_rate})")
+    if unit_type.paratroopers_range > 0:
+        abilities.append(f"paradrop({unit_type.paratroopers_range})")
+    if unit_type.city_size > 0:
+        abilities.append(f"found_city({unit_type.city_size})")
+
+    if abilities:
+        print(f"  Abilities: {', '.join(abilities)}")
+
+    # Display veteran system if present
+    if unit_type.veteran_levels > 0:
+        print(f"  Veteran levels: {unit_type.veteran_levels}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -1061,6 +1183,7 @@ __all__ = [
     "handle_ruleset_tech",
     "handle_ruleset_government_ruler_title",
     "handle_ruleset_government",
+    "handle_ruleset_unit",
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",

@@ -38,6 +38,10 @@ PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 PACKET_RULESET_UNIT_CLASS = 152
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
 PACKET_RULESET_UNIT_FLAG = 229
+PACKET_RULESET_UNIT = 140
+
+# FreeCiv constants
+O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
 
 # Version constants
 MAJOR_VERSION = 3
@@ -2242,6 +2246,371 @@ def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_GOVERNMENT, (), result)
+
+    return result
+
+
+def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_UNIT (140) - unit type definition.
+
+    Delta protocol with empty tuple cache key (hash_const).
+    Reference: freeciv-build/packets_gen.c:46262-47400
+
+    48-bit bitvector, 47 conditional fields.
+    Bit 47 (worker) uses boolean header folding - NO payload bytes consumed.
+    Nested bitvectors for cargo, targets, embarks, disembarks, flags, roles.
+    """
+    offset = 0
+
+    # Read 48-bit bitvector (6 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 48)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_UNIT, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        unit_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        graphic_alt2 = cached.get('graphic_alt2', '')
+        sound_move = cached.get('sound_move', '')
+        sound_move_alt = cached.get('sound_move_alt', '')
+        sound_fight = cached.get('sound_fight', '')
+        sound_fight_alt = cached.get('sound_fight_alt', '')
+        unit_class_id = cached.get('unit_class_id', 0)
+        build_cost = cached.get('build_cost', 0)
+        pop_cost = cached.get('pop_cost', 0)
+        attack_strength = cached.get('attack_strength', 0)
+        defense_strength = cached.get('defense_strength', 0)
+        move_rate = cached.get('move_rate', 0)
+        build_reqs_count = cached.get('build_reqs_count', 0)
+        build_reqs = cached.get('build_reqs', []).copy()
+        vision_radius_sq = cached.get('vision_radius_sq', 0)
+        transport_capacity = cached.get('transport_capacity', 0)
+        hp = cached.get('hp', 0)
+        firepower = cached.get('firepower', 0)
+        obsoleted_by = cached.get('obsoleted_by', 0)
+        converted_to = cached.get('converted_to', 0)
+        convert_time = cached.get('convert_time', 0)
+        fuel = cached.get('fuel', 0)
+        happy_cost = cached.get('happy_cost', 0)
+        upkeep = cached.get('upkeep', [0] * O_LAST).copy()
+        paratroopers_range = cached.get('paratroopers_range', 0)
+        veteran_levels = cached.get('veteran_levels', 0)
+        veteran_name = cached.get('veteran_name', []).copy()
+        power_fact = cached.get('power_fact', []).copy()
+        move_bonus = cached.get('move_bonus', []).copy()
+        base_raise_chance = cached.get('base_raise_chance', []).copy()
+        work_raise_chance = cached.get('work_raise_chance', []).copy()
+        bombard_rate = cached.get('bombard_rate', 0)
+        city_size = cached.get('city_size', 0)
+        city_slots = cached.get('city_slots', 0)
+        tp_defense = cached.get('tp_defense', 0)
+        cargo = cached.get('cargo', 0)
+        targets = cached.get('targets', 0)
+        embarks = cached.get('embarks', 0)
+        disembarks = cached.get('disembarks', 0)
+        vlayer = cached.get('vlayer', 0)
+        helptext = cached.get('helptext', '')
+        flags = cached.get('flags', 0)
+        roles = cached.get('roles', 0)
+        worker = cached.get('worker', False)
+    else:
+        unit_id = 0
+        name = rule_name = graphic_str = graphic_alt = graphic_alt2 = ''
+        sound_move = sound_move_alt = sound_fight = sound_fight_alt = ''
+        unit_class_id = build_cost = pop_cost = 0
+        attack_strength = defense_strength = move_rate = 0
+        build_reqs_count = 0
+        build_reqs = []
+        vision_radius_sq = transport_capacity = hp = firepower = 0
+        obsoleted_by = converted_to = convert_time = fuel = happy_cost = 0
+        upkeep = [0] * O_LAST
+        paratroopers_range = veteran_levels = 0
+        veteran_name = []
+        power_fact = []
+        move_bonus = []
+        base_raise_chance = []
+        work_raise_chance = []
+        bombard_rate = city_size = city_slots = tp_defense = 0
+        cargo = targets = embarks = disembarks = 0
+        vlayer = 0
+        helptext = ''
+        flags = roles = 0
+        worker = False
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: id (UINT16)
+    if is_bit_set(bitvector, 0):
+        unit_id, offset = decode_uint16(payload, offset)
+
+    # Bit 1: name (STRING)
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name (STRING)
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: graphic_str (STRING)
+    if is_bit_set(bitvector, 3):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 4: graphic_alt (STRING)
+    if is_bit_set(bitvector, 4):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Bit 5: graphic_alt2 (STRING)
+    if is_bit_set(bitvector, 5):
+        graphic_alt2, offset = decode_string(payload, offset)
+
+    # Bit 6: sound_move (STRING)
+    if is_bit_set(bitvector, 6):
+        sound_move, offset = decode_string(payload, offset)
+
+    # Bit 7: sound_move_alt (STRING)
+    if is_bit_set(bitvector, 7):
+        sound_move_alt, offset = decode_string(payload, offset)
+
+    # Bit 8: sound_fight (STRING)
+    if is_bit_set(bitvector, 8):
+        sound_fight, offset = decode_string(payload, offset)
+
+    # Bit 9: sound_fight_alt (STRING)
+    if is_bit_set(bitvector, 9):
+        sound_fight_alt, offset = decode_string(payload, offset)
+
+    # Bit 10: unit_class_id (UINT8)
+    if is_bit_set(bitvector, 10):
+        unit_class_id, offset = decode_uint8(payload, offset)
+
+    # Bit 11: build_cost (UINT16)
+    if is_bit_set(bitvector, 11):
+        build_cost, offset = decode_uint16(payload, offset)
+
+    # Bit 12: pop_cost (UINT8)
+    if is_bit_set(bitvector, 12):
+        pop_cost, offset = decode_uint8(payload, offset)
+
+    # Bit 13: attack_strength (UINT8)
+    if is_bit_set(bitvector, 13):
+        attack_strength, offset = decode_uint8(payload, offset)
+
+    # Bit 14: defense_strength (UINT8)
+    if is_bit_set(bitvector, 14):
+        defense_strength, offset = decode_uint8(payload, offset)
+
+    # Bit 15: move_rate (UINT32)
+    if is_bit_set(bitvector, 15):
+        move_rate, offset = decode_uint32(payload, offset)
+
+    # Bit 16: build_reqs_count (UINT8)
+    if is_bit_set(bitvector, 16):
+        build_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 17: build_reqs array (REQUIREMENT[build_reqs_count])
+    if is_bit_set(bitvector, 17):
+        build_reqs = []
+        for _ in range(build_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            build_reqs.append(req)
+
+    # Bit 18: vision_radius_sq (UINT16)
+    if is_bit_set(bitvector, 18):
+        vision_radius_sq, offset = decode_uint16(payload, offset)
+
+    # Bit 19: transport_capacity (UINT8)
+    if is_bit_set(bitvector, 19):
+        transport_capacity, offset = decode_uint8(payload, offset)
+
+    # Bit 20: hp (UINT8)
+    if is_bit_set(bitvector, 20):
+        hp, offset = decode_uint8(payload, offset)
+
+    # Bit 21: firepower (UINT8)
+    if is_bit_set(bitvector, 21):
+        firepower, offset = decode_uint8(payload, offset)
+
+    # Bit 22: obsoleted_by (UINT8)
+    if is_bit_set(bitvector, 22):
+        obsoleted_by, offset = decode_uint8(payload, offset)
+
+    # Bit 23: converted_to (UINT8)
+    if is_bit_set(bitvector, 23):
+        converted_to, offset = decode_uint8(payload, offset)
+
+    # Bit 24: convert_time (UINT8)
+    if is_bit_set(bitvector, 24):
+        convert_time, offset = decode_uint8(payload, offset)
+
+    # Bit 25: fuel (UINT8)
+    if is_bit_set(bitvector, 25):
+        fuel, offset = decode_uint8(payload, offset)
+
+    # Bit 26: happy_cost (UINT8)
+    if is_bit_set(bitvector, 26):
+        happy_cost, offset = decode_uint8(payload, offset)
+
+    # Bit 27: upkeep[O_LAST] (UINT8 array, fixed 6 elements)
+    if is_bit_set(bitvector, 27):
+        upkeep = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint8(payload, offset)
+            upkeep.append(val)
+
+    # Bit 28: paratroopers_range (UINT16)
+    if is_bit_set(bitvector, 28):
+        paratroopers_range, offset = decode_uint16(payload, offset)
+
+    # Bit 29: veteran_levels (UINT8) - needed for sizing arrays
+    if is_bit_set(bitvector, 29):
+        veteran_levels, offset = decode_uint8(payload, offset)
+
+    # Bit 30: veteran_name[veteran_levels] (STRING array)
+    if is_bit_set(bitvector, 30):
+        veteran_name = []
+        for _ in range(veteran_levels):
+            vname, offset = decode_string(payload, offset)
+            veteran_name.append(vname)
+
+    # Bit 31: power_fact[veteran_levels] (UINT16 array)
+    if is_bit_set(bitvector, 31):
+        power_fact = []
+        for _ in range(veteran_levels):
+            val, offset = decode_uint16(payload, offset)
+            power_fact.append(val)
+
+    # Bit 32: move_bonus[veteran_levels] (UINT32 array)
+    if is_bit_set(bitvector, 32):
+        move_bonus = []
+        for _ in range(veteran_levels):
+            val, offset = decode_uint32(payload, offset)
+            move_bonus.append(val)
+
+    # Bit 33: base_raise_chance[veteran_levels] (UINT8 array)
+    if is_bit_set(bitvector, 33):
+        base_raise_chance = []
+        for _ in range(veteran_levels):
+            val, offset = decode_uint8(payload, offset)
+            base_raise_chance.append(val)
+
+    # Bit 34: work_raise_chance[veteran_levels] (UINT8 array)
+    if is_bit_set(bitvector, 34):
+        work_raise_chance = []
+        for _ in range(veteran_levels):
+            val, offset = decode_uint8(payload, offset)
+            work_raise_chance.append(val)
+
+    # Bit 35: bombard_rate (UINT8)
+    if is_bit_set(bitvector, 35):
+        bombard_rate, offset = decode_uint8(payload, offset)
+
+    # Bit 36: city_size (UINT8)
+    if is_bit_set(bitvector, 36):
+        city_size, offset = decode_uint8(payload, offset)
+
+    # Bit 37: city_slots (UINT8)
+    if is_bit_set(bitvector, 37):
+        city_slots, offset = decode_uint8(payload, offset)
+
+    # Bit 38: tp_defense (UINT8 enum)
+    if is_bit_set(bitvector, 38):
+        tp_defense, offset = decode_uint8(payload, offset)
+
+    # Bit 39: cargo (BV_UNIT_CLASSES bitvector - 32 bits = 4 bytes)
+    if is_bit_set(bitvector, 39):
+        cargo, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 40: targets (BV_UNIT_CLASSES bitvector - 32 bits = 4 bytes)
+    if is_bit_set(bitvector, 40):
+        targets, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 41: embarks (BV_UNIT_CLASSES bitvector - 32 bits = 4 bytes)
+    if is_bit_set(bitvector, 41):
+        embarks, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 42: disembarks (BV_UNIT_CLASSES bitvector - 32 bits = 4 bytes)
+    if is_bit_set(bitvector, 42):
+        disembarks, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 43: vlayer (UINT8 enum)
+    if is_bit_set(bitvector, 43):
+        vlayer, offset = decode_uint8(payload, offset)
+
+    # Bit 44: helptext (STRING)
+    if is_bit_set(bitvector, 44):
+        helptext, offset = decode_string(payload, offset)
+
+    # Bit 45: flags (BV_UTYPE_FLAGS bitvector - estimated 128 bits = 16 bytes)
+    # TODO: Verify size with captured packets
+    if is_bit_set(bitvector, 45):
+        flags, offset = read_bitvector(payload, offset, 128)
+
+    # Bit 46: roles (BV_UTYPE_ROLES bitvector - L_MAX = 64 bits = 8 bytes)
+    if is_bit_set(bitvector, 46):
+        roles, offset = read_bitvector(payload, offset, 64)
+
+    # Bit 47: worker (BOOL - boolean header folding, NO payload bytes)
+    worker = is_bit_set(bitvector, 47)
+
+    # Build result dictionary
+    result = {
+        'id': unit_id,
+        'name': name,
+        'rule_name': rule_name,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'graphic_alt2': graphic_alt2,
+        'sound_move': sound_move,
+        'sound_move_alt': sound_move_alt,
+        'sound_fight': sound_fight,
+        'sound_fight_alt': sound_fight_alt,
+        'unit_class_id': unit_class_id,
+        'build_cost': build_cost,
+        'pop_cost': pop_cost,
+        'attack_strength': attack_strength,
+        'defense_strength': defense_strength,
+        'move_rate': move_rate,
+        'build_reqs_count': build_reqs_count,
+        'build_reqs': build_reqs,
+        'vision_radius_sq': vision_radius_sq,
+        'transport_capacity': transport_capacity,
+        'hp': hp,
+        'firepower': firepower,
+        'obsoleted_by': obsoleted_by,
+        'converted_to': converted_to,
+        'convert_time': convert_time,
+        'fuel': fuel,
+        'happy_cost': happy_cost,
+        'upkeep': upkeep,
+        'paratroopers_range': paratroopers_range,
+        'veteran_levels': veteran_levels,
+        'veteran_name': veteran_name,
+        'power_fact': power_fact,
+        'move_bonus': move_bonus,
+        'base_raise_chance': base_raise_chance,
+        'work_raise_chance': work_raise_chance,
+        'bombard_rate': bombard_rate,
+        'city_size': city_size,
+        'city_slots': city_slots,
+        'tp_defense': tp_defense,
+        'cargo': cargo,
+        'targets': targets,
+        'embarks': embarks,
+        'disembarks': disembarks,
+        'vlayer': vlayer,
+        'helptext': helptext,
+        'flags': flags,
+        'roles': roles,
+        'worker': worker,
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_UNIT, (), result)
 
     return result
 
