@@ -35,6 +35,7 @@ PACKET_RULESET_ACTION_AUTO = 252
 PACKET_RULESET_TECH = 144
 PACKET_RULESET_GOVERNMENT = 145
 PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
+PACKET_RULESET_UNIT_CLASS = 152
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
 
 # Version constants
@@ -1725,6 +1726,112 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_UNIT_CLASS (152) - unit class definition.
+
+    Unit classes define categories of military units (Land, Sea, Air) with
+    shared movement and combat properties. Multiple packets sent during
+    ruleset initialization (one per unit class).
+
+    Structure from freeciv-build/packets_gen.c:62574:
+    - 8-bit bitvector (1 byte) - 8 fields
+    - Bit 0: id (UINT8)
+    - Bit 1: name (STRING)
+    - Bit 2: rule_name (STRING)
+    - Bit 3: min_speed (UINT32)
+    - Bit 4: hp_loss_pct (UINT8)
+    - Bit 5: non_native_def_pct (UINT16)
+    - Bit 6: flags (BITVECTOR - 4 bytes for 32 unit class flags)
+    - Bit 7: helptext (STRING)
+    - Cache: hash_const (all packets share same cache entry)
+
+    Returns:
+        Dictionary with decoded fields: id, name, rule_name, min_speed,
+        hp_loss_pct, non_native_def_pct, flags, helptext
+    """
+    offset = 0
+
+    # Read 8-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 8)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_UNIT_CLASS, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        unit_class_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        min_speed = cached.get('min_speed', 0)
+        hp_loss_pct = cached.get('hp_loss_pct', 0)
+        non_native_def_pct = cached.get('non_native_def_pct', 0)
+        flags = cached.get('flags', 0)
+        helptext = cached.get('helptext', '')
+    else:
+        unit_class_id = 0
+        name = ''
+        rule_name = ''
+        min_speed = 0
+        hp_loss_pct = 0
+        non_native_def_pct = 0
+        flags = 0
+        helptext = ''
+
+    # Bit 0: id
+    if has_field(0):
+        unit_class_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if has_field(1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name
+    if has_field(2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: min_speed
+    if has_field(3):
+        min_speed, offset = decode_uint32(payload, offset)
+
+    # Bit 4: hp_loss_pct
+    if has_field(4):
+        hp_loss_pct, offset = decode_uint8(payload, offset)
+
+    # Bit 5: non_native_def_pct
+    if has_field(5):
+        non_native_def_pct, offset = decode_uint16(payload, offset)
+
+    # Bit 6: flags (32-bit bitvector, 4 bytes)
+    if has_field(6):
+        flags, offset = decode_uint32(payload, offset)
+
+    # Bit 7: helptext
+    if has_field(7):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': unit_class_id,
+        'name': name,
+        'rule_name': rule_name,
+        'min_speed': min_speed,
+        'hp_loss_pct': hp_loss_pct,
+        'non_native_def_pct': non_native_def_pct,
+        'flags': flags,
+        'helptext': helptext
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_UNIT_CLASS, (), result)
 
     return result
 

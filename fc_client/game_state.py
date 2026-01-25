@@ -276,6 +276,23 @@ class UnitClassFlag:
 
 
 @dataclass
+class UnitClass:
+    """Unit class from PACKET_RULESET_UNIT_CLASS (152).
+
+    Unit classes define categories of military units (e.g., Land, Sea, Air)
+    with shared movement and combat properties.
+    """
+    id: int                      # Unit class ID
+    name: str                    # Display name
+    rule_name: str               # Internal identifier
+    min_speed: int               # Minimum movement speed (UINT32)
+    hp_loss_pct: int             # HP loss percentage (0-100)
+    non_native_def_pct: int      # Defense penalty on non-native terrain (0-65535)
+    flags: int                   # Bitvector of unit class flags (32 bits)
+    helptext: str                # Descriptive help text
+
+
+@dataclass
 class Tech:
     """Technology from PACKET_RULESET_TECH (144).
 
@@ -347,6 +364,7 @@ class GameState:
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
         self.unit_class_flags: Dict[int, UnitClassFlag] = {}  # Unit class flags by ID (PACKET_RULESET_UNIT_CLASS_FLAG)
+        self.unit_classes: Dict[int, UnitClass] = {}  # Unit classes by ID (PACKET_RULESET_UNIT_CLASS)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)

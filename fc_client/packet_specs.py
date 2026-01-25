@@ -264,6 +264,23 @@ PACKET_SPECS[143] = PacketSpec(
 )
 
 
+PACKET_SPECS[152] = PacketSpec(
+    packet_type=152,
+    name="PACKET_RULESET_UNIT_CLASS",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='id', type_name='UINT8', is_key=False),
+        FieldSpec(name='name', type_name='STRING', is_key=False),
+        FieldSpec(name='rule_name', type_name='STRING', is_key=False),
+        FieldSpec(name='min_speed', type_name='UINT32', is_key=False),
+        FieldSpec(name='hp_loss_pct', type_name='UINT8', is_key=False),
+        FieldSpec(name='non_native_def_pct', type_name='UINT16', is_key=False),
+        FieldSpec(name='flags', type_name='UINT32', is_key=False),  # 32-bit bitvector
+        FieldSpec(name='helptext', type_name='STRING', is_key=False),
+    ]
+)
+
+
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(
 #     packet_type=<packet_num>,

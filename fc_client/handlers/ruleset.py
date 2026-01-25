@@ -765,6 +765,53 @@ async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameStat
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_unit_class(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_UNIT_CLASS (152) - unit class definition.
+
+    Unit classes define categories of military units (e.g., Land, Sea, Air)
+    with shared movement and combat properties. Multiple packets sent during
+    ruleset initialization (one per unit class).
+
+    Updates game_state.unit_classes dictionary with the unit class configuration.
+    """
+    from ..game_state import UnitClass
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_unit_class(payload, client._delta_cache)
+
+    # Create UnitClass object
+    unit_class = UnitClass(
+        id=data['id'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        min_speed=data['min_speed'],
+        hp_loss_pct=data['hp_loss_pct'],
+        non_native_def_pct=data['non_native_def_pct'],
+        flags=data['flags'],
+        helptext=data['helptext']
+    )
+
+    # Store in game state (keyed by ID)
+    game_state.unit_classes[unit_class.id] = unit_class
+
+    # Display summary
+    print(f"\n[UNIT CLASS {unit_class.id}] {unit_class.name} ({unit_class.rule_name})")
+    print(f"  Min Speed: {unit_class.min_speed}")
+    print(f"  HP Loss: {unit_class.hp_loss_pct}%")
+    print(f"  Non-native Defense: {unit_class.non_native_def_pct}%")
+    print(f"  Flags: 0x{unit_class.flags:08x}")
+
+    if unit_class.helptext:
+        # Truncate long help text for console display
+        help_preview = unit_class.helptext[:100] + '...' if len(unit_class.helptext) > 100 else unit_class.helptext
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_unit_class_flag(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -975,6 +1022,7 @@ __all__ = [
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
+    "handle_ruleset_unit_class",
     "handle_ruleset_unit_class_flag",
     "handle_ruleset_tech",
     "handle_ruleset_government_ruler_title",
