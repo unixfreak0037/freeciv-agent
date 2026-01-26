@@ -25,6 +25,7 @@ PACKET_RULESET_SUMMARY = 251
 PACKET_RULESET_NATION_SETS = 236
 PACKET_NATION_AVAILABILITY = 237
 PACKET_RULESET_GAME = 141
+PACKET_RULESET_SPECIALIST = 142
 PACKET_RULESET_DISASTER = 224
 PACKET_RULESET_TRADE = 227
 PACKET_RULESET_ACHIEVEMENT = 233
@@ -1106,6 +1107,127 @@ def decode_ruleset_game(payload: bytes) -> dict:
         'background_green': background_green,
         'background_blue': background_blue,
     }
+
+
+def decode_ruleset_specialist(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_SPECIALIST (142) using delta protocol.
+
+    Transmits specialist type definitions (e.g., scientists, entertainers,
+    taxmen). Specialists are special citizen types that work in cities to
+    provide bonuses instead of working terrain tiles.
+
+    Uses delta protocol with 9 conditional fields and variable-length
+    requirements array. Cache key is empty tuple (hash_const).
+
+    Reference: freeciv-build/packets_gen.c:51261
+
+    Structure (based on actual packet observation):
+    - Bitvector byte 0 (UINT8) - indicates which fields 1-8 are present
+    - Byte 1: id (UINT8) - Specialist type ID (always present)
+    - Field 1: plural_name (STRING) - Display name (plural)
+    - Field 2: rule_name (STRING) - Internal identifier
+    - Field 3: short_name (STRING) - Abbreviated display name
+    - Field 4: graphic_str (STRING) - Primary graphic tag
+    - Field 5: graphic_alt (STRING) - Alternate graphic tag
+    - Field 6: reqs_count (UINT8) - Number of requirements
+    - Field 7: reqs (REQUIREMENT array, length from reqs_count)
+    - Field 8: helptext (STRING) - Help text description
+
+    Args:
+        payload: Raw packet bytes (header already stripped)
+        delta_cache: Delta protocol cache
+
+    Returns:
+        Dictionary with decoded specialist fields
+    """
+    offset = 0
+
+    # Read bitvector (9 fields, need 2 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 9)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_SPECIALIST, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        specialist_id = cached.get('id', 0)
+        plural_name = cached.get('plural_name', '')
+        rule_name = cached.get('rule_name', '')
+        short_name = cached.get('short_name', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', []).copy()
+        helptext = cached.get('helptext', '')
+    else:
+        specialist_id = 0
+        plural_name = ''
+        rule_name = ''
+        short_name = ''
+        graphic_str = ''
+        graphic_alt = ''
+        reqs_count = 0
+        reqs = []
+        helptext = ''
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: id (UINT8)
+    if is_bit_set(bitvector, 0):
+        specialist_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: plural_name (STRING)
+    if is_bit_set(bitvector, 1):
+        plural_name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name (STRING)
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: short_name (STRING)
+    if is_bit_set(bitvector, 3):
+        short_name, offset = decode_string(payload, offset)
+
+    # Bit 4: graphic_str (STRING)
+    if is_bit_set(bitvector, 4):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 5: graphic_alt (STRING)
+    if is_bit_set(bitvector, 5):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Bit 6: reqs_count (UINT8)
+    if is_bit_set(bitvector, 6):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 7: reqs array (REQUIREMENT[], length from reqs_count)
+    if is_bit_set(bitvector, 7):
+        reqs = []
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 8: helptext (STRING)
+    if is_bit_set(bitvector, 8):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': specialist_id,
+        'plural_name': plural_name,
+        'rule_name': rule_name,
+        'short_name': short_name,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'helptext': helptext
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_SPECIALIST, (), result)
+
+    return result
 
 
 def decode_requirement(data: bytes, offset: int) -> Tuple[dict, int]:

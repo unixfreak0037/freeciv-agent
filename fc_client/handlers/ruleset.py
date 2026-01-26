@@ -367,6 +367,67 @@ async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, pa
               f"Work: {ruleset_game.work_raise_chance[i]}%")
 
 
+async def handle_ruleset_specialist(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_SPECIALIST (142) - specialist type definitions.
+
+    Specialists are special citizen types that can work in cities to provide
+    bonuses (e.g., scientists produce research, entertainers provide luxury,
+    taxmen generate gold) instead of working terrain tiles. Each packet defines
+    one specialist type with its properties, requirements, and help text.
+
+    Uses delta protocol with 9 conditional fields. Sent during ruleset
+    initialization, one packet per specialist type.
+
+    Updates game_state.specialists dict, keyed by specialist ID.
+    """
+    from ..game_state import Specialist, Requirement
+
+    # Decode using manual decoder
+    data = protocol.decode_ruleset_specialist(payload, client._delta_cache)
+
+    # Convert requirements list
+    requirements = [
+        Requirement(**req) for req in data.get('reqs', [])
+    ]
+
+    # Create typed dataclass
+    specialist = Specialist(
+        id=data['id'],
+        plural_name=data.get('plural_name', ''),
+        rule_name=data.get('rule_name', ''),
+        short_name=data.get('short_name', ''),
+        graphic_str=data.get('graphic_str', ''),
+        graphic_alt=data.get('graphic_alt', ''),
+        reqs_count=data.get('reqs_count', 0),
+        reqs=requirements,
+        helptext=data.get('helptext', '')
+    )
+
+    # Store in game state
+    game_state.specialists[specialist.id] = specialist
+
+    # Display summary
+    print(f"\n[SPECIALIST {specialist.id}] {specialist.plural_name} ({specialist.rule_name})")
+    print(f"  Short Name: {specialist.short_name}")
+    print(f"  Graphics: {specialist.graphic_str}")
+    if specialist.graphic_alt and specialist.graphic_alt != '-':
+        print(f"    Alt: {specialist.graphic_alt}")
+    if specialist.reqs_count > 0:
+        print(f"  Requirements: {specialist.reqs_count}")
+
+    # Display help text (truncated)
+    if specialist.helptext:
+        help_preview = (specialist.helptext[:100] + '...'
+                       if len(specialist.helptext) > 100
+                       else specialist.helptext)
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_disaster(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1229,6 +1290,7 @@ __all__ = [
     "handle_ruleset_nation",
     "handle_nation_availability",
     "handle_ruleset_game",
+    "handle_ruleset_specialist",
     "handle_ruleset_disaster",
     "handle_ruleset_trade",
     "handle_ruleset_achievement",

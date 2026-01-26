@@ -199,6 +199,24 @@ class TradeRouteType:
 
 
 @dataclass
+class Specialist:
+    """Specialist type definition from PACKET_RULESET_SPECIALIST (142).
+
+    Specialists are special city occupations (e.g., scientists, entertainers,
+    taxmen) that provide bonuses to cities instead of working terrain tiles.
+    """
+    id: int                    # Specialist type ID
+    plural_name: str           # Display name (plural form)
+    rule_name: str             # Internal rule identifier
+    short_name: str            # Abbreviated display name
+    graphic_str: str           # Primary graphic tag
+    graphic_alt: str           # Alternate graphic tag
+    reqs_count: int            # Number of requirements
+    reqs: List[Requirement]    # Requirements for specialist availability
+    helptext: str              # Help text description
+
+
+@dataclass
 class ActionType:
     """Action type configuration from PACKET_RULESET_ACTION (246).
 
@@ -465,6 +483,7 @@ class GameState:
         self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)
         self.trade_routes: Dict[int, TradeRouteType] = {}  # Trade routes by ID (PACKET_RULESET_TRADE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
+        self.specialists: Dict[int, Specialist] = {}  # Specialists by ID (PACKET_RULESET_SPECIALIST)
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)

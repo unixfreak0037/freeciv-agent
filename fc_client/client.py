@@ -50,6 +50,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_CHAT_MSG, handlers.handle_chat_msg)
         self.register_handler(protocol.PACKET_RULESET_CONTROL, handlers.handle_ruleset_control)
         self.register_handler(protocol.PACKET_RULESET_GAME, handlers.handle_ruleset_game)
+        self.register_handler(protocol.PACKET_RULESET_SPECIALIST, handlers.handle_ruleset_specialist)
         self.register_handler(protocol.PACKET_RULESET_SUMMARY, handlers.handle_ruleset_summary)
         self.register_handler(protocol.PACKET_RULESET_DESCRIPTION_PART, handlers.handle_ruleset_description_part)
         self.register_handler(protocol.PACKET_RULESET_NATION_GROUPS, handlers.handle_ruleset_nation_groups)

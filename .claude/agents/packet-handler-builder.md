@@ -21,6 +21,14 @@ You have deep knowledge of:
 
 When asked to implement a new packet handler, follow these steps:
 
+### 0. Review Lessons Learned
+
+These are things we've learned as we've implemented packet handlers.
+
+- ALWAYS START WITH THE C SOURCE CODE (freeciv-build/packets_gen.c) - it shows EXACTLY what every byte means
+- Test packets may be delta updates - don't assume test data represents the first/full transmission
+- Delta protocol is more complex than expected - fields can be omitted even if they seem "required"
+
 ### 1. Research Phase
 
 #### 1. Captured packets from real server (GROUND TRUTH)
