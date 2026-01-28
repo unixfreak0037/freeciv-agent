@@ -38,6 +38,7 @@ PACKET_RULESET_TECH = 144
 PACKET_RULESET_GOVERNMENT = 145
 PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 PACKET_RULESET_UNIT_CLASS = 152
+PACKET_RULESET_BASE = 153
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
 PACKET_RULESET_UNIT_FLAG = 229
 PACKET_RULESET_UNIT_BONUS = 228
@@ -2031,6 +2032,65 @@ def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT_CLASS, (), result)
+
+    return result
+
+
+def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """Decode PACKET_RULESET_BASE (153) - base type definition."""
+    offset = 0
+
+    # Read 6-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 6)
+
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_BASE, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        base_id = cached.get('id', 0)
+        gui_type = cached.get('gui_type', 0)
+        border_sq = cached.get('border_sq', -1)
+        vision_main_sq = cached.get('vision_main_sq', -1)
+        vision_invis_sq = cached.get('vision_invis_sq', -1)
+        vision_subs_sq = cached.get('vision_subs_sq', -1)
+    else:
+        base_id = 0
+        gui_type = 0
+        border_sq = -1
+        vision_main_sq = -1
+        vision_invis_sq = -1
+        vision_subs_sq = -1
+
+    # Decode fields based on bitvector
+    if has_field(0):
+        base_id, offset = decode_uint8(payload, offset)
+    if has_field(1):
+        gui_type, offset = decode_uint8(payload, offset)
+    if has_field(2):
+        border_sq, offset = decode_sint8(payload, offset)
+    if has_field(3):
+        vision_main_sq, offset = decode_sint8(payload, offset)
+    if has_field(4):
+        vision_invis_sq, offset = decode_sint8(payload, offset)
+    if has_field(5):
+        vision_subs_sq, offset = decode_sint8(payload, offset)
+
+    # Build result
+    result = {
+        'id': base_id,
+        'gui_type': gui_type,
+        'border_sq': border_sq,
+        'vision_main_sq': vision_main_sq,
+        'vision_invis_sq': vision_invis_sq,
+        'vision_subs_sq': vision_subs_sq
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_BASE, (), result)
 
     return result
 

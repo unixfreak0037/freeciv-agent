@@ -905,6 +905,41 @@ async def handle_ruleset_unit_class(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_base(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_BASE (153) - base type definition."""
+    from ..game_state import BaseType
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_base(payload, client._delta_cache)
+
+    # Create BaseType object
+    base_type = BaseType(
+        id=data['id'],
+        gui_type=data['gui_type'],
+        border_sq=data['border_sq'],
+        vision_main_sq=data['vision_main_sq'],
+        vision_invis_sq=data['vision_invis_sq'],
+        vision_subs_sq=data['vision_subs_sq']
+    )
+
+    # Store in game state
+    game_state.base_types[base_type.id] = base_type
+
+    # Display summary
+    gui_type_names = {0: 'Fortress', 1: 'Airbase', 2: 'Other'}
+    gui_name = gui_type_names.get(base_type.gui_type, f'Unknown({base_type.gui_type})')
+
+    print(f"\n[BASE TYPE {base_type.id}] {gui_name}")
+    print(f"  Border Expansion: {base_type.border_sq if base_type.border_sq >= 0 else 'None'}")
+    print(f"  Vision (Main): {base_type.vision_main_sq if base_type.vision_main_sq >= 0 else 'None'}")
+    print(f"  Vision (Invisible): {base_type.vision_invis_sq if base_type.vision_invis_sq >= 0 else 'None'}")
+    print(f"  Vision (Submarines): {base_type.vision_subs_sq if base_type.vision_subs_sq >= 0 else 'None'}")
+
+
 async def handle_ruleset_unit_class_flag(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1434,6 +1469,7 @@ __all__ = [
     "handle_ruleset_tech_flag",
     "handle_ruleset_extra_flag",
     "handle_ruleset_unit_class",
+    "handle_ruleset_base",
     "handle_ruleset_unit_class_flag",
     "handle_ruleset_unit_flag",
     "handle_ruleset_unit_bonus",

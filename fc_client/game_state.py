@@ -433,6 +433,21 @@ class UnitClass:
 
 
 @dataclass
+class BaseType:
+    """Base type from PACKET_RULESET_BASE (153).
+
+    Base types define military installations (forts, airbases, radar towers)
+    that can be built on terrain tiles.
+    """
+    id: int                    # Base type ID
+    gui_type: int              # GUI type: 0=Fortress, 1=Airbase, 2=Other
+    border_sq: int             # Territory border expansion (squared)
+    vision_main_sq: int        # Vision radius for normal units (squared)
+    vision_invis_sq: int       # Vision radius for invisible units (squared)
+    vision_subs_sq: int        # Vision radius for submarines (squared)
+
+
+@dataclass
 class Tech:
     """Technology from PACKET_RULESET_TECH (144).
 
@@ -588,6 +603,7 @@ class GameState:
         self.unit_flags: Dict[int, UnitFlag] = {}  # Unit flags by ID (PACKET_RULESET_UNIT_FLAG)
         self.unit_bonuses: List[UnitBonus] = []  # Combat bonuses by unit/flag combinations (PACKET_RULESET_UNIT_BONUS)
         self.unit_classes: Dict[int, UnitClass] = {}  # Unit classes by ID (PACKET_RULESET_UNIT_CLASS)
+        self.base_types: Dict[int, BaseType] = {}  # Base types by ID (PACKET_RULESET_BASE)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)

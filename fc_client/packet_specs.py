@@ -280,6 +280,20 @@ PACKET_SPECS[152] = PacketSpec(
     ]
 )
 
+PACKET_SPECS[153] = PacketSpec(
+    packet_type=153,
+    name="PACKET_RULESET_BASE",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='id', type_name='UINT8', is_key=False),
+        FieldSpec(name='gui_type', type_name='UINT8', is_key=False),
+        FieldSpec(name='border_sq', type_name='SINT8', is_key=False),
+        FieldSpec(name='vision_main_sq', type_name='SINT8', is_key=False),
+        FieldSpec(name='vision_invis_sq', type_name='SINT8', is_key=False),
+        FieldSpec(name='vision_subs_sq', type_name='SINT8', is_key=False),
+    ]
+)
+
 PACKET_SPECS[229] = PacketSpec(
     packet_type=229,
     name="PACKET_RULESET_UNIT_FLAG",
