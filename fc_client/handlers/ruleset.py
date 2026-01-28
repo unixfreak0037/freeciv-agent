@@ -826,6 +826,38 @@ async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameStat
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_extra_flag(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+    """
+    Handle PACKET_RULESET_EXTRA_FLAG (226).
+
+    Extra flags are properties that can be assigned to extras (terrain features
+    like forests, rivers, bases) in the ruleset to define game mechanics.
+
+    Updates game_state.extra_flags dictionary with the extra flag.
+    """
+    from ..game_state import ExtraFlag
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_extra_flag(payload, client._delta_cache)
+
+    # Create ExtraFlag object
+    extra_flag = ExtraFlag(
+        id=data['id'],
+        name=data['name'],
+        helptxt=data['helptxt']
+    )
+
+    # Store in game state (keyed by ID)
+    game_state.extra_flags[extra_flag.id] = extra_flag
+
+    # Display summary
+    print(f"\n[EXTRA FLAG {extra_flag.id}] {extra_flag.name}")
+    if extra_flag.helptxt:
+        # Truncate long help text for console display
+        help_preview = extra_flag.helptxt[:100] + '...' if len(extra_flag.helptxt) > 100 else extra_flag.helptxt
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_unit_class(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1295,6 +1327,7 @@ __all__ = [
     "handle_ruleset_trade",
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
+    "handle_ruleset_extra_flag",
     "handle_ruleset_unit_class",
     "handle_ruleset_unit_class_flag",
     "handle_ruleset_unit_flag",

@@ -28,6 +28,7 @@ These are things we've learned as we've implemented packet handlers.
 - ALWAYS START WITH THE C SOURCE CODE (freeciv-build/packets_gen.c) - it shows EXACTLY what every byte means
 - Test packets may be delta updates - don't assume test data represents the first/full transmission
 - Delta protocol is more complex than expected - fields can be omitted even if they seem "required"
+- The ID field may be omitted and defaults from cache (verified.)
 
 ### 1. Research Phase
 

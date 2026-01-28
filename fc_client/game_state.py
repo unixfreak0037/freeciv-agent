@@ -282,6 +282,21 @@ class TechFlag:
 
 
 @dataclass
+class ExtraFlag:
+    """
+    Extra flag from PACKET_RULESET_EXTRA_FLAG (packet 226).
+
+    Extra flags are properties that can be assigned to extras (terrain features
+    like forests, rivers, bases) in the ruleset to define game mechanics.
+
+    Examples: ParadropFrom, ParadropTo, NoStackDeath, etc.
+    """
+    id: int           # Extra flag identifier
+    name: str         # Flag name (MAX_LEN_NAME)
+    helptxt: str      # Help text describing the flag's effect (MAX_LEN_PACKET)
+
+
+@dataclass
 class UnitClassFlag:
     """Unit class flag from PACKET_RULESET_UNIT_CLASS_FLAG (230).
 
@@ -488,6 +503,7 @@ class GameState:
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
+        self.extra_flags: Dict[int, ExtraFlag] = {}  # Extra flags by ID (PACKET_RULESET_EXTRA_FLAG)
         self.unit_class_flags: Dict[int, UnitClassFlag] = {}  # Unit class flags by ID (PACKET_RULESET_UNIT_CLASS_FLAG)
         self.unit_flags: Dict[int, UnitFlag] = {}  # Unit flags by ID (PACKET_RULESET_UNIT_FLAG)
         self.unit_bonuses: List[UnitBonus] = []  # Combat bonuses by unit/flag combinations (PACKET_RULESET_UNIT_BONUS)
