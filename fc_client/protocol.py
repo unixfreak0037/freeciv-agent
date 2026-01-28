@@ -42,6 +42,7 @@ PACKET_RULESET_UNIT_CLASS_FLAG = 230
 PACKET_RULESET_UNIT_FLAG = 229
 PACKET_RULESET_UNIT_BONUS = 228
 PACKET_RULESET_UNIT = 140
+PACKET_RULESET_EXTRA = 232
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -2883,6 +2884,326 @@ def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT, (), result)
+
+    return result
+
+
+def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_EXTRA (232) - extra type definition.
+
+    Extras are terrain features like forests, rivers, roads, bases, and other
+    map improvements. This packet defines properties and behavior of each extra.
+
+    Delta protocol with empty tuple cache key (hash_const).
+    Reference: freeciv-build/packets_gen.c:63020-63900
+
+    6-byte bitvector (41 conditional fields).
+    Bits 25-26 (buildable, generated) use boolean header folding - NO payload bytes.
+    Nested bitvectors: causes (16 bits), rmcauses (8 bits), native_to (32 bits),
+    flags (22 bits), hidden_by/bridged_over/conflicts (250 bits each).
+    """
+    offset = 0
+
+    # Read 6-byte bitvector (41 bits)
+    bitvector, offset = read_bitvector(payload, offset, 41)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_EXTRA, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        extra_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        category = cached.get('category', 0)
+        causes = cached.get('causes', 0)
+        rmcauses = cached.get('rmcauses', 0)
+        activity_gfx = cached.get('activity_gfx', '')
+        act_gfx_alt = cached.get('act_gfx_alt', '')
+        act_gfx_alt2 = cached.get('act_gfx_alt2', '')
+        rmact_gfx = cached.get('rmact_gfx', '')
+        rmact_gfx_alt = cached.get('rmact_gfx_alt', '')
+        rmact_gfx_alt2 = cached.get('rmact_gfx_alt2', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', []).copy()
+        rmreqs_count = cached.get('rmreqs_count', 0)
+        rmreqs = cached.get('rmreqs', []).copy()
+        appearance_chance = cached.get('appearance_chance', 0)
+        appearance_reqs_count = cached.get('appearance_reqs_count', 0)
+        appearance_reqs = cached.get('appearance_reqs', []).copy()
+        disappearance_chance = cached.get('disappearance_chance', 0)
+        disappearance_reqs_count = cached.get('disappearance_reqs_count', 0)
+        disappearance_reqs = cached.get('disappearance_reqs', []).copy()
+        visibility_req = cached.get('visibility_req', 0)
+        buildable = cached.get('buildable', False)
+        generated = cached.get('generated', False)
+        build_time = cached.get('build_time', 0)
+        build_time_factor = cached.get('build_time_factor', 0)
+        removal_time = cached.get('removal_time', 0)
+        removal_time_factor = cached.get('removal_time_factor', 0)
+        infracost = cached.get('infracost', 0)
+        defense_bonus = cached.get('defense_bonus', 0)
+        eus = cached.get('eus', 0)
+        native_to = cached.get('native_to', 0)
+        flags = cached.get('flags', 0)
+        hidden_by = cached.get('hidden_by', 0)
+        bridged_over = cached.get('bridged_over', 0)
+        conflicts = cached.get('conflicts', 0)
+        no_aggr_near_city = cached.get('no_aggr_near_city', 0)
+        helptext = cached.get('helptext', '')
+    else:
+        extra_id = 0
+        name = rule_name = ''
+        category = 0
+        causes = rmcauses = 0
+        activity_gfx = act_gfx_alt = act_gfx_alt2 = ''
+        rmact_gfx = rmact_gfx_alt = rmact_gfx_alt2 = ''
+        graphic_str = graphic_alt = ''
+        reqs_count = 0
+        reqs = []
+        rmreqs_count = 0
+        rmreqs = []
+        appearance_chance = 0
+        appearance_reqs_count = 0
+        appearance_reqs = []
+        disappearance_chance = 0
+        disappearance_reqs_count = 0
+        disappearance_reqs = []
+        visibility_req = 0
+        buildable = generated = False
+        build_time = build_time_factor = 0
+        removal_time = removal_time_factor = 0
+        infracost = defense_bonus = eus = 0
+        native_to = flags = 0
+        hidden_by = bridged_over = conflicts = 0
+        no_aggr_near_city = 0
+        helptext = ''
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: id (UINT8)
+    if is_bit_set(bitvector, 0):
+        extra_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name (STRING)
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name (STRING)
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: category (UINT8)
+    if is_bit_set(bitvector, 3):
+        category, offset = decode_uint8(payload, offset)
+
+    # Bit 4: causes (nested bitvector, 16 bits = 2 bytes)
+    if is_bit_set(bitvector, 4):
+        causes, offset = read_bitvector(payload, offset, 16)
+
+    # Bit 5: rmcauses (nested bitvector, 8 bits = 1 byte)
+    if is_bit_set(bitvector, 5):
+        rmcauses, offset = read_bitvector(payload, offset, 8)
+
+    # Bit 6: activity_gfx (STRING)
+    if is_bit_set(bitvector, 6):
+        activity_gfx, offset = decode_string(payload, offset)
+
+    # Bit 7: act_gfx_alt (STRING)
+    if is_bit_set(bitvector, 7):
+        act_gfx_alt, offset = decode_string(payload, offset)
+
+    # Bit 8: act_gfx_alt2 (STRING)
+    if is_bit_set(bitvector, 8):
+        act_gfx_alt2, offset = decode_string(payload, offset)
+
+    # Bit 9: rmact_gfx (STRING)
+    if is_bit_set(bitvector, 9):
+        rmact_gfx, offset = decode_string(payload, offset)
+
+    # Bit 10: rmact_gfx_alt (STRING)
+    if is_bit_set(bitvector, 10):
+        rmact_gfx_alt, offset = decode_string(payload, offset)
+
+    # Bit 11: rmact_gfx_alt2 (STRING)
+    if is_bit_set(bitvector, 11):
+        rmact_gfx_alt2, offset = decode_string(payload, offset)
+
+    # Bit 12: graphic_str (STRING)
+    if is_bit_set(bitvector, 12):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 13: graphic_alt (STRING)
+    if is_bit_set(bitvector, 13):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Bit 14: reqs_count (UINT8)
+    if is_bit_set(bitvector, 14):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 15: reqs (REQUIREMENT array)
+    if is_bit_set(bitvector, 15):
+        reqs = []
+        for _ in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 16: rmreqs_count (UINT8)
+    if is_bit_set(bitvector, 16):
+        rmreqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 17: rmreqs (REQUIREMENT array)
+    if is_bit_set(bitvector, 17):
+        rmreqs = []
+        for _ in range(rmreqs_count):
+            req, offset = decode_requirement(payload, offset)
+            rmreqs.append(req)
+
+    # Bit 18: appearance_chance (UINT16)
+    if is_bit_set(bitvector, 18):
+        appearance_chance, offset = decode_uint16(payload, offset)
+
+    # Bit 19: appearance_reqs_count (UINT8)
+    if is_bit_set(bitvector, 19):
+        appearance_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 20: appearance_reqs (REQUIREMENT array)
+    if is_bit_set(bitvector, 20):
+        appearance_reqs = []
+        for _ in range(appearance_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            appearance_reqs.append(req)
+
+    # Bit 21: disappearance_chance (UINT16)
+    if is_bit_set(bitvector, 21):
+        disappearance_chance, offset = decode_uint16(payload, offset)
+
+    # Bit 22: disappearance_reqs_count (UINT8)
+    if is_bit_set(bitvector, 22):
+        disappearance_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 23: disappearance_reqs (REQUIREMENT array)
+    if is_bit_set(bitvector, 23):
+        disappearance_reqs = []
+        for _ in range(disappearance_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            disappearance_reqs.append(req)
+
+    # Bit 24: visibility_req (UINT16)
+    if is_bit_set(bitvector, 24):
+        visibility_req, offset = decode_uint16(payload, offset)
+
+    # Bit 25: buildable (BOOLEAN HEADER FOLDING - NO payload bytes!)
+    buildable = is_bit_set(bitvector, 25)
+
+    # Bit 26: generated (BOOLEAN HEADER FOLDING - NO payload bytes!)
+    generated = is_bit_set(bitvector, 26)
+
+    # Bit 27: build_time (UINT8)
+    if is_bit_set(bitvector, 27):
+        build_time, offset = decode_uint8(payload, offset)
+
+    # Bit 28: build_time_factor (UINT8)
+    if is_bit_set(bitvector, 28):
+        build_time_factor, offset = decode_uint8(payload, offset)
+
+    # Bit 29: removal_time (UINT8)
+    if is_bit_set(bitvector, 29):
+        removal_time, offset = decode_uint8(payload, offset)
+
+    # Bit 30: removal_time_factor (UINT8)
+    if is_bit_set(bitvector, 30):
+        removal_time_factor, offset = decode_uint8(payload, offset)
+
+    # Bit 31: infracost (UINT16)
+    if is_bit_set(bitvector, 31):
+        infracost, offset = decode_uint16(payload, offset)
+
+    # Bit 32: defense_bonus (UINT8)
+    if is_bit_set(bitvector, 32):
+        defense_bonus, offset = decode_uint8(payload, offset)
+
+    # Bit 33: eus (UINT8 - extra_unit_seen_type enum)
+    if is_bit_set(bitvector, 33):
+        eus, offset = decode_uint8(payload, offset)
+
+    # Bit 34: native_to (nested bitvector, 32 bits = 4 bytes)
+    if is_bit_set(bitvector, 34):
+        native_to, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 35: flags (nested bitvector, 22 bits = 3 bytes)
+    if is_bit_set(bitvector, 35):
+        flags, offset = read_bitvector(payload, offset, 22)
+
+    # Bit 36: hidden_by (nested bitvector, 250 bits = 32 bytes)
+    if is_bit_set(bitvector, 36):
+        hidden_by, offset = read_bitvector(payload, offset, 250)
+
+    # Bit 37: bridged_over (nested bitvector, 250 bits = 32 bytes)
+    if is_bit_set(bitvector, 37):
+        bridged_over, offset = read_bitvector(payload, offset, 250)
+
+    # Bit 38: conflicts (nested bitvector, 250 bits = 32 bytes)
+    if is_bit_set(bitvector, 38):
+        conflicts, offset = read_bitvector(payload, offset, 250)
+
+    # Bit 39: no_aggr_near_city (SINT8)
+    if is_bit_set(bitvector, 39):
+        no_aggr_near_city, offset = decode_sint8(payload, offset)
+
+    # Bit 40: helptext (STRING)
+    if is_bit_set(bitvector, 40):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result dict with all 41 fields
+    result = {
+        'id': extra_id,
+        'name': name,
+        'rule_name': rule_name,
+        'category': category,
+        'causes': causes,
+        'rmcauses': rmcauses,
+        'activity_gfx': activity_gfx,
+        'act_gfx_alt': act_gfx_alt,
+        'act_gfx_alt2': act_gfx_alt2,
+        'rmact_gfx': rmact_gfx,
+        'rmact_gfx_alt': rmact_gfx_alt,
+        'rmact_gfx_alt2': rmact_gfx_alt2,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'rmreqs_count': rmreqs_count,
+        'rmreqs': rmreqs,
+        'appearance_chance': appearance_chance,
+        'appearance_reqs_count': appearance_reqs_count,
+        'appearance_reqs': appearance_reqs,
+        'disappearance_chance': disappearance_chance,
+        'disappearance_reqs_count': disappearance_reqs_count,
+        'disappearance_reqs': disappearance_reqs,
+        'visibility_req': visibility_req,
+        'buildable': buildable,
+        'generated': generated,
+        'build_time': build_time,
+        'build_time_factor': build_time_factor,
+        'removal_time': removal_time,
+        'removal_time_factor': removal_time_factor,
+        'infracost': infracost,
+        'defense_bonus': defense_bonus,
+        'eus': eus,
+        'native_to': native_to,
+        'flags': flags,
+        'hidden_by': hidden_by,
+        'bridged_over': bridged_over,
+        'conflicts': conflicts,
+        'no_aggr_near_city': no_aggr_near_city,
+        'helptext': helptext,
+    }
+
+    # Update cache with empty tuple key
+    delta_cache.update_cache(PACKET_RULESET_EXTRA, (), result)
 
     return result
 

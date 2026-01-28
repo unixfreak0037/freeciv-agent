@@ -1313,6 +1313,111 @@ async def handle_ruleset_unit(
         print(f"  Veteran levels: {unit_type.veteran_levels}")
 
 
+async def handle_ruleset_extra(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_EXTRA (232) - extra type definition.
+
+    Extras are terrain features like forests, rivers, roads, bases, and other
+    map improvements. This packet defines the properties and behavior of each
+    extra type in the ruleset.
+
+    Updates game_state.extras dict with ExtraType objects keyed by extra ID.
+    """
+    from ..game_state import ExtraType, Requirement
+
+    # Decode packet
+    data = protocol.decode_ruleset_extra(payload, client._delta_cache)
+
+    # Convert requirement arrays to Requirement objects
+    reqs = [Requirement(**req) for req in data.get('reqs', [])]
+    rmreqs = [Requirement(**req) for req in data.get('rmreqs', [])]
+    appearance_reqs = [Requirement(**req) for req in data.get('appearance_reqs', [])]
+    disappearance_reqs = [Requirement(**req) for req in data.get('disappearance_reqs', [])]
+
+    # Create ExtraType object with all 41 fields
+    extra = ExtraType(
+        id=data['id'],
+        name=data.get('name', ''),
+        rule_name=data.get('rule_name', ''),
+        category=data.get('category', 0),
+        causes=data.get('causes', 0),
+        rmcauses=data.get('rmcauses', 0),
+        activity_gfx=data.get('activity_gfx', ''),
+        act_gfx_alt=data.get('act_gfx_alt', ''),
+        act_gfx_alt2=data.get('act_gfx_alt2', ''),
+        rmact_gfx=data.get('rmact_gfx', ''),
+        rmact_gfx_alt=data.get('rmact_gfx_alt', ''),
+        rmact_gfx_alt2=data.get('rmact_gfx_alt2', ''),
+        graphic_str=data.get('graphic_str', ''),
+        graphic_alt=data.get('graphic_alt', ''),
+        reqs_count=data.get('reqs_count', 0),
+        reqs=reqs,
+        rmreqs_count=data.get('rmreqs_count', 0),
+        rmreqs=rmreqs,
+        appearance_chance=data.get('appearance_chance', 0),
+        appearance_reqs_count=data.get('appearance_reqs_count', 0),
+        appearance_reqs=appearance_reqs,
+        disappearance_chance=data.get('disappearance_chance', 0),
+        disappearance_reqs_count=data.get('disappearance_reqs_count', 0),
+        disappearance_reqs=disappearance_reqs,
+        visibility_req=data.get('visibility_req', 0),
+        buildable=data.get('buildable', False),
+        generated=data.get('generated', False),
+        build_time=data.get('build_time', 0),
+        build_time_factor=data.get('build_time_factor', 0),
+        removal_time=data.get('removal_time', 0),
+        removal_time_factor=data.get('removal_time_factor', 0),
+        infracost=data.get('infracost', 0),
+        defense_bonus=data.get('defense_bonus', 0),
+        eus=data.get('eus', 0),
+        native_to=data.get('native_to', 0),
+        flags=data.get('flags', 0),
+        hidden_by=data.get('hidden_by', 0),
+        bridged_over=data.get('bridged_over', 0),
+        conflicts=data.get('conflicts', 0),
+        no_aggr_near_city=data.get('no_aggr_near_city', 0),
+        helptext=data.get('helptext', '')
+    )
+
+    # Store in game state
+    game_state.extras[extra.id] = extra
+
+    # Display summary
+    print(f"\n[EXTRA {extra.id}] {extra.name} ({extra.rule_name})")
+    print(f"  Category: {extra.category}")
+
+    # Display build info
+    if extra.buildable:
+        build_info = f"buildable"
+        if extra.build_time > 0:
+            build_info += f", {extra.build_time} turns"
+        print(f"  Build: {build_info}")
+
+    # Display removal info
+    if extra.removal_time > 0:
+        print(f"  Removal: {extra.removal_time} turns")
+
+    # Display special properties
+    properties = []
+    if extra.generated:
+        properties.append("auto-generated")
+    if extra.defense_bonus > 0:
+        properties.append(f"+{extra.defense_bonus}% defense")
+    if extra.infracost > 0:
+        properties.append(f"infracost {extra.infracost}")
+
+    if properties:
+        print(f"  Properties: {', '.join(properties)}")
+
+    # Display requirements if present
+    if extra.reqs_count > 0:
+        print(f"  Build requirements: {extra.reqs_count}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_summary",
@@ -1339,4 +1444,5 @@ __all__ = [
     "handle_ruleset_action",
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",
+    "handle_ruleset_extra",
 ]

@@ -297,6 +297,85 @@ class ExtraFlag:
 
 
 @dataclass
+class ExtraType:
+    """
+    Extra type from PACKET_RULESET_EXTRA (232).
+
+    Extras are terrain features like forests, rivers, roads, bases, and other
+    map improvements. This packet defines the properties and behavior of each
+    extra type in the ruleset.
+    """
+    # Identity
+    id: int
+    name: str
+    rule_name: str
+    category: int
+
+    # Causes/removal (bitvectors)
+    causes: int                    # BV_CAUSES (2 bytes)
+    rmcauses: int                  # BV_RMCAUSES (1 byte)
+
+    # Graphics (8 STRING fields)
+    activity_gfx: str
+    act_gfx_alt: str
+    act_gfx_alt2: str
+    rmact_gfx: str
+    rmact_gfx_alt: str
+    rmact_gfx_alt2: str
+    graphic_str: str
+    graphic_alt: str
+
+    # Build requirements
+    reqs_count: int
+    reqs: List['Requirement']
+
+    # Removal requirements
+    rmreqs_count: int
+    rmreqs: List['Requirement']
+
+    # Appearance
+    appearance_chance: int
+    appearance_reqs_count: int
+    appearance_reqs: List['Requirement']
+
+    # Disappearance
+    disappearance_chance: int
+    disappearance_reqs_count: int
+    disappearance_reqs: List['Requirement']
+
+    # Visibility
+    visibility_req: int            # UINT16 - tech ID
+
+    # Booleans (header folding)
+    buildable: bool
+    generated: bool
+
+    # Build/removal times
+    build_time: int
+    build_time_factor: int
+    removal_time: int
+    removal_time_factor: int
+
+    # Combat/infrastructure
+    infracost: int
+    defense_bonus: int
+    eus: int                       # UINT8 - extra_unit_seen_type
+
+    # Bitvector properties
+    native_to: int                 # BV_UNIT_CLASSES (4 bytes)
+    flags: int                     # BV_EXTRA_FLAGS (3 bytes)
+    hidden_by: int                 # BV_EXTRAS (32 bytes)
+    bridged_over: int              # BV_EXTRAS (32 bytes)
+    conflicts: int                 # BV_EXTRAS (32 bytes)
+
+    # No aggression
+    no_aggr_near_city: int         # SINT8
+
+    # Help text
+    helptext: str
+
+
+@dataclass
 class UnitClassFlag:
     """Unit class flag from PACKET_RULESET_UNIT_CLASS_FLAG (230).
 
@@ -504,6 +583,7 @@ class GameState:
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
         self.tech_flags: Dict[int, TechFlag] = {}  # Technology flags by ID (PACKET_RULESET_TECH_FLAG)
         self.extra_flags: Dict[int, ExtraFlag] = {}  # Extra flags by ID (PACKET_RULESET_EXTRA_FLAG)
+        self.extras: Dict[int, ExtraType] = {}  # Extras by ID (PACKET_RULESET_EXTRA)
         self.unit_class_flags: Dict[int, UnitClassFlag] = {}  # Unit class flags by ID (PACKET_RULESET_UNIT_CLASS_FLAG)
         self.unit_flags: Dict[int, UnitFlag] = {}  # Unit flags by ID (PACKET_RULESET_UNIT_FLAG)
         self.unit_bonuses: List[UnitBonus] = []  # Combat bonuses by unit/flag combinations (PACKET_RULESET_UNIT_BONUS)
