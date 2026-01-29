@@ -585,6 +585,43 @@ async def handle_ruleset_trade(
     print(f"  Bonus Type: {bonus_str}")
 
 
+async def handle_ruleset_resource(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_RESOURCE (177) - resource type configuration.
+
+    Resources provide bonuses to tile outputs (e.g., Gold, Wheat, Horses).
+    Each resource defines output bonuses for the 6 output types.
+
+    Updates game_state.resources dict with the resource configuration.
+    """
+    from ..game_state import Resource
+
+    # Decode packet
+    data = protocol.decode_ruleset_resource(payload)
+
+    # Create Resource object
+    resource = Resource(
+        id=data['id'],
+        output=data['output']
+    )
+
+    # Store in game state
+    game_state.resources[resource.id] = resource
+
+    # Format output bonuses for display (show only non-zero values)
+    output_names = ["Food", "Shield", "Trade", "Gold", "Luxury", "Science"]
+    bonuses = []
+    for i, value in enumerate(resource.output):
+        if value > 0:
+            bonuses.append(f"{output_names[i]}+{value}")
+
+    bonus_str = ", ".join(bonuses) if bonuses else "No bonuses"
+    print(f"[RESOURCE] ID {resource.id}: {bonus_str}")
+
+
 async def handle_ruleset_action(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1554,6 +1591,7 @@ __all__ = [
     "handle_ruleset_specialist",
     "handle_ruleset_disaster",
     "handle_ruleset_trade",
+    "handle_ruleset_resource",
     "handle_ruleset_achievement",
     "handle_ruleset_tech_flag",
     "handle_ruleset_extra_flag",

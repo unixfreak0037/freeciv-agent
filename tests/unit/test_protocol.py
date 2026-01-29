@@ -38,6 +38,7 @@ from fc_client.protocol import (
     decode_nation_availability,
     decode_ruleset_achievement,
     decode_ruleset_trade,
+    decode_ruleset_resource,
     decode_ruleset_tech_flag,
     decode_ruleset_government_ruler_title,
     # Delta protocol helpers
@@ -1633,6 +1634,73 @@ def test_decode_ruleset_trade_partial():
     assert result['trade_pct'] == 100
     assert result['cancelling'] == 0  # Not transmitted, uses default
     assert result['bonus_type'] == 1
+
+
+def test_decode_ruleset_resource_full():
+    """Test decoding PACKET_RULESET_RESOURCE with all fields present."""
+    # bitvector=0x03 (bits 0,1 set), id=5, output=[2,1,0,3,0,1]
+    payload = bytes([
+        0x03,       # bitvector (bits 0,1 both set)
+        5,          # id
+        2,          # output[0] = Food
+        1,          # output[1] = Shield
+        0,          # output[2] = Trade
+        3,          # output[3] = Gold
+        0,          # output[4] = Luxury
+        1,          # output[5] = Science
+    ])
+
+    result = decode_ruleset_resource(payload)
+
+    assert result['id'] == 5
+    assert result['output'] == [2, 1, 0, 3, 0, 1]
+
+
+def test_decode_ruleset_resource_partial():
+    """Test decoding PACKET_RULESET_RESOURCE with only id field."""
+    # bitvector=0x01 (bit 0 set), id=3
+    payload = bytes([
+        0x01,       # bitvector (bit 0 set, bit 1 clear)
+        3,          # id
+    ])
+
+    result = decode_ruleset_resource(payload)
+
+    assert result['id'] == 3
+    assert result['output'] == [0, 0, 0, 0, 0, 0]  # Not transmitted, uses default
+
+
+def test_decode_ruleset_resource_output_only():
+    """Test decoding PACKET_RULESET_RESOURCE with only output array."""
+    # bitvector=0x02 (bit 1 set), output=[1,2,3,4,5,6]
+    payload = bytes([
+        0x02,       # bitvector (bit 0 clear, bit 1 set)
+        1,          # output[0] = Food
+        2,          # output[1] = Shield
+        3,          # output[2] = Trade
+        4,          # output[3] = Gold
+        5,          # output[4] = Luxury
+        6,          # output[5] = Science
+    ])
+
+    result = decode_ruleset_resource(payload)
+
+    assert result['id'] == 0  # Not transmitted, uses default
+    assert result['output'] == [1, 2, 3, 4, 5, 6]
+
+
+def test_decode_ruleset_resource_no_fields():
+    """Test decoding PACKET_RULESET_RESOURCE with all fields cached (delta)."""
+    # bitvector=0x00 (no bits set), all fields use cached/default values
+    payload = bytes([
+        0x00,       # bitvector (no fields present)
+    ])
+
+    result = decode_ruleset_resource(payload)
+
+    assert result['id'] == 0  # Default value
+    assert result['output'] == [0, 0, 0, 0, 0, 0]  # Default values
+
 
 def test_decode_ruleset_action_from_captured_packet():
     """Test decoding PACKET_RULESET_ACTION (246) with real server data.

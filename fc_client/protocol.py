@@ -45,6 +45,7 @@ PACKET_RULESET_UNIT_FLAG = 229
 PACKET_RULESET_UNIT_BONUS = 228
 PACKET_RULESET_UNIT = 140
 PACKET_RULESET_EXTRA = 232
+PACKET_RULESET_RESOURCE = 177
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -1482,6 +1483,56 @@ def decode_ruleset_trade(payload: bytes) -> dict:
         'trade_pct': trade_pct,
         'cancelling': cancelling,
         'bonus_type': bonus_type
+    }
+
+
+def decode_ruleset_resource(payload: bytes) -> dict:
+    """Decode PACKET_RULESET_RESOURCE (177).
+
+    Resources define tile bonuses (Gold, Wheat, Horses, etc.) with output values
+    for the 6 output types: Food, Shield, Trade, Gold, Luxury, and Science.
+
+    Uses delta protocol with no key fields - cache is initialized with zeros.
+    Fields are transmitted only if different from cached values.
+
+    Wire format:
+    - Byte 0: bitvector (2 bits used for 2 fields)
+    - Conditional fields based on bitvector:
+      - Bit 0 set: UINT8 id
+      - Bit 1 set: UINT8[6] output array (6 bytes, one per output type)
+
+    Output indices: [0=FOOD, 1=SHIELD, 2=TRADE, 3=GOLD, 4=LUXURY, 5=SCIENCE]
+
+    Reference: freeciv-build/packets_gen.c:79305
+    """
+    offset = 0
+
+    # Read bitvector
+    bitvector, offset = decode_uint8(payload, offset)
+
+    # Helper to check if bit is set
+    def has_field(bit_index):
+        return bool(bitvector & (1 << bit_index))
+
+    # Initialize with defaults (cache starts at zero for packets with no key fields)
+    resource_id = 0
+    output = [0] * O_LAST  # O_LAST=6
+
+    # Conditional fields based on bitvector
+    # Bit 0: id
+    if has_field(0):
+        resource_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: output array (6 bytes)
+    if has_field(1):
+        output = []
+        for i in range(O_LAST):
+            value, offset = decode_uint8(payload, offset)
+            output.append(value)
+
+    return {
+        'id': resource_id,
+        'output': output
     }
 
 

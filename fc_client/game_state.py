@@ -199,6 +199,17 @@ class TradeRouteType:
 
 
 @dataclass
+class Resource:
+    """Resource type from PACKET_RULESET_RESOURCE (177).
+
+    Resources provide bonuses to tile outputs.
+    Output array indices: [FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE]
+    """
+    id: int
+    output: List[int]  # Length O_LAST=6
+
+
+@dataclass
 class Specialist:
     """Specialist type definition from PACKET_RULESET_SPECIALIST (142).
 
@@ -612,6 +623,7 @@ class GameState:
         self.ruleset_game: Optional[RulesetGame] = None  # Core game configuration (PACKET_RULESET_GAME)
         self.disasters: Dict[int, DisasterType] = {}  # Disasters by ID (PACKET_RULESET_DISASTER)
         self.trade_routes: Dict[int, TradeRouteType] = {}  # Trade routes by ID (PACKET_RULESET_TRADE)
+        self.resources: Dict[int, Resource] = {}  # Resources by ID (PACKET_RULESET_RESOURCE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
         self.specialists: Dict[int, Specialist] = {}  # Specialists by ID (PACKET_RULESET_SPECIALIST)
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
