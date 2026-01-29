@@ -448,6 +448,27 @@ class BaseType:
 
 
 @dataclass
+class RoadType:
+    """Road type from PACKET_RULESET_ROAD (220).
+
+    Defines transportation infrastructure (roads, railroads, rivers, maglev)
+    that can be built on tiles, affecting movement costs and tile outputs.
+    """
+    id: int                          # Road type identifier
+    gui_type: int                    # GUI type: 0=Road, 1=Railroad, 2=Maglev, 3=Other
+    first_reqs_count: int            # Number of build requirements
+    first_reqs: List[Requirement]    # Requirements to build this road
+    move_cost: int                   # Movement cost (-1 = no effect)
+    move_mode: int                   # 0=Cardinal, 1=Relaxed, 2=FastAlways
+    tile_incr_const: List[int]       # Constant tile output increment [Food, Shield, Trade, Gold, Luxury, Science]
+    tile_incr: List[int]             # Percentage tile output increment [O_LAST=6]
+    tile_bonus: List[int]            # Tile output bonus [O_LAST=6]
+    compat: int                      # Compatibility: 0=Road, 1=Railroad, 2=River, 3=None
+    integrates: int                  # Bitvector (250 bits) of extras this integrates with
+    flags: int                       # Bitvector (4 bits) of road flags
+
+
+@dataclass
 class Tech:
     """Technology from PACKET_RULESET_TECH (144).
 
@@ -604,6 +625,7 @@ class GameState:
         self.unit_bonuses: List[UnitBonus] = []  # Combat bonuses by unit/flag combinations (PACKET_RULESET_UNIT_BONUS)
         self.unit_classes: Dict[int, UnitClass] = {}  # Unit classes by ID (PACKET_RULESET_UNIT_CLASS)
         self.base_types: Dict[int, BaseType] = {}  # Base types by ID (PACKET_RULESET_BASE)
+        self.road_types: Dict[int, RoadType] = {}  # Road types by ID (PACKET_RULESET_ROAD)
         self.techs: Dict[int, Tech] = {}  # Technologies by ID (PACKET_RULESET_TECH)
         self.governments: Dict[int, Government] = {}  # Governments by ID (PACKET_RULESET_GOVERNMENT)
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)

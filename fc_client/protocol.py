@@ -39,6 +39,7 @@ PACKET_RULESET_GOVERNMENT = 145
 PACKET_RULESET_GOVERNMENT_RULER_TITLE = 143
 PACKET_RULESET_UNIT_CLASS = 152
 PACKET_RULESET_BASE = 153
+PACKET_RULESET_ROAD = 220
 PACKET_RULESET_UNIT_CLASS_FLAG = 230
 PACKET_RULESET_UNIT_FLAG = 229
 PACKET_RULESET_UNIT_BONUS = 228
@@ -2091,6 +2092,139 @@ def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_BASE, (), result)
+
+    return result
+
+
+def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_ROAD (220) - road type definition.
+
+    Structure from freeciv-build/packets_gen.c:65770:
+    - 12-bit bitvector (2 bytes)
+    - Bit 0: id (UINT8)
+    - Bit 1: gui_type (UINT8)
+    - Bit 2: first_reqs_count (UINT8)
+    - Bit 3: first_reqs (REQUIREMENT array, 10 bytes each)
+    - Bit 4: move_cost (SINT16)
+    - Bit 5: move_mode (UINT8)
+    - Bit 6: tile_incr_const (UINT16[6])
+    - Bit 7: tile_incr (UINT16[6])
+    - Bit 8: tile_bonus (UINT16[6])
+    - Bit 9: compat (UINT8)
+    - Bit 10: integrates (BV_MAX_EXTRAS bitvector, 250 bits, 32 bytes)
+    - Bit 11: flags (BV_ROAD_FLAGS bitvector, 4 bits, 1 byte)
+    - Cache: hash_const (empty tuple)
+
+    Returns:
+        Dictionary with road type fields
+    """
+    offset = 0
+
+    # Read 12-bit bitvector (2 bytes)
+    bitvector, offset = read_bitvector(payload, offset, 12)
+
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_ROAD, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        road_id = cached.get('id', 0)
+        gui_type = cached.get('gui_type', 0)
+        first_reqs_count = cached.get('first_reqs_count', 0)
+        first_reqs = cached.get('first_reqs', []).copy()
+        move_cost = cached.get('move_cost', 0)
+        move_mode = cached.get('move_mode', 0)
+        tile_incr_const = cached.get('tile_incr_const', [0] * O_LAST).copy()
+        tile_incr = cached.get('tile_incr', [0] * O_LAST).copy()
+        tile_bonus = cached.get('tile_bonus', [0] * O_LAST).copy()
+        compat = cached.get('compat', 3)  # Default: ROCO_NONE
+        integrates = cached.get('integrates', 0)
+        flags = cached.get('flags', 0)
+    else:
+        road_id = 0
+        gui_type = 0
+        first_reqs_count = 0
+        first_reqs = []
+        move_cost = 0
+        move_mode = 0
+        tile_incr_const = [0] * O_LAST
+        tile_incr = [0] * O_LAST
+        tile_bonus = [0] * O_LAST
+        compat = 3  # ROCO_NONE
+        integrates = 0
+        flags = 0
+
+    # Decode fields based on bitvector
+    if has_field(0):
+        road_id, offset = decode_uint8(payload, offset)
+
+    if has_field(1):
+        gui_type, offset = decode_uint8(payload, offset)
+
+    if has_field(2):
+        first_reqs_count, offset = decode_uint8(payload, offset)
+
+    if has_field(3):
+        first_reqs = []
+        for _ in range(first_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            first_reqs.append(req)
+
+    if has_field(4):
+        move_cost, offset = decode_sint16(payload, offset)
+
+    if has_field(5):
+        move_mode, offset = decode_uint8(payload, offset)
+
+    if has_field(6):
+        tile_incr_const = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint16(payload, offset)
+            tile_incr_const.append(val)
+
+    if has_field(7):
+        tile_incr = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint16(payload, offset)
+            tile_incr.append(val)
+
+    if has_field(8):
+        tile_bonus = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint16(payload, offset)
+            tile_bonus.append(val)
+
+    if has_field(9):
+        compat, offset = decode_uint8(payload, offset)
+
+    if has_field(10):
+        integrates, offset = read_bitvector(payload, offset, 250)
+
+    if has_field(11):
+        flags, offset = read_bitvector(payload, offset, 4)
+
+    # Build result
+    result = {
+        'id': road_id,
+        'gui_type': gui_type,
+        'first_reqs_count': first_reqs_count,
+        'first_reqs': first_reqs,
+        'move_cost': move_cost,
+        'move_mode': move_mode,
+        'tile_incr_const': tile_incr_const,
+        'tile_incr': tile_incr,
+        'tile_bonus': tile_bonus,
+        'compat': compat,
+        'integrates': integrates,
+        'flags': flags
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_ROAD, (), result)
 
     return result
 

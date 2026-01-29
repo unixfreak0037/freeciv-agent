@@ -940,6 +940,95 @@ async def handle_ruleset_base(
     print(f"  Vision (Submarines): {base_type.vision_subs_sq if base_type.vision_subs_sq >= 0 else 'None'}")
 
 
+async def handle_ruleset_road(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_ROAD (220) - road type definition."""
+    from ..game_state import RoadType, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_road(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    first_reqs = [
+        Requirement(**req) for req in data['first_reqs']
+    ]
+
+    # Create RoadType object
+    road_type = RoadType(
+        id=data['id'],
+        gui_type=data['gui_type'],
+        first_reqs_count=data['first_reqs_count'],
+        first_reqs=first_reqs,
+        move_cost=data['move_cost'],
+        move_mode=data['move_mode'],
+        tile_incr_const=data['tile_incr_const'],
+        tile_incr=data['tile_incr'],
+        tile_bonus=data['tile_bonus'],
+        compat=data['compat'],
+        integrates=data['integrates'],
+        flags=data['flags']
+    )
+
+    # Store in game state
+    game_state.road_types[road_type.id] = road_type
+
+    # Display summary
+    gui_type_names = {0: 'Road', 1: 'Railroad', 2: 'Maglev', 3: 'Other'}
+    move_mode_names = {0: 'Cardinal', 1: 'Relaxed', 2: 'FastAlways'}
+    compat_names = {0: 'Road', 1: 'Railroad', 2: 'River', 3: 'None'}
+    output_names = ['Food', 'Shield', 'Trade', 'Gold', 'Luxury', 'Science']
+    flag_names = {0: 'River', 1: 'UnrestrictedInfra', 2: 'JumpFrom', 3: 'JumpTo'}
+
+    gui_name = gui_type_names.get(road_type.gui_type, f'Unknown({road_type.gui_type})')
+    mode_name = move_mode_names.get(road_type.move_mode, f'Unknown({road_type.move_mode})')
+    compat_name = compat_names.get(road_type.compat, f'Unknown({road_type.compat})')
+
+    print(f"\n[ROAD TYPE {road_type.id}] {gui_name}")
+    print(f"  Movement: cost={road_type.move_cost}, mode={mode_name}")
+    print(f"  Compatibility: {compat_name}")
+
+    # Display tile bonuses (only non-zero values)
+    bonuses = []
+    for i, (const_val, incr_val, bonus_val) in enumerate(zip(
+        road_type.tile_incr_const,
+        road_type.tile_incr,
+        road_type.tile_bonus
+    )):
+        if const_val != 0 or incr_val != 0 or bonus_val != 0:
+            parts = []
+            if const_val != 0:
+                parts.append(f"+{const_val}")
+            if incr_val != 0:
+                parts.append(f"+{incr_val}%")
+            if bonus_val != 0:
+                parts.append(f"bonus={bonus_val}")
+            bonuses.append(f"{output_names[i]}({', '.join(parts)})")
+
+    if bonuses:
+        print(f"  Tile bonuses: {', '.join(bonuses)}")
+
+    # Display flags (if any active)
+    active_flags = []
+    for bit, name in flag_names.items():
+        if road_type.flags & (1 << bit):
+            active_flags.append(name)
+    if active_flags:
+        print(f"  Flags: {', '.join(active_flags)}")
+
+    # Display requirements count
+    if road_type.first_reqs_count > 0:
+        print(f"  Requirements: {road_type.first_reqs_count}")
+
+    # Display integrates count (if non-zero)
+    if road_type.integrates != 0:
+        # Count set bits
+        integrates_count = bin(road_type.integrates).count('1')
+        print(f"  Integrates with: {integrates_count} extras")
+
+
 async def handle_ruleset_unit_class_flag(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1470,6 +1559,7 @@ __all__ = [
     "handle_ruleset_extra_flag",
     "handle_ruleset_unit_class",
     "handle_ruleset_base",
+    "handle_ruleset_road",
     "handle_ruleset_unit_class_flag",
     "handle_ruleset_unit_flag",
     "handle_ruleset_unit_bonus",
