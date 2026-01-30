@@ -518,6 +518,23 @@ class Government:
 
 
 @dataclass
+class TerrainControl:
+    """Terrain control settings from PACKET_RULESET_TERRAIN_CONTROL (146)."""
+    ocean_reclaim_requirement_pct: int      # Percentage requirement for ocean reclaim
+    land_channel_requirement_pct: int       # Percentage requirement for land channel
+    terrain_thaw_requirement_pct: int       # Percentage requirement for terrain thaw
+    terrain_freeze_requirement_pct: int     # Percentage requirement for terrain freeze
+    lake_max_size: int                      # Maximum lake size threshold
+    min_start_native_area: int              # Minimum native area for start position
+    move_fragments: int                     # Movement fragments per move
+    igter_cost: int                         # Ignore terrain cost value
+    pythagorean_diagonal: bool              # Use pythagorean distance for diagonals
+    infrapoints: bool                       # Infrastructure points enabled
+    gui_type_base0: str                     # GUI type base 0 name
+    gui_type_base1: str                     # GUI type base 1 name
+
+
+@dataclass
 class GovernmentRulerTitle:
     """Ruler title for government/nation combination from PACKET_RULESET_GOVERNMENT_RULER_TITLE (143)."""
     gov: int            # Government type ID
@@ -613,6 +630,7 @@ class GameState:
         self.game_info: Optional[Dict[str, Any]] = None  # Game state information (PACKET_GAME_INFO)
         self.chat_history = []  # List of chat message dicts with timestamps
         self.ruleset_control: Optional[RulesetControl] = None  # Ruleset configuration (PACKET_RULESET_CONTROL)
+        self.terrain_control: Optional[TerrainControl] = None  # Terrain control settings (PACKET_RULESET_TERRAIN_CONTROL)
         self.ruleset_summary: Optional[str] = None  # Ruleset summary text (PACKET_RULESET_SUMMARY)
         self.ruleset_description_parts: List[str] = []  # Accumulator for description chunks
         self.ruleset_description: Optional[str] = None  # Complete assembled description

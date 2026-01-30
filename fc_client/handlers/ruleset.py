@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from fc_client import protocol
-from fc_client.game_state import GameState, RulesetControl
+from fc_client.game_state import GameState, RulesetControl, TerrainControl
 
 if TYPE_CHECKING:
     from fc_client.client import FreeCivClient
@@ -1579,8 +1579,81 @@ async def handle_ruleset_extra(
         print(f"  Build requirements: {extra.reqs_count}")
 
 
+async def handle_ruleset_terrain_control(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_TERRAIN_CONTROL (146) - terrain control settings.
+
+    Contains global terrain mechanics configuration including movement rules,
+    channel/reclaim requirements, lake size limits, and GUI type mappings.
+
+    Updates game_state.terrain_control with the configuration.
+    """
+    # Decode packet
+    data = protocol.decode_ruleset_terrain_control(payload, client._delta_cache)
+
+    # Create TerrainControl object
+    terrain_control = TerrainControl(
+        ocean_reclaim_requirement_pct=data['ocean_reclaim_requirement_pct'],
+        land_channel_requirement_pct=data['land_channel_requirement_pct'],
+        terrain_thaw_requirement_pct=data['terrain_thaw_requirement_pct'],
+        terrain_freeze_requirement_pct=data['terrain_freeze_requirement_pct'],
+        lake_max_size=data['lake_max_size'],
+        min_start_native_area=data['min_start_native_area'],
+        move_fragments=data['move_fragments'],
+        igter_cost=data['igter_cost'],
+        pythagorean_diagonal=data['pythagorean_diagonal'],
+        infrapoints=data['infrapoints'],
+        gui_type_base0=data['gui_type_base0'],
+        gui_type_base1=data['gui_type_base1']
+    )
+
+    # Store in game state
+    game_state.terrain_control = terrain_control
+
+    # Display formatted summary
+    print("\n[TERRAIN CONTROL]")
+    print(f"  Movement: {terrain_control.move_fragments} fragments per move")
+    print(f"  Ignore Terrain Cost: {terrain_control.igter_cost}")
+    print(f"  Pythagorean Diagonal: {'Yes' if terrain_control.pythagorean_diagonal else 'No'}")
+    print(f"  Infrastructure Points: {'Enabled' if terrain_control.infrapoints else 'Disabled'}")
+    print(f"  Lake Max Size: {terrain_control.lake_max_size}")
+    print(f"  Min Start Native Area: {terrain_control.min_start_native_area}")
+
+    # Display transformation percentages if non-zero
+    transformations = []
+    if terrain_control.ocean_reclaim_requirement_pct > 0:
+        transformations.append(f"Ocean reclaim: {terrain_control.ocean_reclaim_requirement_pct}%")
+    if terrain_control.land_channel_requirement_pct > 0:
+        transformations.append(f"Land channel: {terrain_control.land_channel_requirement_pct}%")
+    if terrain_control.terrain_thaw_requirement_pct > 0:
+        transformations.append(f"Terrain thaw: {terrain_control.terrain_thaw_requirement_pct}%")
+    if terrain_control.terrain_freeze_requirement_pct > 0:
+        transformations.append(f"Terrain freeze: {terrain_control.terrain_freeze_requirement_pct}%")
+
+    if transformations:
+        print("  Transformation requirements:")
+        for transform in transformations:
+            print(f"    - {transform}")
+
+    # Display GUI type bases if set
+    gui_types = []
+    if terrain_control.gui_type_base0:
+        gui_types.append(f"Base 0: {terrain_control.gui_type_base0}")
+    if terrain_control.gui_type_base1:
+        gui_types.append(f"Base 1: {terrain_control.gui_type_base1}")
+
+    if gui_types:
+        print("  GUI Types:")
+        for gui_type in gui_types:
+            print(f"    - {gui_type}")
+
+
 __all__ = [
     "handle_ruleset_control",
+    "handle_ruleset_terrain_control",
     "handle_ruleset_summary",
     "handle_ruleset_description_part",
     "handle_ruleset_nation_sets",

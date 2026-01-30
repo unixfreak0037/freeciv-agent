@@ -46,6 +46,7 @@ PACKET_RULESET_UNIT_BONUS = 228
 PACKET_RULESET_UNIT = 140
 PACKET_RULESET_EXTRA = 232
 PACKET_RULESET_RESOURCE = 177
+PACKET_RULESET_TERRAIN_CONTROL = 146
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -3449,6 +3450,124 @@ def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache with empty tuple key
     delta_cache.update_cache(PACKET_RULESET_EXTRA, (), result)
+
+    return result
+
+
+def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_TERRAIN_CONTROL (146) - terrain control settings.
+
+    Contains global terrain mechanics configuration: movement rules, channel/reclaim
+    requirements, lake size limits, and GUI type mappings.
+
+    Delta protocol with empty tuple cache key (no key fields).
+    Reference: freeciv-build/packets_gen.c:54153
+
+    2-byte bitvector (12 conditional fields).
+    Bits 8-9 (pythagorean_diagonal, infrapoints) use boolean header folding - NO payload bytes.
+    """
+    offset = 0
+
+    # Read 2-byte bitvector (12 bits)
+    bitvector, offset = read_bitvector(payload, offset, 12)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_TERRAIN_CONTROL, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        ocean_reclaim_requirement_pct = cached.get('ocean_reclaim_requirement_pct', 0)
+        land_channel_requirement_pct = cached.get('land_channel_requirement_pct', 0)
+        terrain_thaw_requirement_pct = cached.get('terrain_thaw_requirement_pct', 0)
+        terrain_freeze_requirement_pct = cached.get('terrain_freeze_requirement_pct', 0)
+        lake_max_size = cached.get('lake_max_size', 0)
+        min_start_native_area = cached.get('min_start_native_area', 0)
+        move_fragments = cached.get('move_fragments', 0)
+        igter_cost = cached.get('igter_cost', 0)
+        pythagorean_diagonal = cached.get('pythagorean_diagonal', False)
+        infrapoints = cached.get('infrapoints', False)
+        gui_type_base0 = cached.get('gui_type_base0', '')
+        gui_type_base1 = cached.get('gui_type_base1', '')
+    else:
+        ocean_reclaim_requirement_pct = 0
+        land_channel_requirement_pct = 0
+        terrain_thaw_requirement_pct = 0
+        terrain_freeze_requirement_pct = 0
+        lake_max_size = 0
+        min_start_native_area = 0
+        move_fragments = 0
+        igter_cost = 0
+        pythagorean_diagonal = False
+        infrapoints = False
+        gui_type_base0 = ''
+        gui_type_base1 = ''
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: ocean_reclaim_requirement_pct (UINT8)
+    if is_bit_set(bitvector, 0):
+        ocean_reclaim_requirement_pct, offset = decode_uint8(payload, offset)
+
+    # Bit 1: land_channel_requirement_pct (UINT8)
+    if is_bit_set(bitvector, 1):
+        land_channel_requirement_pct, offset = decode_uint8(payload, offset)
+
+    # Bit 2: terrain_thaw_requirement_pct (UINT8)
+    if is_bit_set(bitvector, 2):
+        terrain_thaw_requirement_pct, offset = decode_uint8(payload, offset)
+
+    # Bit 3: terrain_freeze_requirement_pct (UINT8)
+    if is_bit_set(bitvector, 3):
+        terrain_freeze_requirement_pct, offset = decode_uint8(payload, offset)
+
+    # Bit 4: lake_max_size (UINT8)
+    if is_bit_set(bitvector, 4):
+        lake_max_size, offset = decode_uint8(payload, offset)
+
+    # Bit 5: min_start_native_area (UINT8)
+    if is_bit_set(bitvector, 5):
+        min_start_native_area, offset = decode_uint8(payload, offset)
+
+    # Bit 6: move_fragments (UINT32)
+    if is_bit_set(bitvector, 6):
+        move_fragments, offset = decode_uint32(payload, offset)
+
+    # Bit 7: igter_cost (UINT32)
+    if is_bit_set(bitvector, 7):
+        igter_cost, offset = decode_uint32(payload, offset)
+
+    # Bit 8: pythagorean_diagonal (HEADER-FOLDED - no payload bytes!)
+    pythagorean_diagonal = is_bit_set(bitvector, 8)
+
+    # Bit 9: infrapoints (HEADER-FOLDED - no payload bytes!)
+    infrapoints = is_bit_set(bitvector, 9)
+
+    # Bit 10: gui_type_base0 (STRING)
+    if is_bit_set(bitvector, 10):
+        gui_type_base0, offset = decode_string(payload, offset)
+
+    # Bit 11: gui_type_base1 (STRING)
+    if is_bit_set(bitvector, 11):
+        gui_type_base1, offset = decode_string(payload, offset)
+
+    # Build result dict with all 12 fields
+    result = {
+        'ocean_reclaim_requirement_pct': ocean_reclaim_requirement_pct,
+        'land_channel_requirement_pct': land_channel_requirement_pct,
+        'terrain_thaw_requirement_pct': terrain_thaw_requirement_pct,
+        'terrain_freeze_requirement_pct': terrain_freeze_requirement_pct,
+        'lake_max_size': lake_max_size,
+        'min_start_native_area': min_start_native_area,
+        'move_fragments': move_fragments,
+        'igter_cost': igter_cost,
+        'pythagorean_diagonal': pythagorean_diagonal,
+        'infrapoints': infrapoints,
+        'gui_type_base0': gui_type_base0,
+        'gui_type_base1': gui_type_base1,
+    }
+
+    # Update cache with empty tuple key
+    delta_cache.update_cache(PACKET_RULESET_TERRAIN_CONTROL, (), result)
 
     return result
 
