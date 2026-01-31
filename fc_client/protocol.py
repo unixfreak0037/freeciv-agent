@@ -53,6 +53,7 @@ PACKET_RULESET_TERRAIN = 151
 PACKET_RULESET_IMPR_FLAG = 20
 PACKET_RULESET_BUILDING = 150
 PACKET_RULESET_STYLE = 239
+PACKET_RULESET_CLAUSE = 512
 
 # FreeCiv constants
 O_LAST = (
@@ -1846,6 +1847,115 @@ def decode_ruleset_action_auto(payload: bytes, delta_cache: "DeltaCache") -> dic
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_ACTION_AUTO, (), result)
+
+    return result
+
+
+def decode_ruleset_clause(payload: bytes, delta_cache: "DeltaCache") -> dict:
+    """
+    Decode PACKET_RULESET_CLAUSE (512).
+
+    Diplomatic clause type configuration defining what types of clauses
+    can be included in treaties and what requirements must be met.
+
+    Structure (from freeciv-build/packets_gen.c:72034):
+    - 1-byte bitvector (6 bits used)
+    - Bit 0: type (UINT8) - Clause type enum (0-10)
+    - Bit 1: enabled (BOOL) - Boolean header folding (bit value IS the field)
+    - Bit 2: giver_reqs_count (UINT8) - Number of giver requirements
+    - Bit 3: giver_reqs (REQUIREMENT array) - Each requirement is 10 bytes
+    - Bit 4: receiver_reqs_count (UINT8) - Number of receiver requirements
+    - Bit 5: receiver_reqs (REQUIREMENT array) - Each requirement is 10 bytes
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+
+    Args:
+        payload: Raw packet bytes (after packet header)
+        delta_cache: Delta cache for retrieving cached field values
+
+    Returns:
+        Dictionary with decoded fields
+    """
+    offset = 0
+
+    # Read 6-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 6)
+
+    # Helper to check if field is present
+    def has_field(bit_index: int) -> bool:
+        return is_bit_set(bitvector, bit_index)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_CLAUSE, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        type = cached.get("type", 0)
+        enabled = cached.get("enabled", False)
+        giver_reqs_count = cached.get("giver_reqs_count", 0)
+        giver_reqs = cached.get("giver_reqs", []).copy()
+        receiver_reqs_count = cached.get("receiver_reqs_count", 0)
+        receiver_reqs = cached.get("receiver_reqs", []).copy()
+    else:
+        type = 0
+        enabled = False
+        giver_reqs_count = 0
+        giver_reqs = []
+        receiver_reqs_count = 0
+        receiver_reqs = []
+
+    # Bit 0: type
+    if has_field(0):
+        type, offset = decode_uint8(payload, offset)
+
+    # Bit 1: enabled (BOOLEAN HEADER FOLDING - bit value IS the boolean)
+    # No payload bytes consumed
+    # Note: We only update enabled if the field is present in the bitvector
+    # If bit 1 is set in bitvector, enabled = True
+    # If bit 1 is not set in bitvector, keep cached value (don't change)
+    # This is different from normal fields - the bit presence means "change to this value"
+    # Actually, looking at C code again: real_packet->enabled = BV_ISSET(fields, 1)
+    # This means: if field is in bitvector at all, set to bit value
+    # But the field is ALWAYS "transmitted" via the bitvector itself
+    # So we should ALWAYS update it based on the bit
+    enabled = has_field(1)
+
+    # Bit 2: giver_reqs_count
+    if has_field(2):
+        giver_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 3: giver_reqs (array of REQUIREMENT, each 10 bytes)
+    # Uses current giver_reqs_count (from cache or just read)
+    if has_field(3):
+        giver_reqs = []
+        for _ in range(giver_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            giver_reqs.append(req)
+
+    # Bit 4: receiver_reqs_count
+    if has_field(4):
+        receiver_reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 5: receiver_reqs (array of REQUIREMENT, each 10 bytes)
+    # Uses current receiver_reqs_count (from cache or just read)
+    if has_field(5):
+        receiver_reqs = []
+        for _ in range(receiver_reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            receiver_reqs.append(req)
+
+    # Build result
+    result = {
+        "type": type,
+        "enabled": enabled,
+        "giver_reqs_count": giver_reqs_count,
+        "giver_reqs": giver_reqs,
+        "receiver_reqs_count": receiver_reqs_count,
+        "receiver_reqs": receiver_reqs,
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_CLAUSE, (), result)
 
     return result
 

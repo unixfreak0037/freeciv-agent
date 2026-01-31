@@ -315,6 +315,22 @@ class ActionAutoPerformer:
 
 
 @dataclass
+class ClauseType:
+    """Diplomatic clause type configuration from PACKET_RULESET_CLAUSE (512).
+
+    Defines what types of clauses can be included in diplomatic treaties
+    and what requirements must be met by each party to use the clause.
+    """
+
+    type: int  # Clause type enum (0=Advance, 1=Gold, 2=Map, 3=Seamap, 4=City, 5=Ceasefire, 6=Peace, 7=Alliance, 8=Vision, 9=Embassy, 10=SharedTiles)
+    enabled: bool  # Whether this clause type is enabled in the ruleset
+    giver_reqs_count: int  # Number of requirements for the giver
+    giver_reqs: List[Requirement]  # Requirements the giver must meet
+    receiver_reqs_count: int  # Number of requirements for the receiver
+    receiver_reqs: List[Requirement]  # Requirements the receiver must meet
+
+
+@dataclass
 class TechFlag:
     """Technology flag from PACKET_RULESET_TECH_FLAG (234).
 
@@ -851,6 +867,7 @@ class GameState:
         self.action_enablers: List[ActionEnabler] = (
             []
         )  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
+        self.clause_types: Dict[int, ClauseType] = {}  # Clause types by ID (PACKET_RULESET_CLAUSE)
         self.action_auto_performers: List[ActionAutoPerformer] = (
             []
         )  # Auto action configs (PACKET_RULESET_ACTION_AUTO)

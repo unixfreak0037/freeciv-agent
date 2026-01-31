@@ -1925,6 +1925,60 @@ async def handle_ruleset_terrain(
     print(f"  Output: {output_str}")
 
 
+async def handle_ruleset_clause(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_CLAUSE (512) - diplomatic clause type definition."""
+    from fc_client.game_state import ClauseType, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_clause(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    giver_reqs = [Requirement(**req) for req in data["giver_reqs"]]
+    receiver_reqs = [Requirement(**req) for req in data["receiver_reqs"]]
+
+    # Create ClauseType object
+    clause = ClauseType(
+        type=data["type"],
+        enabled=data["enabled"],
+        giver_reqs_count=data["giver_reqs_count"],
+        giver_reqs=giver_reqs,
+        receiver_reqs_count=data["receiver_reqs_count"],
+        receiver_reqs=receiver_reqs,
+    )
+
+    # Store in game state
+    game_state.clause_types[clause.type] = clause
+
+    # Clause type names for display
+    clause_names = {
+        0: "Advance",
+        1: "Gold",
+        2: "Map",
+        3: "Seamap",
+        4: "City",
+        5: "Ceasefire",
+        6: "Peace",
+        7: "Alliance",
+        8: "Vision",
+        9: "Embassy",
+        10: "SharedTiles",
+    }
+
+    clause_name = clause_names.get(clause.type, f"Unknown({clause.type})")
+    status = "ENABLED" if clause.enabled else "DISABLED"
+
+    # Display summary
+    print(f"\n[CLAUSE {clause.type}] {clause_name} - {status}")
+    print(f"  Giver Requirements: {clause.giver_reqs_count}")
+    if clause.giver_reqs_count > 0:
+        print(f"    Giver must meet: {clause.giver_reqs_count} requirement(s)")
+    print(f"  Receiver Requirements: {clause.receiver_reqs_count}")
+    if clause.receiver_reqs_count > 0:
+        print(f"    Receiver must meet: {clause.receiver_reqs_count} requirement(s)")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_terrain_control",
@@ -1962,4 +2016,5 @@ __all__ = [
     "handle_ruleset_impr_flag",
     "handle_ruleset_style",
     "handle_ruleset_building",
+    "handle_ruleset_clause",
 ]
