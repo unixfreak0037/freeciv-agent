@@ -1778,6 +1778,66 @@ async def handle_ruleset_terrain_control(
             print(f"    - {gui_type}")
 
 
+async def handle_ruleset_building(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_BUILDING (150) - building/improvement type definition."""
+    from fc_client.game_state import Building, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_building(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    reqs = [Requirement(**req) for req in data['reqs']]
+    obs_reqs = [Requirement(**req) for req in data['obs_reqs']]
+
+    # Create Building object
+    building = Building(
+        id=data['id'],
+        genus=data['genus'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        graphic_str=data['graphic_str'],
+        graphic_alt=data['graphic_alt'],
+        graphic_alt2=data['graphic_alt2'],
+        reqs_count=data['reqs_count'],
+        reqs=reqs,
+        obs_count=data['obs_count'],
+        obs_reqs=obs_reqs,
+        build_cost=data['build_cost'],
+        upkeep=data['upkeep'],
+        sabotage=data['sabotage'],
+        flags=data['flags'],
+        soundtag=data['soundtag'],
+        soundtag_alt=data['soundtag_alt'],
+        soundtag_alt2=data['soundtag_alt2'],
+        helptext=data['helptext']
+    )
+
+    # Store in game state
+    game_state.buildings[building.id] = building
+
+    # Display summary
+    genus_names = {0: 'GreatWonder', 1: 'SmallWonder', 2: 'Improvement'}
+    genus_name = genus_names.get(building.genus, f'Unknown({building.genus})')
+
+    print(f"\n[BUILDING {building.id}] {building.name} ({building.rule_name})")
+    print(f"  Type: {genus_name}")
+    print(f"  Build Cost: {building.build_cost}")
+    print(f"  Upkeep: {building.upkeep}")
+    print(f"  Sabotage: {building.sabotage}")
+    print(f"  Flags: 0x{building.flags:08x}")
+    print(f"  Requirements: {building.reqs_count}")
+    print(f"  Obsolete Reqs: {building.obs_count}")
+
+    if building.helptext:
+        # Truncate long help text for console display
+        help_preview = building.helptext[:100] + '...' if len(building.helptext) > 100 else building.helptext
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_terrain(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1878,4 +1938,5 @@ __all__ = [
     "handle_ruleset_extra",
     "handle_ruleset_goods",
     "handle_ruleset_impr_flag",
+    "handle_ruleset_building",
 ]

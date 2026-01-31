@@ -51,6 +51,7 @@ PACKET_RULESET_TERRAIN_CONTROL = 146
 PACKET_RULESET_TERRAIN_FLAG = 231
 PACKET_RULESET_TERRAIN = 151
 PACKET_RULESET_IMPR_FLAG = 20
+PACKET_RULESET_BUILDING = 150
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -3780,6 +3781,182 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Update cache with empty tuple key
     delta_cache.update_cache(PACKET_RULESET_TERRAIN_CONTROL, (), result)
+
+    return result
+
+
+def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_BUILDING (150) - building/improvement type definition.
+
+    Buildings (also called improvements) are structures that can be built in cities,
+    including Great Wonders, Small Wonders, and regular improvements (libraries,
+    temples, walls, etc.).
+
+    Delta protocol with 'id' as key field.
+    Reference: freeciv-build/packets_gen.c:58834
+
+    19 conditional fields (bits 0-18), 3-byte bitvector.
+    """
+    offset = 0
+
+    # Read 3-byte bitvector (19 conditional fields)
+    bitvector, offset = read_bitvector(payload, offset, 19)
+
+    # Get cached packet (keyed by id)
+    # Note: We don't have id yet, so we use empty tuple for initial lookup
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_BUILDING, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        building_id = cached.get('id', 0)
+        genus = cached.get('genus', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        graphic_alt2 = cached.get('graphic_alt2', '')
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', []).copy()
+        obs_count = cached.get('obs_count', 0)
+        obs_reqs = cached.get('obs_reqs', []).copy()
+        build_cost = cached.get('build_cost', 0)
+        upkeep = cached.get('upkeep', 0)
+        sabotage = cached.get('sabotage', 0)
+        flags = cached.get('flags', 0)
+        soundtag = cached.get('soundtag', '')
+        soundtag_alt = cached.get('soundtag_alt', '')
+        soundtag_alt2 = cached.get('soundtag_alt2', '')
+        helptext = cached.get('helptext', '')
+    else:
+        building_id = 0
+        genus = 0
+        name = ''
+        rule_name = ''
+        graphic_str = ''
+        graphic_alt = ''
+        graphic_alt2 = ''
+        reqs_count = 0
+        reqs = []
+        obs_count = 0
+        obs_reqs = []
+        build_cost = 0
+        upkeep = 0
+        sabotage = 0
+        flags = 0
+        soundtag = ''
+        soundtag_alt = ''
+        soundtag_alt2 = ''
+        helptext = ''
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: id (UINT8) - key field
+    if is_bit_set(bitvector, 0):
+        building_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: genus (UINT8)
+    if is_bit_set(bitvector, 1):
+        genus, offset = decode_uint8(payload, offset)
+
+    # Bit 2: name (STRING)
+    if is_bit_set(bitvector, 2):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 3: rule_name (STRING)
+    if is_bit_set(bitvector, 3):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 4: graphic_str (STRING)
+    if is_bit_set(bitvector, 4):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 5: graphic_alt (STRING)
+    if is_bit_set(bitvector, 5):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Bit 6: graphic_alt2 (STRING)
+    if is_bit_set(bitvector, 6):
+        graphic_alt2, offset = decode_string(payload, offset)
+
+    # Bit 7: reqs_count (UINT8)
+    if is_bit_set(bitvector, 7):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 8: reqs array (REQUIREMENT[], length from reqs_count)
+    if is_bit_set(bitvector, 8):
+        reqs = []
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 9: obs_count (UINT8)
+    if is_bit_set(bitvector, 9):
+        obs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 10: obs_reqs array (REQUIREMENT[], length from obs_count)
+    if is_bit_set(bitvector, 10):
+        obs_reqs = []
+        for i in range(obs_count):
+            req, offset = decode_requirement(payload, offset)
+            obs_reqs.append(req)
+
+    # Bit 11: build_cost (UINT16)
+    if is_bit_set(bitvector, 11):
+        build_cost, offset = decode_uint16(payload, offset)
+
+    # Bit 12: upkeep (UINT8)
+    if is_bit_set(bitvector, 12):
+        upkeep, offset = decode_uint8(payload, offset)
+
+    # Bit 13: sabotage (UINT8)
+    if is_bit_set(bitvector, 13):
+        sabotage, offset = decode_uint8(payload, offset)
+
+    # Bit 14: flags (BV_IMPR_FLAGS - bitvector)
+    if is_bit_set(bitvector, 14):
+        flags, offset = decode_uint32(payload, offset)  # Assuming 32-bit bitvector
+
+    # Bit 15: soundtag (STRING)
+    if is_bit_set(bitvector, 15):
+        soundtag, offset = decode_string(payload, offset)
+
+    # Bit 16: soundtag_alt (STRING)
+    if is_bit_set(bitvector, 16):
+        soundtag_alt, offset = decode_string(payload, offset)
+
+    # Bit 17: soundtag_alt2 (STRING)
+    if is_bit_set(bitvector, 17):
+        soundtag_alt2, offset = decode_string(payload, offset)
+
+    # Bit 18: helptext (STRING)
+    if is_bit_set(bitvector, 18):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': building_id,
+        'genus': genus,
+        'name': name,
+        'rule_name': rule_name,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'graphic_alt2': graphic_alt2,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'obs_count': obs_count,
+        'obs_reqs': obs_reqs,
+        'build_cost': build_cost,
+        'upkeep': upkeep,
+        'sabotage': sabotage,
+        'flags': flags,
+        'soundtag': soundtag,
+        'soundtag_alt': soundtag_alt,
+        'soundtag_alt2': soundtag_alt2,
+        'helptext': helptext
+    }
+
+    # Update cache with empty tuple (hash_const packet)
+    delta_cache.update_cache(PACKET_RULESET_BUILDING, (), result)
 
     return result
 

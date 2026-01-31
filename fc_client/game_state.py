@@ -353,6 +353,35 @@ class ImprFlag:
 
 
 @dataclass
+class Building:
+    """Building/improvement type from PACKET_RULESET_BUILDING (150).
+
+    Buildings (also called improvements) are structures that can be built
+    in cities, including Great Wonders, Small Wonders, and regular city
+    improvements (libraries, temples, walls, etc.).
+    """
+    id: int                           # Building type ID (key)
+    genus: int                        # Building genus: 0=GreatWonder, 1=SmallWonder, 2=Improvement
+    name: str                         # Display name
+    rule_name: str                    # Internal identifier
+    graphic_str: str                  # Primary graphics tag
+    graphic_alt: str                  # Alternative graphics tag
+    graphic_alt2: str                 # Second alternative graphics tag
+    reqs_count: int                   # Number of build requirements
+    reqs: List['Requirement']         # Requirements to build
+    obs_count: int                    # Number of obsolescence requirements
+    obs_reqs: List['Requirement']     # Requirements that obsolete this building
+    build_cost: int                   # Production cost to build
+    upkeep: int                       # Gold upkeep per turn
+    sabotage: int                     # Sabotage vulnerability
+    flags: int                        # Bitvector of improvement flags (BV_IMPR_FLAGS)
+    soundtag: str                     # Primary sound tag
+    soundtag_alt: str                 # Alternative sound tag
+    soundtag_alt2: str                # Second alternative sound tag
+    helptext: str                     # Help text description
+
+
+@dataclass
 class ExtraType:
     """
     Extra type from PACKET_RULESET_EXTRA (232).
@@ -772,3 +801,4 @@ class GameState:
         self.unit_types: Dict[int, UnitType] = {}  # Unit types by ID (PACKET_RULESET_UNIT)
         self.terrain_flags: Dict[int, TerrainFlag] = {}  # Terrain flags by ID (PACKET_RULESET_TERRAIN_FLAG)
         self.improvement_flags: Dict[int, ImprFlag] = {}  # Improvement flags by ID (PACKET_RULESET_IMPR_FLAG)
+        self.buildings: Dict[int, Building] = {}  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)
