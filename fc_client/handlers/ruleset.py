@@ -895,6 +895,42 @@ async def handle_ruleset_extra_flag(client: 'FreeCivClient', game_state: GameSta
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_terrain_flag(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_TERRAIN_FLAG (231).
+
+    Terrain flags are properties that can be assigned to terrain types
+    in the ruleset to define game mechanics and requirements.
+
+    Updates game_state.terrain_flags dictionary with the terrain flag.
+    """
+    from ..game_state import TerrainFlag
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_terrain_flag(payload, client._delta_cache)
+
+    # Create TerrainFlag object
+    terrain_flag = TerrainFlag(
+        id=data['id'],
+        name=data['name'],
+        helptxt=data['helptxt']
+    )
+
+    # Store in game state (keyed by ID)
+    game_state.terrain_flags[terrain_flag.id] = terrain_flag
+
+    # Display summary
+    print(f"\n[TERRAIN FLAG {terrain_flag.id}] {terrain_flag.name}")
+    if terrain_flag.helptxt:
+        # Truncate long help text for console display
+        help_preview = terrain_flag.helptxt[:100] + '...' if len(terrain_flag.helptxt) > 100 else terrain_flag.helptxt
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_unit_class(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1654,6 +1690,7 @@ async def handle_ruleset_terrain_control(
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_terrain_control",
+    "handle_ruleset_terrain_flag",
     "handle_ruleset_summary",
     "handle_ruleset_description_part",
     "handle_ruleset_nation_sets",

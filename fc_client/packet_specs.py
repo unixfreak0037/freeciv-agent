@@ -318,6 +318,17 @@ PACKET_SPECS[228] = PacketSpec(
     ]
 )
 
+PACKET_SPECS[231] = PacketSpec(
+    packet_type=231,
+    name="PACKET_RULESET_TERRAIN_FLAG",
+    has_delta=True,
+    fields=[
+        FieldSpec(name='id', type_name='UINT8', is_key=False),
+        FieldSpec(name='name', type_name='STRING', is_key=False),
+        FieldSpec(name='helptxt', type_name='STRING', is_key=False),
+    ]
+)
+
 
 # Add more packet specifications as needed following this pattern:
 # PACKET_SPECS[<packet_num>] = PacketSpec(

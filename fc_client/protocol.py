@@ -47,6 +47,7 @@ PACKET_RULESET_UNIT = 140
 PACKET_RULESET_EXTRA = 232
 PACKET_RULESET_RESOURCE = 177
 PACKET_RULESET_TERRAIN_CONTROL = 146
+PACKET_RULESET_TERRAIN_FLAG = 231
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -1979,6 +1980,61 @@ def decode_ruleset_extra_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_EXTRA_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_terrain_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_TERRAIN_FLAG (231).
+
+    Structure (from freeciv-build/packets_gen.c:62323):
+    - 1-byte bitvector (3 bits used)
+    - Bit 0: id (UINT8) - Terrain flag identifier
+    - Bit 1: name (STRING) - Flag name
+    - Bit 2: helptxt (STRING) - Help text
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+    """
+    offset = 0
+
+    # Read 3-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 3)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_TERRAIN_FLAG, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        terrain_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        helptxt = cached.get('helptxt', '')
+    else:
+        terrain_id = 0
+        name = ''
+        helptxt = ''
+
+    # Bit 0: id
+    if is_bit_set(bitvector, 0):
+        terrain_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: helptxt
+    if is_bit_set(bitvector, 2):
+        helptxt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        'id': terrain_id,
+        'name': name,
+        'helptxt': helptxt
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_TERRAIN_FLAG, (), result)
 
     return result
 
