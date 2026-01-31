@@ -931,6 +931,42 @@ async def handle_ruleset_terrain_flag(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_impr_flag(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_IMPR_FLAG (20).
+
+    Improvement flags are properties that can be assigned to improvements
+    (buildings/city improvements) in the ruleset to define game mechanics.
+
+    Updates game_state.improvement_flags dictionary with the improvement flag.
+    """
+    from ..game_state import ImprFlag
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_impr_flag(payload, client._delta_cache)
+
+    # Create ImprFlag object
+    impr_flag = ImprFlag(
+        id=data['id'],
+        name=data['name'],
+        helptxt=data['helptxt']
+    )
+
+    # Store in game state (keyed by ID)
+    game_state.improvement_flags[impr_flag.id] = impr_flag
+
+    # Display summary
+    print(f"\n[IMPR FLAG {impr_flag.id}] {impr_flag.name}")
+    if impr_flag.helptxt:
+        # Truncate long help text for console display
+        help_preview = impr_flag.helptxt[:100] + '...' if len(impr_flag.helptxt) > 100 else impr_flag.helptxt
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_unit_class(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1841,4 +1877,5 @@ __all__ = [
     "handle_ruleset_action_auto",
     "handle_ruleset_extra",
     "handle_ruleset_goods",
+    "handle_ruleset_impr_flag",
 ]

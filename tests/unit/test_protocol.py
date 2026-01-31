@@ -2332,3 +2332,106 @@ def test_decode_ruleset_government_ruler_title_negative_ids(delta_cache):
 
     assert result['gov'] == -1
     assert result['nation'] == -1
+
+
+# PACKET_RULESET_IMPR_FLAG (20) Tests
+
+
+@pytest.mark.unit
+def test_decode_ruleset_impr_flag_all_fields(delta_cache):
+    """Test decoding PACKET_RULESET_IMPR_FLAG with real captured packet data.
+
+    This uses the actual packet captured from FreeCiv server:
+    packets/inbound_2411_type020.packet
+
+    Packet structure:
+    - Bitvector: 0x03 (bits 0, 1 set - id and name present)
+    - id: 4
+    - name: "Barracks"
+    - helptxt: not present (empty string from cache)
+    """
+    payload = (
+        b'\x03'  # Bitvector: bits 0, 1 set (id, name)
+        b'\x04'  # id: 4
+        b'Barracks\x00'  # name: "Barracks"
+    )
+
+    result = protocol.decode_ruleset_impr_flag(payload, delta_cache)
+
+    assert result['id'] == 4
+    assert result['name'] == 'Barracks'
+    assert result['helptxt'] == ''
+
+
+@pytest.mark.unit
+def test_decode_ruleset_impr_flag_with_helptxt(delta_cache):
+    """Test decoding with all three fields present."""
+    payload = (
+        b'\x07'  # Bitvector: bits 0, 1, 2 set (id, name, helptxt)
+        b'\x02'  # id: 2
+        b'Airport\x00'  # name: "Airport"
+        b'Allows air units to land and refuel\x00'  # helptxt
+    )
+
+    result = protocol.decode_ruleset_impr_flag(payload, delta_cache)
+
+    assert result['id'] == 2
+    assert result['name'] == 'Airport'
+    assert result['helptxt'] == 'Allows air units to land and refuel'
+
+
+@pytest.mark.unit
+def test_decode_ruleset_impr_flag_delta_update(delta_cache):
+    """Test delta protocol with partial field updates."""
+    # First packet: establish cache with all fields
+    payload1 = (
+        b'\x07'  # All bits set
+        b'\x05'  # id: 5
+        b'Palace\x00'  # name: "Palace"
+        b'Seat of government\x00'  # helptxt
+    )
+    protocol.decode_ruleset_impr_flag(payload1, delta_cache)
+
+    # Second packet: update only name (bit 1)
+    payload2 = (
+        b'\x02'  # Only bit 1 set (name)
+        b'Capitol\x00'  # name: "Capitol" (updated)
+    )
+    result2 = protocol.decode_ruleset_impr_flag(payload2, delta_cache)
+
+    assert result2['id'] == 5  # From cache
+    assert result2['name'] == 'Capitol'  # Updated
+    assert result2['helptxt'] == 'Seat of government'  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_impr_flag_empty_cache(delta_cache):
+    """Test first packet with no cached data."""
+    payload = (
+        b'\x03'  # Bits 0, 1 set (id, name)
+        b'\x01'  # id: 1
+        b'Granary\x00'  # name: "Granary"
+    )
+
+    result = protocol.decode_ruleset_impr_flag(payload, delta_cache)
+
+    assert result['id'] == 1
+    assert result['name'] == 'Granary'
+    assert result['helptxt'] == ''  # Default value
+
+
+@pytest.mark.unit
+def test_decode_ruleset_impr_flag_empty_strings(delta_cache):
+    """Test handling of empty string values."""
+    payload = (
+        b'\x07'  # All bits set
+        b'\x00'  # id: 0
+        b'\x00'  # name: empty
+        b'\x00'  # helptxt: empty
+    )
+
+    result = protocol.decode_ruleset_impr_flag(payload, delta_cache)
+
+    assert result['id'] == 0
+    assert result['name'] == ''
+    assert result['helptxt'] == ''

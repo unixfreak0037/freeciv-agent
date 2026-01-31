@@ -341,6 +341,18 @@ class TerrainFlag:
 
 
 @dataclass
+class ImprFlag:
+    """Improvement flag from PACKET_RULESET_IMPR_FLAG (20).
+
+    Improvement flags are properties that can be assigned to improvements
+    (buildings/city improvements) in the ruleset to define game mechanics.
+    """
+    id: int           # Improvement flag identifier (UINT8)
+    name: str         # Flag name (MAX_LEN_NAME)
+    helptxt: str      # Help text describing the flag's effect (MAX_LEN_PACKET)
+
+
+@dataclass
 class ExtraType:
     """
     Extra type from PACKET_RULESET_EXTRA (232).
@@ -759,3 +771,4 @@ class GameState:
         self.government_ruler_titles: List[GovernmentRulerTitle] = []  # Ruler titles (PACKET_RULESET_GOVERNMENT_RULER_TITLE)
         self.unit_types: Dict[int, UnitType] = {}  # Unit types by ID (PACKET_RULESET_UNIT)
         self.terrain_flags: Dict[int, TerrainFlag] = {}  # Terrain flags by ID (PACKET_RULESET_TERRAIN_FLAG)
+        self.improvement_flags: Dict[int, ImprFlag] = {}  # Improvement flags by ID (PACKET_RULESET_IMPR_FLAG)
