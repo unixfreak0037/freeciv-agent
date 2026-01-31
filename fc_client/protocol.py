@@ -45,6 +45,7 @@ PACKET_RULESET_UNIT_FLAG = 229
 PACKET_RULESET_UNIT_BONUS = 228
 PACKET_RULESET_UNIT = 140
 PACKET_RULESET_EXTRA = 232
+PACKET_RULESET_GOODS = 248
 PACKET_RULESET_RESOURCE = 177
 PACKET_RULESET_TERRAIN_CONTROL = 146
 PACKET_RULESET_TERRAIN_FLAG = 231
@@ -2334,6 +2335,104 @@ def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_ROAD, (), result)
+
+    return result
+
+
+def decode_ruleset_goods(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """Decode PACKET_RULESET_GOODS (248) - trade goods configuration."""
+    offset = 0
+
+    # Read 10-bit bitvector (2 bytes) for 10 conditional fields
+    bitvector, offset = read_bitvector(payload, offset, 10)
+
+    # Get cached packet (hash_const - empty tuple key)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_GOODS, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        goods_id = cached.get('id', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        reqs_count = cached.get('reqs_count', 0)
+        reqs = cached.get('reqs', [])
+        from_pct = cached.get('from_pct', 0)
+        to_pct = cached.get('to_pct', 0)
+        onetime_pct = cached.get('onetime_pct', 0)
+        flags = cached.get('flags', 0)
+        helptext = cached.get('helptext', '')
+    else:
+        goods_id = 0
+        name = ''
+        rule_name = ''
+        reqs_count = 0
+        reqs = []
+        from_pct = 0
+        to_pct = 0
+        onetime_pct = 0
+        flags = 0
+        helptext = ''
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: id
+    if is_bit_set(bitvector, 0):
+        goods_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: reqs_count
+    if is_bit_set(bitvector, 3):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 4: reqs (array of requirements)
+    if is_bit_set(bitvector, 4):
+        reqs = []
+        for _ in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 5: from_pct
+    if is_bit_set(bitvector, 5):
+        from_pct, offset = decode_uint16(payload, offset)
+
+    # Bit 6: to_pct
+    if is_bit_set(bitvector, 6):
+        to_pct, offset = decode_uint16(payload, offset)
+
+    # Bit 7: onetime_pct
+    if is_bit_set(bitvector, 7):
+        onetime_pct, offset = decode_uint16(payload, offset)
+
+    # Bit 8: flags (3-bit bitvector)
+    if is_bit_set(bitvector, 8):
+        flags, offset = read_bitvector(payload, offset, 3)
+
+    # Bit 9: helptext
+    if is_bit_set(bitvector, 9):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result dictionary
+    result = {
+        'id': goods_id,
+        'name': name,
+        'rule_name': rule_name,
+        'reqs_count': reqs_count,
+        'reqs': reqs,
+        'from_pct': from_pct,
+        'to_pct': to_pct,
+        'onetime_pct': onetime_pct,
+        'flags': flags,
+        'helptext': helptext
+    }
+
+    # Update cache for next packet
+    delta_cache.update_cache(PACKET_RULESET_GOODS, (), result)
 
     return result
 

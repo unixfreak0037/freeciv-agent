@@ -1102,6 +1102,61 @@ async def handle_ruleset_road(
         print(f"  Integrates with: {integrates_count} extras")
 
 
+async def handle_ruleset_goods(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_GOODS (248) - trade goods configuration."""
+    from ..game_state import Goods, Requirement
+
+    # Decode packet using delta cache
+    data = protocol.decode_ruleset_goods(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    requirements = [Requirement(**req) for req in data.get('reqs', [])]
+
+    # Create Goods object
+    goods = Goods(
+        id=data['id'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        reqs_count=data['reqs_count'],
+        reqs=requirements,
+        from_pct=data['from_pct'],
+        to_pct=data['to_pct'],
+        onetime_pct=data['onetime_pct'],
+        flags=data['flags'],
+        helptext=data['helptext']
+    )
+
+    # Store in game state
+    game_state.goods[goods.id] = goods
+
+    # Display formatted summary
+    print(f"\n[GOODS {goods.id}] {goods.name} ({goods.rule_name})")
+    print(f"  Trade Percentages: from={goods.from_pct}%, to={goods.to_pct}%, onetime={goods.onetime_pct}%")
+
+    if goods.reqs_count > 0:
+        print(f"  Requirements: {goods.reqs_count}")
+
+    if goods.flags != 0:
+        flag_names = []
+        if goods.flags & 0x01:
+            flag_names.append("Bidirectional")
+        if goods.flags & 0x02:
+            flag_names.append("Depletes")
+        if goods.flags & 0x04:
+            flag_names.append("Self-Provided")
+        print(f"  Flags: {', '.join(flag_names)}")
+
+    if goods.helptext:
+        help_preview = (goods.helptext[:100] + '...'
+                       if len(goods.helptext) > 100
+                       else goods.helptext)
+        print(f"  Help: {help_preview}")
+
+
 async def handle_ruleset_unit_class_flag(
     client: 'FreeCivClient',
     game_state: GameState,
@@ -1785,4 +1840,5 @@ __all__ = [
     "handle_ruleset_action_enabler",
     "handle_ruleset_action_auto",
     "handle_ruleset_extra",
+    "handle_ruleset_goods",
 ]

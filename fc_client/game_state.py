@@ -228,6 +228,25 @@ class Specialist:
 
 
 @dataclass
+class Goods:
+    """Goods type from PACKET_RULESET_GOODS (248).
+
+    Goods represent tradeable commodities transported between cities
+    via trade routes, generating economic bonuses.
+    """
+    id: int                       # Goods type ID (key)
+    name: str                     # Display name
+    rule_name: str                # Internal identifier
+    reqs_count: int               # Number of requirements
+    reqs: List[Requirement]       # Requirements for goods availability
+    from_pct: int                 # Trade income % for source (0-65535)
+    to_pct: int                   # Trade income % for destination (0-65535)
+    onetime_pct: int              # One-time bonus % (0-65535)
+    flags: int                    # Bitvector: bit0=Bidirectional, bit1=Depletes, bit2=Self-Provided
+    helptext: str                 # Help text description
+
+
+@dataclass
 class ActionType:
     """Action type configuration from PACKET_RULESET_ACTION (246).
 
@@ -722,6 +741,7 @@ class GameState:
         self.resources: Dict[int, Resource] = {}  # Resources by ID (PACKET_RULESET_RESOURCE)
         self.achievements: Dict[int, AchievementType] = {}  # Achievements by ID (PACKET_RULESET_ACHIEVEMENT)
         self.specialists: Dict[int, Specialist] = {}  # Specialists by ID (PACKET_RULESET_SPECIALIST)
+        self.goods: Dict[int, Goods] = {}  # Goods by ID (PACKET_RULESET_GOODS)
         self.actions: Dict[int, ActionType] = {}  # Actions by ID (PACKET_RULESET_ACTION)
         self.action_enablers: List[ActionEnabler] = []  # Action enablers (PACKET_RULESET_ACTION_ENABLER)
         self.action_auto_performers: List[ActionAutoPerformer] = []  # Auto action configs (PACKET_RULESET_ACTION_AUTO)
