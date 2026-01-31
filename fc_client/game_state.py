@@ -635,6 +635,69 @@ class UnitType:
     helptext: str
 
 
+@dataclass
+class Terrain:
+    """Terrain type from PACKET_RULESET_TERRAIN (151)."""
+    # Identity
+    id: int
+    tclass: int
+    name: str
+    rule_name: str
+
+    # Flags (bitvectors)
+    flags: int          # BV_TERRAIN_FLAGS (20 bits, 3 bytes)
+    native_to: int      # BV_UNIT_CLASSES (32 bits, 4 bytes)
+
+    # Graphics
+    graphic_str: str
+    graphic_alt: str
+    graphic_alt2: str
+
+    # Movement and combat
+    movement_cost: int  # UINT16
+    defense_bonus: int  # SINT16, can be negative
+
+    # Production (6 outputs: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE)
+    output: List[int]  # Length O_LAST (6), each UINT8
+
+    # Resources
+    num_resources: int
+    resources: List[int]      # Resource IDs (UINT8), length num_resources
+    resource_freq: List[int]  # UINT8, length num_resources
+
+    # Road/base improvements
+    road_output_incr_pct: List[int]  # Length O_LAST (6), each UINT16
+    base_time: int
+    road_time: int
+
+    # Terrain transformations
+    cultivate_result: int   # Terrain_type_id
+    cultivate_time: int
+    plant_result: int       # Terrain_type_id
+    plant_time: int
+    irrigation_food_incr: int
+    irrigation_time: int
+    mining_shield_incr: int
+    mining_time: int
+    animal: int             # SINT16, -1 for none
+    transform_result: int   # Terrain_type_id
+    transform_time: int
+    placing_time: int
+    pillage_time: int
+
+    # Extras
+    extra_count: int
+    extra_removal_times: List[int]  # UINT8, length extra_count
+
+    # Appearance
+    color_red: int
+    color_green: int
+    color_blue: int
+
+    # Help
+    helptext: str
+
+
 class GameState:
     """Tracks the current game state as packets are processed."""
 
@@ -645,6 +708,7 @@ class GameState:
         self.chat_history = []  # List of chat message dicts with timestamps
         self.ruleset_control: Optional[RulesetControl] = None  # Ruleset configuration (PACKET_RULESET_CONTROL)
         self.terrain_control: Optional[TerrainControl] = None  # Terrain control settings (PACKET_RULESET_TERRAIN_CONTROL)
+        self.terrains: Dict[int, Terrain] = {}  # Terrain types by ID (PACKET_RULESET_TERRAIN)
         self.ruleset_summary: Optional[str] = None  # Ruleset summary text (PACKET_RULESET_SUMMARY)
         self.ruleset_description_parts: List[str] = []  # Accumulator for description chunks
         self.ruleset_description: Optional[str] = None  # Complete assembled description

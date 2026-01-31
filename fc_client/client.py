@@ -51,6 +51,7 @@ class FreeCivClient:
         self.register_handler(protocol.PACKET_RULESET_CONTROL, handlers.handle_ruleset_control)
         self.register_handler(protocol.PACKET_RULESET_TERRAIN_CONTROL, handlers.handle_ruleset_terrain_control)
         self.register_handler(protocol.PACKET_RULESET_TERRAIN_FLAG, handlers.handle_ruleset_terrain_flag)
+        self.register_handler(protocol.PACKET_RULESET_TERRAIN, handlers.handle_ruleset_terrain)
         self.register_handler(protocol.PACKET_RULESET_GAME, handlers.handle_ruleset_game)
         self.register_handler(protocol.PACKET_RULESET_SPECIALIST, handlers.handle_ruleset_specialist)
         self.register_handler(protocol.PACKET_RULESET_SUMMARY, handlers.handle_ruleset_summary)
@@ -198,6 +199,8 @@ class FreeCivClient:
 
         except Exception as e:
             print(f"Error in packet handler for type {packet_type}: {e}")
+            print(f"Payload size: {len(payload)} bytes")
+            print(f"First 40 bytes: {payload[:40].hex()}")
             traceback.print_exc()
             self._shutdown_event.set()
 

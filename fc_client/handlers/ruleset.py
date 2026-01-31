@@ -1687,10 +1687,76 @@ async def handle_ruleset_terrain_control(
             print(f"    - {gui_type}")
 
 
+async def handle_ruleset_terrain(
+    client: 'FreeCivClient',
+    game_state: GameState,
+    payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_TERRAIN (151) - terrain type definition."""
+    from fc_client.game_state import Terrain
+
+    # Decode packet
+    data = protocol.decode_ruleset_terrain(payload, client._delta_cache)
+
+    # Create Terrain object
+    terrain = Terrain(
+        id=data['id'],
+        tclass=data['tclass'],
+        flags=data['flags'],
+        native_to=data['native_to'],
+        name=data['name'],
+        rule_name=data['rule_name'],
+        graphic_str=data['graphic_str'],
+        graphic_alt=data['graphic_alt'],
+        graphic_alt2=data['graphic_alt2'],
+        movement_cost=data['movement_cost'],
+        defense_bonus=data['defense_bonus'],
+        output=data['output'],
+        num_resources=data['num_resources'],
+        resources=data['resources'],
+        resource_freq=data['resource_freq'],
+        road_output_incr_pct=data['road_output_incr_pct'],
+        base_time=data['base_time'],
+        road_time=data['road_time'],
+        cultivate_result=data['cultivate_result'],
+        cultivate_time=data['cultivate_time'],
+        plant_result=data['plant_result'],
+        plant_time=data['plant_time'],
+        irrigation_food_incr=data['irrigation_food_incr'],
+        irrigation_time=data['irrigation_time'],
+        mining_shield_incr=data['mining_shield_incr'],
+        mining_time=data['mining_time'],
+        animal=data['animal'],
+        transform_result=data['transform_result'],
+        transform_time=data['transform_time'],
+        placing_time=data['placing_time'],
+        pillage_time=data['pillage_time'],
+        extra_count=data['extra_count'],
+        extra_removal_times=data['extra_removal_times'],
+        color_red=data['color_red'],
+        color_green=data['color_green'],
+        color_blue=data['color_blue'],
+        helptext=data['helptext'],
+    )
+
+    # Store in game state
+    game_state.terrains[terrain.id] = terrain
+
+    # Display summary
+    if len(terrain.output) >= 3:
+        output_str = f"F:{terrain.output[0]} S:{terrain.output[1]} T:{terrain.output[2]}"
+    else:
+        output_str = "N/A"
+    print(f"[TERRAIN {terrain.id}] {terrain.name} ({terrain.rule_name})")
+    print(f"  Movement: {terrain.movement_cost}, Defense: {terrain.defense_bonus:+d}%")
+    print(f"  Output: {output_str}")
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_terrain_control",
     "handle_ruleset_terrain_flag",
+    "handle_ruleset_terrain",
     "handle_ruleset_summary",
     "handle_ruleset_description_part",
     "handle_ruleset_nation_sets",

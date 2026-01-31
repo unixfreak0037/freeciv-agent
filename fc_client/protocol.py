@@ -48,6 +48,7 @@ PACKET_RULESET_EXTRA = 232
 PACKET_RULESET_RESOURCE = 177
 PACKET_RULESET_TERRAIN_CONTROL = 146
 PACKET_RULESET_TERRAIN_FLAG = 231
+PACKET_RULESET_TERRAIN = 151
 
 # FreeCiv constants
 O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
@@ -3624,6 +3625,316 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Update cache with empty tuple key
     delta_cache.update_cache(PACKET_RULESET_TERRAIN_CONTROL, (), result)
+
+    return result
+
+
+def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+    """
+    Decode PACKET_RULESET_TERRAIN (151) - terrain type definition.
+
+    Contains terrain type data: graphics, movement/combat stats, production output,
+    transformations, and visual properties.
+
+    Delta protocol with empty tuple cache key (hash_const).
+    Reference: freeciv-build/packets_gen.c:60188
+
+    5-byte bitvector (37 conditional fields, bits 0-36).
+    """
+    offset = 0
+
+    # Read 5-byte bitvector (37 bits)
+    bitvector, offset = read_bitvector(payload, offset, 37)
+
+    # Get cached packet (empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_TERRAIN, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        terrain_id = cached.get('id', 0)
+        tclass = cached.get('tclass', 0)
+        flags = cached.get('flags', 0)
+        native_to = cached.get('native_to', 0)
+        name = cached.get('name', '')
+        rule_name = cached.get('rule_name', '')
+        graphic_str = cached.get('graphic_str', '')
+        graphic_alt = cached.get('graphic_alt', '')
+        graphic_alt2 = cached.get('graphic_alt2', '')
+        movement_cost = cached.get('movement_cost', 0)
+        defense_bonus = cached.get('defense_bonus', 0)
+        output = cached.get('output', [0] * O_LAST)
+        num_resources = cached.get('num_resources', 0)
+        resources = cached.get('resources', [])
+        resource_freq = cached.get('resource_freq', [])
+        road_output_incr_pct = cached.get('road_output_incr_pct', [0] * O_LAST)
+        base_time = cached.get('base_time', 0)
+        road_time = cached.get('road_time', 0)
+        cultivate_result = cached.get('cultivate_result', 0)
+        cultivate_time = cached.get('cultivate_time', 0)
+        plant_result = cached.get('plant_result', 0)
+        plant_time = cached.get('plant_time', 0)
+        irrigation_food_incr = cached.get('irrigation_food_incr', 0)
+        irrigation_time = cached.get('irrigation_time', 0)
+        mining_shield_incr = cached.get('mining_shield_incr', 0)
+        mining_time = cached.get('mining_time', 0)
+        animal = cached.get('animal', 0)
+        transform_result = cached.get('transform_result', 0)
+        transform_time = cached.get('transform_time', 0)
+        placing_time = cached.get('placing_time', 0)
+        pillage_time = cached.get('pillage_time', 0)
+        extra_count = cached.get('extra_count', 0)
+        extra_removal_times = cached.get('extra_removal_times', [])
+        color_red = cached.get('color_red', 0)
+        color_green = cached.get('color_green', 0)
+        color_blue = cached.get('color_blue', 0)
+        helptext = cached.get('helptext', '')
+    else:
+        terrain_id = 0
+        tclass = 0
+        flags = 0
+        native_to = 0
+        name = ''
+        rule_name = ''
+        graphic_str = ''
+        graphic_alt = ''
+        graphic_alt2 = ''
+        movement_cost = 0
+        defense_bonus = 0
+        output = [0] * O_LAST
+        num_resources = 0
+        resources = []
+        resource_freq = []
+        road_output_incr_pct = [0] * O_LAST
+        base_time = 0
+        road_time = 0
+        cultivate_result = 0
+        cultivate_time = 0
+        plant_result = 0
+        plant_time = 0
+        irrigation_food_incr = 0
+        irrigation_time = 0
+        mining_shield_incr = 0
+        mining_time = 0
+        animal = 0
+        transform_result = 0
+        transform_time = 0
+        placing_time = 0
+        pillage_time = 0
+        extra_count = 0
+        extra_removal_times = []
+        color_red = 0
+        color_green = 0
+        color_blue = 0
+        helptext = ''
+
+    # Decode conditional fields based on bitvector
+
+    # Bit 0: id (UINT8)
+    if is_bit_set(bitvector, 0):
+        terrain_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: tclass (UINT8)
+    if is_bit_set(bitvector, 1):
+        tclass, offset = decode_uint8(payload, offset)
+
+    # Bit 2: flags (BV_TERRAIN_FLAGS - 3 bytes for 20 bits)
+    if is_bit_set(bitvector, 2):
+        flags, offset = read_bitvector(payload, offset, 20)
+
+    # Bit 3: native_to (BV_UNIT_CLASSES - 4 bytes for 32 bits)
+    if is_bit_set(bitvector, 3):
+        native_to, offset = read_bitvector(payload, offset, 32)
+
+    # Bit 4: name (STRING)
+    if is_bit_set(bitvector, 4):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 5: rule_name (STRING)
+    if is_bit_set(bitvector, 5):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 6: graphic_str (STRING)
+    if is_bit_set(bitvector, 6):
+        graphic_str, offset = decode_string(payload, offset)
+
+    # Bit 7: graphic_alt (STRING)
+    if is_bit_set(bitvector, 7):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Bit 8: graphic_alt2 (STRING)
+    if is_bit_set(bitvector, 8):
+        graphic_alt2, offset = decode_string(payload, offset)
+
+    # Bit 9: movement_cost (UINT16)
+    if is_bit_set(bitvector, 9):
+        movement_cost, offset = decode_uint16(payload, offset)
+
+    # Bit 10: defense_bonus (SINT16)
+    if is_bit_set(bitvector, 10):
+        defense_bonus, offset = decode_sint16(payload, offset)
+
+    # Bit 11: output (array of O_LAST UINT8 values)
+    if is_bit_set(bitvector, 11):
+        output = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint8(payload, offset)
+            output.append(val)
+
+    # Bit 12: num_resources (UINT8)
+    if is_bit_set(bitvector, 12):
+        num_resources, offset = decode_uint8(payload, offset)
+
+    # Bit 13: resources (array of UINT8, length num_resources)
+    if is_bit_set(bitvector, 13):
+        resources = []
+        for _ in range(num_resources):
+            val, offset = decode_uint8(payload, offset)
+            resources.append(val)
+
+    # Bit 14: resource_freq (array of UINT8, length num_resources)
+    if is_bit_set(bitvector, 14):
+        resource_freq = []
+        for _ in range(num_resources):
+            val, offset = decode_uint8(payload, offset)
+            resource_freq.append(val)
+
+    # Bit 15: road_output_incr_pct (array of O_LAST UINT16 values)
+    if is_bit_set(bitvector, 15):
+        road_output_incr_pct = []
+        for _ in range(O_LAST):
+            val, offset = decode_uint16(payload, offset)
+            road_output_incr_pct.append(val)
+
+    # Bit 16: base_time (UINT8)
+    if is_bit_set(bitvector, 16):
+        base_time, offset = decode_uint8(payload, offset)
+
+    # Bit 17: road_time (UINT8)
+    if is_bit_set(bitvector, 17):
+        road_time, offset = decode_uint8(payload, offset)
+
+    # Bit 18: cultivate_result (UINT8 - Terrain_type_id)
+    if is_bit_set(bitvector, 18):
+        cultivate_result, offset = decode_uint8(payload, offset)
+
+    # Bit 19: cultivate_time (UINT8)
+    if is_bit_set(bitvector, 19):
+        cultivate_time, offset = decode_uint8(payload, offset)
+
+    # Bit 20: plant_result (UINT8 - Terrain_type_id)
+    if is_bit_set(bitvector, 20):
+        plant_result, offset = decode_uint8(payload, offset)
+
+    # Bit 21: plant_time (UINT8)
+    if is_bit_set(bitvector, 21):
+        plant_time, offset = decode_uint8(payload, offset)
+
+    # Bit 22: irrigation_food_incr (UINT8)
+    if is_bit_set(bitvector, 22):
+        irrigation_food_incr, offset = decode_uint8(payload, offset)
+
+    # Bit 23: irrigation_time (UINT8)
+    if is_bit_set(bitvector, 23):
+        irrigation_time, offset = decode_uint8(payload, offset)
+
+    # Bit 24: mining_shield_incr (UINT8)
+    if is_bit_set(bitvector, 24):
+        mining_shield_incr, offset = decode_uint8(payload, offset)
+
+    # Bit 25: mining_time (UINT8)
+    if is_bit_set(bitvector, 25):
+        mining_time, offset = decode_uint8(payload, offset)
+
+    # Bit 26: animal (SINT16 - can be -1 for none)
+    if is_bit_set(bitvector, 26):
+        animal, offset = decode_sint16(payload, offset)
+
+    # Bit 27: transform_result (UINT8 - Terrain_type_id)
+    if is_bit_set(bitvector, 27):
+        transform_result, offset = decode_uint8(payload, offset)
+
+    # Bit 28: transform_time (UINT8)
+    if is_bit_set(bitvector, 28):
+        transform_time, offset = decode_uint8(payload, offset)
+
+    # Bit 29: placing_time (UINT8)
+    if is_bit_set(bitvector, 29):
+        placing_time, offset = decode_uint8(payload, offset)
+
+    # Bit 30: pillage_time (UINT8)
+    if is_bit_set(bitvector, 30):
+        pillage_time, offset = decode_uint8(payload, offset)
+
+    # Bit 31: extra_count (UINT8)
+    if is_bit_set(bitvector, 31):
+        extra_count, offset = decode_uint8(payload, offset)
+
+    # Bit 32: extra_removal_times (array of UINT8, length extra_count)
+    if is_bit_set(bitvector, 32):
+        extra_removal_times = []
+        for _ in range(extra_count):
+            val, offset = decode_uint8(payload, offset)
+            extra_removal_times.append(val)
+
+    # Bit 33: color_red (UINT8)
+    if is_bit_set(bitvector, 33):
+        color_red, offset = decode_uint8(payload, offset)
+
+    # Bit 34: color_green (UINT8)
+    if is_bit_set(bitvector, 34):
+        color_green, offset = decode_uint8(payload, offset)
+
+    # Bit 35: color_blue (UINT8)
+    if is_bit_set(bitvector, 35):
+        color_blue, offset = decode_uint8(payload, offset)
+
+    # Bit 36: helptext (STRING)
+    if is_bit_set(bitvector, 36):
+        helptext, offset = decode_string(payload, offset)
+
+    # Build result dict with all fields
+    result = {
+        'id': terrain_id,
+        'tclass': tclass,
+        'flags': flags,
+        'native_to': native_to,
+        'name': name,
+        'rule_name': rule_name,
+        'graphic_str': graphic_str,
+        'graphic_alt': graphic_alt,
+        'graphic_alt2': graphic_alt2,
+        'movement_cost': movement_cost,
+        'defense_bonus': defense_bonus,
+        'output': output,
+        'num_resources': num_resources,
+        'resources': resources,
+        'resource_freq': resource_freq,
+        'road_output_incr_pct': road_output_incr_pct,
+        'base_time': base_time,
+        'road_time': road_time,
+        'cultivate_result': cultivate_result,
+        'cultivate_time': cultivate_time,
+        'plant_result': plant_result,
+        'plant_time': plant_time,
+        'irrigation_food_incr': irrigation_food_incr,
+        'irrigation_time': irrigation_time,
+        'mining_shield_incr': mining_shield_incr,
+        'mining_time': mining_time,
+        'animal': animal,
+        'transform_result': transform_result,
+        'transform_time': transform_time,
+        'placing_time': placing_time,
+        'pillage_time': pillage_time,
+        'extra_count': extra_count,
+        'extra_removal_times': extra_removal_times,
+        'color_red': color_red,
+        'color_green': color_green,
+        'color_blue': color_blue,
+        'helptext': helptext,
+    }
+
+    # Update cache with empty tuple key
+    delta_cache.update_cache(PACKET_RULESET_TERRAIN, (), result)
 
     return result
 
