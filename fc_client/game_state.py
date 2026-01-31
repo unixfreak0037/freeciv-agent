@@ -372,6 +372,19 @@ class ImprFlag:
 
 
 @dataclass
+class Style:
+    """Style from PACKET_RULESET_STYLE (239).
+
+    Styles define thematic variations for nations, cities, and music.
+    Examples: "European", "Classical", "Tropical", "Asian"
+    """
+
+    id: int  # Style identifier (UINT8)
+    name: str  # Display name (MAX_LEN_NAME)
+    rule_name: str  # Rule reference name (MAX_LEN_NAME)
+
+
+@dataclass
 class Building:
     """Building/improvement type from PACKET_RULESET_BUILDING (150).
 
@@ -872,6 +885,7 @@ class GameState:
         self.improvement_flags: Dict[int, ImprFlag] = (
             {}
         )  # Improvement flags by ID (PACKET_RULESET_IMPR_FLAG)
+        self.styles: Dict[int, Style] = {}  # Styles by ID (PACKET_RULESET_STYLE)
         self.buildings: Dict[int, Building] = (
             {}
         )  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)

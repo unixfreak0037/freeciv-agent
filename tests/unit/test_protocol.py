@@ -41,6 +41,7 @@ from fc_client.protocol import (
     decode_ruleset_resource,
     decode_ruleset_tech_flag,
     decode_ruleset_government_ruler_title,
+    decode_ruleset_style,
     # Delta protocol helpers
     read_bitvector,
     is_bit_set,
@@ -2505,3 +2506,93 @@ def test_decode_ruleset_impr_flag_empty_strings(delta_cache):
     assert result["id"] == 0
     assert result["name"] == ""
     assert result["helptxt"] == ""
+
+
+@pytest.mark.unit
+def test_decode_ruleset_style_all_fields(delta_cache):
+    """Test decoding PACKET_RULESET_STYLE with all fields present."""
+    payload = (
+        b"\x07"  # Bitvector: bits 0, 1, 2 set (id, name, rule_name)
+        b"\x01"  # id: 1
+        b"European\x00"  # name: "European"
+        b"european\x00"  # rule_name: "european"
+    )
+
+    result = protocol.decode_ruleset_style(payload, delta_cache)
+
+    assert result["id"] == 1
+    assert result["name"] == "European"
+    assert result["rule_name"] == "european"
+
+
+@pytest.mark.unit
+def test_decode_ruleset_style_partial_fields(delta_cache):
+    """Test decoding with only id and name fields."""
+    payload = (
+        b"\x03"  # Bitvector: bits 0, 1 set (id, name)
+        b"\x02"  # id: 2
+        b"Classical\x00"  # name: "Classical"
+    )
+
+    result = protocol.decode_ruleset_style(payload, delta_cache)
+
+    assert result["id"] == 2
+    assert result["name"] == "Classical"
+    assert result["rule_name"] == ""  # Default from cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_style_delta_update(delta_cache):
+    """Test delta protocol with partial field updates."""
+    # First packet: establish cache with all fields
+    payload1 = (
+        b"\x07"  # All bits set
+        b"\x00"  # id: 0
+        b"Asian\x00"  # name: "Asian"
+        b"asian\x00"  # rule_name: "asian"
+    )
+    protocol.decode_ruleset_style(payload1, delta_cache)
+
+    # Second packet: update only name (bit 1)
+    payload2 = (
+        b"\x02"  # Only bit 1 set (name)
+        b"Eastern\x00"  # name: "Eastern" (updated)
+    )
+    result2 = protocol.decode_ruleset_style(payload2, delta_cache)
+
+    assert result2["id"] == 0  # From cache
+    assert result2["name"] == "Eastern"  # Updated
+    assert result2["rule_name"] == "asian"  # From cache
+
+
+@pytest.mark.unit
+def test_decode_ruleset_style_empty_cache(delta_cache):
+    """Test first packet with no cached data."""
+    payload = (
+        b"\x03"  # Bits 0, 1 set (id, name)
+        b"\x03"  # id: 3
+        b"Tropical\x00"  # name: "Tropical"
+    )
+
+    result = protocol.decode_ruleset_style(payload, delta_cache)
+
+    assert result["id"] == 3
+    assert result["name"] == "Tropical"
+    assert result["rule_name"] == ""  # Default value
+
+
+@pytest.mark.unit
+def test_decode_ruleset_style_empty_strings(delta_cache):
+    """Test handling of empty string values."""
+    payload = (
+        b"\x07"  # All bits set
+        b"\x00"  # id: 0
+        b"\x00"  # name: empty
+        b"\x00"  # rule_name: empty
+    )
+
+    result = protocol.decode_ruleset_style(payload, delta_cache)
+
+    assert result["id"] == 0
+    assert result["name"] == ""
+    assert result["rule_name"] == ""

@@ -983,6 +983,31 @@ async def handle_ruleset_impr_flag(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_style(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_STYLE (239).
+
+    Styles define thematic variations for nations, cities, and music.
+    Updates game_state.styles dictionary.
+    """
+    from ..game_state import Style
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_style(payload, client._delta_cache)
+
+    # Create Style object
+    style = Style(id=data["id"], name=data["name"], rule_name=data["rule_name"])
+
+    # Store in game state (keyed by ID)
+    game_state.styles[style.id] = style
+
+    # Display summary
+    print(f"\n[STYLE {style.id}] {style.name}")
+    print(f"  Rule Name: {style.rule_name}")
+
+
 async def handle_ruleset_unit_class(
     client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
@@ -1935,5 +1960,6 @@ __all__ = [
     "handle_ruleset_extra",
     "handle_ruleset_goods",
     "handle_ruleset_impr_flag",
+    "handle_ruleset_style",
     "handle_ruleset_building",
 ]

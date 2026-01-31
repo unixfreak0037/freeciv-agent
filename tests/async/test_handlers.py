@@ -2373,3 +2373,45 @@ async def test_handle_ruleset_government_ruler_title_empty_strings(mock_client, 
     assert title.nation == 3
     assert title.male_title == ""
     assert title.female_title == ""
+
+
+async def test_handle_ruleset_style(mock_client, game_state):
+    """Test PACKET_RULESET_STYLE handler integration."""
+    payload = (
+        b"\x07"  # All fields
+        b"\x00"  # id: 0
+        b"Asian\x00"  # name
+        b"asian\x00"  # rule_name
+    )
+
+    await handlers.handle_ruleset_style(mock_client, game_state, payload)
+
+    assert 0 in game_state.styles
+    assert game_state.styles[0].name == "Asian"
+    assert game_state.styles[0].rule_name == "asian"
+
+
+async def test_handle_ruleset_style_multiple(mock_client, game_state):
+    """Test handling multiple style packets."""
+    # First style
+    payload1 = (
+        b"\x07"  # All fields
+        b"\x00"  # id: 0
+        b"European\x00"  # name
+        b"european\x00"  # rule_name
+    )
+    await handlers.handle_ruleset_style(mock_client, game_state, payload1)
+
+    # Second style
+    payload2 = (
+        b"\x07"  # All fields
+        b"\x01"  # id: 1
+        b"Classical\x00"  # name
+        b"classical\x00"  # rule_name
+    )
+    await handlers.handle_ruleset_style(mock_client, game_state, payload2)
+
+    # Verify both stored
+    assert len(game_state.styles) == 2
+    assert game_state.styles[0].name == "European"
+    assert game_state.styles[1].name == "Classical"

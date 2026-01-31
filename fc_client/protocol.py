@@ -52,6 +52,7 @@ PACKET_RULESET_TERRAIN_FLAG = 231
 PACKET_RULESET_TERRAIN = 151
 PACKET_RULESET_IMPR_FLAG = 20
 PACKET_RULESET_BUILDING = 150
+PACKET_RULESET_STYLE = 239
 
 # FreeCiv constants
 O_LAST = (
@@ -2077,6 +2078,57 @@ def decode_ruleset_impr_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_IMPR_FLAG, (), result)
+
+    return result
+
+
+def decode_ruleset_style(payload: bytes, delta_cache: "DeltaCache") -> dict:
+    """
+    Decode PACKET_RULESET_STYLE (239).
+
+    Structure (from freeciv-build/packets_gen.c:58033):
+    - 1-byte bitvector (3 bits used)
+    - Bit 0: id (UINT8) - Style identifier
+    - Bit 1: name (STRING) - Display name
+    - Bit 2: rule_name (STRING) - Rule reference name
+
+    Cache behavior: Uses hash_const - all packets share same cache entry (no key fields).
+    """
+    offset = 0
+
+    # Read 3-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 3)
+
+    # Get cached packet (uses empty tuple for hash_const)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_STYLE, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        style_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+    else:
+        style_id = 0
+        name = ""
+        rule_name = ""
+
+    # Bit 0: id
+    if is_bit_set(bitvector, 0):
+        style_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {"id": style_id, "name": name, "rule_name": rule_name}
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_STYLE, (), result)
 
     return result
 

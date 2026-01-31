@@ -61,6 +61,7 @@ class FreeCivClient:
             protocol.PACKET_RULESET_TERRAIN_FLAG, handlers.handle_ruleset_terrain_flag
         )
         self.register_handler(protocol.PACKET_RULESET_IMPR_FLAG, handlers.handle_ruleset_impr_flag)
+        self.register_handler(protocol.PACKET_RULESET_STYLE, handlers.handle_ruleset_style)
         self.register_handler(protocol.PACKET_RULESET_BUILDING, handlers.handle_ruleset_building)
         self.register_handler(protocol.PACKET_RULESET_TERRAIN, handlers.handle_ruleset_terrain)
         self.register_handler(protocol.PACKET_RULESET_GAME, handlers.handle_ruleset_game)
