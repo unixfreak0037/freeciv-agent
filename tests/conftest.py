@@ -17,7 +17,6 @@ import pytest
 from fc_client.delta_cache import DeltaCache
 from fc_client.game_state import GameState
 
-
 # ============================================================================
 # Mock Network Stream Fixtures
 # ============================================================================
@@ -143,11 +142,11 @@ def sample_join_reply_success():
     Packet type 5, success=True, message="Welcome!", capability="+Freeciv..."
     """
     return {
-        'you_can_join': True,
-        'message': 'Welcome!',
-        'capability': '+Freeciv-3.0-network',
-        'challenge_file': '',
-        'conn_id': 1,
+        "you_can_join": True,
+        "message": "Welcome!",
+        "capability": "+Freeciv-3.0-network",
+        "challenge_file": "",
+        "conn_id": 1,
     }
 
 
@@ -159,11 +158,11 @@ def sample_join_reply_failure():
     Packet type 5, success=False, message="Server full"
     """
     return {
-        'you_can_join': False,
-        'message': 'Server full',
-        'capability': '+Freeciv-3.0-network',
-        'challenge_file': '',
-        'conn_id': 0,
+        "you_can_join": False,
+        "message": "Server full",
+        "capability": "+Freeciv-3.0-network",
+        "challenge_file": "",
+        "conn_id": 0,
     }
 
 
@@ -175,11 +174,11 @@ def sample_server_info():
     Packet type 25 with typical game state fields.
     """
     return {
-        'turn': 42,
-        'year': 1850,
-        'phase': 0,  # Movement phase
-        'num_players': 4,
-        'timeout': 0,
+        "turn": 42,
+        "year": 1850,
+        "phase": 0,  # Movement phase
+        "num_players": 4,
+        "timeout": 0,
     }
 
 
@@ -191,9 +190,9 @@ def sample_chat_msg_payload():
     Packet type 29 with server message.
     """
     return {
-        'message': 'Welcome to FreeCiv!',
-        'conn_id': -1,  # Server message
-        'event': 0,
+        "message": "Welcome to FreeCiv!",
+        "conn_id": -1,  # Server message
+        "event": 0,
     }
 
 
@@ -214,6 +213,7 @@ def packet_builder() -> Callable[[int, int, bytes], bytes]:
             packet = packet_builder(5, 100, b'...')
             result = decode_packet(packet)
     """
+
     def build_packet(packet_type: int, length: int, body: bytes) -> bytes:
         """
         Build a raw packet with header + body.
@@ -227,13 +227,13 @@ def packet_builder() -> Callable[[int, int, bytes], bytes]:
             Complete packet bytes with length header + type + body
         """
         # Length field (2 bytes, big-endian)
-        length_bytes = length.to_bytes(2, byteorder='big')
+        length_bytes = length.to_bytes(2, byteorder="big")
 
         # Packet type (1 or 2 bytes depending on protocol version)
         if packet_type <= 255:
-            type_bytes = packet_type.to_bytes(1, byteorder='big')
+            type_bytes = packet_type.to_bytes(1, byteorder="big")
         else:
-            type_bytes = packet_type.to_bytes(2, byteorder='big')
+            type_bytes = packet_type.to_bytes(2, byteorder="big")
 
         return length_bytes + type_bytes + body
 
@@ -247,7 +247,7 @@ def sample_bitvector():
 
     Returns bytes with specific bit pattern: 0b10110100 (bits 2,4,5,7 set)
     """
-    return b'\xb4'  # 10110100 in binary
+    return b"\xb4"  # 10110100 in binary
 
 
 # ============================================================================

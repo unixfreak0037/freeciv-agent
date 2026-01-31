@@ -7,12 +7,13 @@ from .game_state import GameState
 from .packet_debugger import PacketDebugger
 from .delta_cache import DeltaCache
 
+
 class FreeCivClient:
     reader: Optional[asyncio.StreamReader]
     writer: Optional[asyncio.StreamWriter]
     _shutdown_event: Optional[asyncio.Event]
     _join_successful: asyncio.Event
-    _packet_handlers: Dict[int, Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]]
+    _packet_handlers: Dict[int, Callable[["FreeCivClient", GameState, bytes], Awaitable[None]]]
     _packet_reader_task: Optional[asyncio.Task]
     game_state: Optional[GameState]
     _packet_debugger: Optional[PacketDebugger]
@@ -42,49 +43,90 @@ class FreeCivClient:
             print("Packet validation mode enabled")
 
         # Register packet handlers
-        self.register_handler(protocol.PACKET_PROCESSING_STARTED, handlers.handle_processing_started)
-        self.register_handler(protocol.PACKET_PROCESSING_FINISHED, handlers.handle_processing_finished)
+        self.register_handler(
+            protocol.PACKET_PROCESSING_STARTED, handlers.handle_processing_started
+        )
+        self.register_handler(
+            protocol.PACKET_PROCESSING_FINISHED, handlers.handle_processing_finished
+        )
         self.register_handler(protocol.PACKET_SERVER_JOIN_REPLY, handlers.handle_server_join_reply)
         self.register_handler(protocol.PACKET_SERVER_INFO, handlers.handle_server_info)
         self.register_handler(protocol.PACKET_GAME_INFO, handlers.handle_game_info)
         self.register_handler(protocol.PACKET_CHAT_MSG, handlers.handle_chat_msg)
         self.register_handler(protocol.PACKET_RULESET_CONTROL, handlers.handle_ruleset_control)
-        self.register_handler(protocol.PACKET_RULESET_TERRAIN_CONTROL, handlers.handle_ruleset_terrain_control)
-        self.register_handler(protocol.PACKET_RULESET_TERRAIN_FLAG, handlers.handle_ruleset_terrain_flag)
+        self.register_handler(
+            protocol.PACKET_RULESET_TERRAIN_CONTROL, handlers.handle_ruleset_terrain_control
+        )
+        self.register_handler(
+            protocol.PACKET_RULESET_TERRAIN_FLAG, handlers.handle_ruleset_terrain_flag
+        )
         self.register_handler(protocol.PACKET_RULESET_IMPR_FLAG, handlers.handle_ruleset_impr_flag)
         self.register_handler(protocol.PACKET_RULESET_BUILDING, handlers.handle_ruleset_building)
         self.register_handler(protocol.PACKET_RULESET_TERRAIN, handlers.handle_ruleset_terrain)
         self.register_handler(protocol.PACKET_RULESET_GAME, handlers.handle_ruleset_game)
-        self.register_handler(protocol.PACKET_RULESET_SPECIALIST, handlers.handle_ruleset_specialist)
+        self.register_handler(
+            protocol.PACKET_RULESET_SPECIALIST, handlers.handle_ruleset_specialist
+        )
         self.register_handler(protocol.PACKET_RULESET_SUMMARY, handlers.handle_ruleset_summary)
-        self.register_handler(protocol.PACKET_RULESET_DESCRIPTION_PART, handlers.handle_ruleset_description_part)
-        self.register_handler(protocol.PACKET_RULESET_NATION_GROUPS, handlers.handle_ruleset_nation_groups)
+        self.register_handler(
+            protocol.PACKET_RULESET_DESCRIPTION_PART, handlers.handle_ruleset_description_part
+        )
+        self.register_handler(
+            protocol.PACKET_RULESET_NATION_GROUPS, handlers.handle_ruleset_nation_groups
+        )
         self.register_handler(protocol.PACKET_RULESET_NATION, handlers.handle_ruleset_nation)
-        self.register_handler(protocol.PACKET_RULESET_NATION_SETS, handlers.handle_ruleset_nation_sets)
+        self.register_handler(
+            protocol.PACKET_RULESET_NATION_SETS, handlers.handle_ruleset_nation_sets
+        )
         self.register_handler(protocol.PACKET_RULESET_DISASTER, handlers.handle_ruleset_disaster)
         self.register_handler(protocol.PACKET_RULESET_TRADE, handlers.handle_ruleset_trade)
         self.register_handler(protocol.PACKET_RULESET_RESOURCE, handlers.handle_ruleset_resource)
-        self.register_handler(protocol.PACKET_RULESET_ACHIEVEMENT, handlers.handle_ruleset_achievement)
+        self.register_handler(
+            protocol.PACKET_RULESET_ACHIEVEMENT, handlers.handle_ruleset_achievement
+        )
         self.register_handler(protocol.PACKET_RULESET_TECH_FLAG, handlers.handle_ruleset_tech_flag)
-        self.register_handler(protocol.PACKET_RULESET_EXTRA_FLAG, handlers.handle_ruleset_extra_flag)
+        self.register_handler(
+            protocol.PACKET_RULESET_EXTRA_FLAG, handlers.handle_ruleset_extra_flag
+        )
         self.register_handler(protocol.PACKET_RULESET_EXTRA, handlers.handle_ruleset_extra)
-        self.register_handler(protocol.PACKET_RULESET_UNIT_CLASS, handlers.handle_ruleset_unit_class)
+        self.register_handler(
+            protocol.PACKET_RULESET_UNIT_CLASS, handlers.handle_ruleset_unit_class
+        )
         self.register_handler(protocol.PACKET_RULESET_BASE, handlers.handle_ruleset_base)
         self.register_handler(protocol.PACKET_RULESET_ROAD, handlers.handle_ruleset_road)
         self.register_handler(protocol.PACKET_RULESET_GOODS, handlers.handle_ruleset_goods)
-        self.register_handler(protocol.PACKET_RULESET_UNIT_CLASS_FLAG, handlers.handle_ruleset_unit_class_flag)
+        self.register_handler(
+            protocol.PACKET_RULESET_UNIT_CLASS_FLAG, handlers.handle_ruleset_unit_class_flag
+        )
         self.register_handler(protocol.PACKET_RULESET_UNIT_FLAG, handlers.handle_ruleset_unit_flag)
-        self.register_handler(protocol.PACKET_RULESET_UNIT_BONUS, handlers.handle_ruleset_unit_bonus)
+        self.register_handler(
+            protocol.PACKET_RULESET_UNIT_BONUS, handlers.handle_ruleset_unit_bonus
+        )
         self.register_handler(protocol.PACKET_RULESET_TECH, handlers.handle_ruleset_tech)
-        self.register_handler(protocol.PACKET_RULESET_GOVERNMENT_RULER_TITLE, handlers.handle_ruleset_government_ruler_title)
-        self.register_handler(protocol.PACKET_RULESET_GOVERNMENT, handlers.handle_ruleset_government)
+        self.register_handler(
+            protocol.PACKET_RULESET_GOVERNMENT_RULER_TITLE,
+            handlers.handle_ruleset_government_ruler_title,
+        )
+        self.register_handler(
+            protocol.PACKET_RULESET_GOVERNMENT, handlers.handle_ruleset_government
+        )
         self.register_handler(protocol.PACKET_RULESET_UNIT, handlers.handle_ruleset_unit)
         self.register_handler(protocol.PACKET_RULESET_ACTION, handlers.handle_ruleset_action)
-        self.register_handler(protocol.PACKET_RULESET_ACTION_ENABLER, handlers.handle_ruleset_action_enabler)
-        self.register_handler(protocol.PACKET_RULESET_ACTION_AUTO, handlers.handle_ruleset_action_auto)
-        self.register_handler(protocol.PACKET_NATION_AVAILABILITY, handlers.handle_nation_availability)
+        self.register_handler(
+            protocol.PACKET_RULESET_ACTION_ENABLER, handlers.handle_ruleset_action_enabler
+        )
+        self.register_handler(
+            protocol.PACKET_RULESET_ACTION_AUTO, handlers.handle_ruleset_action_auto
+        )
+        self.register_handler(
+            protocol.PACKET_NATION_AVAILABILITY, handlers.handle_nation_availability
+        )
 
-    def register_handler(self, packet_type: int, handler: Callable[['FreeCivClient', GameState, bytes], Awaitable[None]]) -> None:
+    def register_handler(
+        self,
+        packet_type: int,
+        handler: Callable[["FreeCivClient", GameState, bytes], Awaitable[None]],
+    ) -> None:
         """
         Register a packet handler function for a specific packet type.
 
@@ -128,7 +170,9 @@ class FreeCivClient:
 
         # Debug: Write outbound packet
         if self._packet_debugger:
-            self._packet_debugger.write_outbound_packet(join_req_packet, protocol.PACKET_SERVER_JOIN_REQ)
+            self._packet_debugger.write_outbound_packet(
+                join_req_packet, protocol.PACKET_SERVER_JOIN_REQ
+            )
 
         self.writer.write(join_req_packet)
         await self.writer.drain()
@@ -156,7 +200,7 @@ class FreeCivClient:
                 packet_type, payload, raw_packet = await protocol.read_packet(
                     self.reader,
                     use_two_byte_type=self._use_two_byte_type,
-                    validate=self._validate_packets
+                    validate=self._validate_packets,
                 )
 
                 # Debug: Write inbound packet

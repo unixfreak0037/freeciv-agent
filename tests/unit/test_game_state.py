@@ -8,7 +8,6 @@ are received from the server.
 import pytest
 from fc_client.game_state import GameState, RulesetControl
 
-
 # ============================================================================
 # Initialization Tests
 # ============================================================================
@@ -211,18 +210,37 @@ def test_game_state_can_clear_chat_history(game_state):
 def test_ruleset_control_from_dict_unpacking():
     """RulesetControl should be creatable from dict unpacking (handler pattern)."""
     data = {
-        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
-        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
-        'num_base_types': 8, 'num_road_types': 6,
-        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
-        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
-        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
-        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
-        'num_nation_groups': 15, 'num_nation_sets': 10,
-        'preferred_tileset': 'amplio2', 'preferred_soundset': 'stdmusic',
-        'preferred_musicset': 'stdmusic', 'popup_tech_help': True,
-        'name': 'Classic', 'version': '1.0', 'alt_dir': '',
-        'desc_length': 1024, 'num_counters': 5,
+        "num_unit_classes": 10,
+        "num_unit_types": 50,
+        "num_impr_types": 40,
+        "num_tech_classes": 5,
+        "num_tech_types": 88,
+        "num_extra_types": 20,
+        "num_base_types": 8,
+        "num_road_types": 6,
+        "num_resource_types": 25,
+        "num_goods_types": 4,
+        "num_disaster_types": 7,
+        "num_achievement_types": 12,
+        "num_multipliers": 3,
+        "num_styles": 5,
+        "num_music_styles": 3,
+        "government_count": 8,
+        "nation_count": 200,
+        "num_city_styles": 10,
+        "terrain_count": 30,
+        "num_specialist_types": 5,
+        "num_nation_groups": 15,
+        "num_nation_sets": 10,
+        "preferred_tileset": "amplio2",
+        "preferred_soundset": "stdmusic",
+        "preferred_musicset": "stdmusic",
+        "popup_tech_help": True,
+        "name": "Classic",
+        "version": "1.0",
+        "alt_dir": "",
+        "desc_length": 1024,
+        "num_counters": 5,
     }
 
     ruleset = RulesetControl(**data)
@@ -237,18 +255,37 @@ def test_ruleset_control_from_dict_unpacking():
 def test_ruleset_control_attribute_access():
     """RulesetControl should use attribute access, not dict access."""
     data = {
-        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
-        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
-        'num_base_types': 8, 'num_road_types': 6,
-        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
-        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
-        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
-        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
-        'num_nation_groups': 15, 'num_nation_sets': 10,
-        'preferred_tileset': 'amplio2', 'preferred_soundset': 'stdmusic',
-        'preferred_musicset': 'stdmusic', 'popup_tech_help': True,
-        'name': 'Classic', 'version': '1.0', 'alt_dir': '',
-        'desc_length': 1024, 'num_counters': 5,
+        "num_unit_classes": 10,
+        "num_unit_types": 50,
+        "num_impr_types": 40,
+        "num_tech_classes": 5,
+        "num_tech_types": 88,
+        "num_extra_types": 20,
+        "num_base_types": 8,
+        "num_road_types": 6,
+        "num_resource_types": 25,
+        "num_goods_types": 4,
+        "num_disaster_types": 7,
+        "num_achievement_types": 12,
+        "num_multipliers": 3,
+        "num_styles": 5,
+        "num_music_styles": 3,
+        "government_count": 8,
+        "nation_count": 200,
+        "num_city_styles": 10,
+        "terrain_count": 30,
+        "num_specialist_types": 5,
+        "num_nation_groups": 15,
+        "num_nation_sets": 10,
+        "preferred_tileset": "amplio2",
+        "preferred_soundset": "stdmusic",
+        "preferred_musicset": "stdmusic",
+        "popup_tech_help": True,
+        "name": "Classic",
+        "version": "1.0",
+        "alt_dir": "",
+        "desc_length": 1024,
+        "num_counters": 5,
     }
     ruleset = RulesetControl(**data)
 
@@ -257,25 +294,44 @@ def test_ruleset_control_attribute_access():
 
     # Dict access should fail
     with pytest.raises(TypeError):
-        _ = ruleset['name']
+        _ = ruleset["name"]
 
 
 @pytest.mark.unit
 def test_game_state_stores_ruleset_control_dataclass(game_state):
     """GameState should store RulesetControl dataclass."""
     data = {
-        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
-        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
-        'num_base_types': 8, 'num_road_types': 6,
-        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
-        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
-        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
-        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
-        'num_nation_groups': 15, 'num_nation_sets': 10,
-        'preferred_tileset': 'amplio2', 'preferred_soundset': 'stdmusic',
-        'preferred_musicset': 'stdmusic', 'popup_tech_help': True,
-        'name': 'Classic', 'version': '1.0', 'alt_dir': '',
-        'desc_length': 1024, 'num_counters': 5,
+        "num_unit_classes": 10,
+        "num_unit_types": 50,
+        "num_impr_types": 40,
+        "num_tech_classes": 5,
+        "num_tech_types": 88,
+        "num_extra_types": 20,
+        "num_base_types": 8,
+        "num_road_types": 6,
+        "num_resource_types": 25,
+        "num_goods_types": 4,
+        "num_disaster_types": 7,
+        "num_achievement_types": 12,
+        "num_multipliers": 3,
+        "num_styles": 5,
+        "num_music_styles": 3,
+        "government_count": 8,
+        "nation_count": 200,
+        "num_city_styles": 10,
+        "terrain_count": 30,
+        "num_specialist_types": 5,
+        "num_nation_groups": 15,
+        "num_nation_sets": 10,
+        "preferred_tileset": "amplio2",
+        "preferred_soundset": "stdmusic",
+        "preferred_musicset": "stdmusic",
+        "popup_tech_help": True,
+        "name": "Classic",
+        "version": "1.0",
+        "alt_dir": "",
+        "desc_length": 1024,
+        "num_counters": 5,
     }
 
     assert game_state.ruleset_control is None

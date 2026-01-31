@@ -11,7 +11,6 @@ from pathlib import Path
 
 from fc_client.packet_debugger import PacketDebugger
 
-
 # ============================================================================
 # Initialization Tests
 # ============================================================================
@@ -69,7 +68,7 @@ def test_write_inbound_packet_correct_content(tmp_path):
     debugger.write_inbound_packet(packet_data, packet_type=25)
 
     packet_file = debug_dir / "inbound_0001_type025.packet"
-    with open(packet_file, 'rb') as f:
+    with open(packet_file, "rb") as f:
         content = f.read()
 
     assert content == packet_data
@@ -136,7 +135,7 @@ def test_write_outbound_packet_correct_content(tmp_path):
     debugger.write_outbound_packet(packet_data, packet_type=4)
 
     packet_file = debug_dir / "outbound_0001_type004.packet"
-    with open(packet_file, 'rb') as f:
+    with open(packet_file, "rb") as f:
         content = f.read()
 
     assert content == packet_data
@@ -204,9 +203,9 @@ def test_interleaved_inbound_outbound_writes(tmp_path):
     assert (debug_dir / "inbound_0002_type025.packet").exists()
 
     # Verify content to ensure correct packet went to correct file
-    with open(debug_dir / "outbound_0001_type004.packet", 'rb') as f:
+    with open(debug_dir / "outbound_0001_type004.packet", "rb") as f:
         assert f.read() == b"\xa1"
-    with open(debug_dir / "inbound_0001_type005.packet", 'rb') as f:
+    with open(debug_dir / "inbound_0001_type005.packet", "rb") as f:
         assert f.read() == b"\xb1"
 
 
@@ -226,7 +225,7 @@ def test_write_inbound_packet_binary_data(tmp_path):
     debugger.write_inbound_packet(packet_data, packet_type=29)
 
     packet_file = debug_dir / "inbound_0001_type029.packet"
-    with open(packet_file, 'rb') as f:
+    with open(packet_file, "rb") as f:
         content = f.read()
 
     assert content == packet_data
@@ -246,7 +245,7 @@ def test_write_outbound_packet_large_data(tmp_path):
     packet_file = debug_dir / "outbound_0001_type100.packet"
     assert packet_file.stat().st_size == 10240
 
-    with open(packet_file, 'rb') as f:
+    with open(packet_file, "rb") as f:
         content = f.read()
 
     assert content == packet_data
@@ -285,7 +284,7 @@ def test_multiple_debuggers_same_parent(tmp_path):
     assert (debug_dir2 / "inbound_0001_type025.packet").exists()
 
     # Verify content is different
-    with open(debug_dir1 / "inbound_0001_type005.packet", 'rb') as f:
+    with open(debug_dir1 / "inbound_0001_type005.packet", "rb") as f:
         assert f.read() == b"\x01"
-    with open(debug_dir2 / "inbound_0001_type025.packet", 'rb') as f:
+    with open(debug_dir2 / "inbound_0001_type025.packet", "rb") as f:
         assert f.read() == b"\x02"

@@ -54,7 +54,9 @@ PACKET_RULESET_IMPR_FLAG = 20
 PACKET_RULESET_BUILDING = 150
 
 # FreeCiv constants
-O_LAST = 6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
+O_LAST = (
+    6  # Output types: FOOD, SHIELD, TRADE, GOLD, LUXURY, SCIENCE (from freeciv/common/fc_types.h)
+)
 
 # Version constants
 MAJOR_VERSION = 3
@@ -65,12 +67,12 @@ CAPABILITY = "+Freeciv-3.2-network ownernull16 unignoresync tu32 hap2clnt"
 
 # Compression constants (from freeciv/common/networking/packets.c:53,58,63)
 COMPRESSION_BORDER = 16385  # 16*1024 + 1 - packets >= this size are compressed
-JUMBO_SIZE = 65535          # 0xffff - marker for jumbo packets
-JUMBO_BORDER = 49150        # 64*1024 - COMPRESSION_BORDER - 1
+JUMBO_SIZE = 65535  # 0xffff - marker for jumbo packets
+JUMBO_BORDER = 49150  # 64*1024 - COMPRESSION_BORDER - 1
 
 # Compression-related packet types
 PACKET_FREEZE_CLIENT = 130  # Start compression grouping
-PACKET_THAW_CLIENT = 131    # End compression grouping
+PACKET_THAW_CLIENT = 131  # End compression grouping
 
 
 async def _recv_exact(reader: asyncio.StreamReader, num_bytes: int) -> bytes:
@@ -104,10 +106,7 @@ def _decompress_packet(compressed_data: bytes) -> bytes:
         raise ValueError(f"Decompression failed: {e}") from e
 
 
-async def _parse_packet_buffer(
-    buffer: bytes,
-    use_two_byte_type: bool
-) -> list:
+async def _parse_packet_buffer(buffer: bytes, use_two_byte_type: bool) -> list:
     """
     Parse multiple packets from a decompressed buffer.
 
@@ -136,25 +135,21 @@ async def _parse_packet_buffer(
             )
 
         # Read length (big-endian)
-        packet_length = struct.unpack('>H', buffer[offset:offset+2])[0]
+        packet_length = struct.unpack(">H", buffer[offset : offset + 2])[0]
 
         # Read type field (1 or 2 bytes)
         if use_two_byte_type:
             header_size = 4
             if len(buffer) - offset < header_size:
-                raise ValueError(
-                    f"Incomplete 2-byte type header at offset {offset}"
-                )
-            packet_type = struct.unpack('>H', buffer[offset+2:offset+4])[0]
+                raise ValueError(f"Incomplete 2-byte type header at offset {offset}")
+            packet_type = struct.unpack(">H", buffer[offset + 2 : offset + 4])[0]
         else:
             header_size = 3
-            packet_type = struct.unpack('B', buffer[offset+2:offset+3])[0]
+            packet_type = struct.unpack("B", buffer[offset + 2 : offset + 3])[0]
 
         # Validate length
         if packet_length < header_size:
-            raise ValueError(
-                f"Invalid packet length {packet_length} at offset {offset}"
-            )
+            raise ValueError(f"Invalid packet length {packet_length} at offset {offset}")
 
         # Check if complete packet available
         if offset + packet_length > len(buffer):
@@ -166,8 +161,8 @@ async def _parse_packet_buffer(
         # Extract payload and raw packet
         payload_start = offset + header_size
         payload_length = packet_length - header_size
-        payload = buffer[payload_start:payload_start + payload_length]
-        raw_packet = buffer[offset:offset + packet_length]
+        payload = buffer[payload_start : payload_start + payload_length]
+        raw_packet = buffer[offset : offset + packet_length]
 
         packets.append((packet_type, payload, raw_packet))
         offset += packet_length
@@ -177,37 +172,39 @@ async def _parse_packet_buffer(
 
 # Data type encoding functions
 
+
 def encode_string(value: str) -> bytes:
     """Encode a STRING as null-terminated UTF-8 bytes."""
-    return value.encode('utf-8') + b'\x00'
+    return value.encode("utf-8") + b"\x00"
 
 
 def encode_bool(value: bool) -> bytes:
     """Encode a BOOL as a single byte (0 or 1)."""
-    return struct.pack('B', 1 if value else 0)
+    return struct.pack("B", 1 if value else 0)
 
 
 def encode_uint32(value: int) -> bytes:
     """Encode a UINT32 as 4 bytes in big-endian format."""
-    return struct.pack('>I', value)
+    return struct.pack(">I", value)
 
 
 def encode_sint16(value: int) -> bytes:
     """Encode a SINT16 as 2 bytes in big-endian format."""
-    return struct.pack('>h', value)
+    return struct.pack(">h", value)
 
 
 def encode_uint8(value: int) -> bytes:
     """Encode a UINT8 as 1 byte."""
-    return struct.pack('B', value)
+    return struct.pack("B", value)
 
 
 def encode_sint8(value: int) -> bytes:
     """Encode a SINT8 as 1 byte (signed)."""
-    return struct.pack('b', value)
+    return struct.pack("b", value)
 
 
 # Data type decoding functions
+
 
 def decode_string(data: bytes, offset: int) -> Tuple[str, int]:
     """
@@ -216,10 +213,10 @@ def decode_string(data: bytes, offset: int) -> Tuple[str, int]:
     Returns:
         Tuple of (string_value, new_offset)
     """
-    end = data.find(b'\x00', offset)
+    end = data.find(b"\x00", offset)
     if end == -1:
         raise ValueError("Null terminator not found in string")
-    string = data[offset:end].decode('utf-8')
+    string = data[offset:end].decode("utf-8")
     return string, end + 1
 
 
@@ -239,15 +236,15 @@ def decode_fixed_string(data: bytes, offset: int, size: int) -> Tuple[str, int]:
     Returns:
         Tuple of (string_value, new_offset)
     """
-    chunk = data[offset:offset + size]
+    chunk = data[offset : offset + size]
     # Find null terminator within the fixed-size chunk
-    end = chunk.find(b'\x00')
+    end = chunk.find(b"\x00")
     if end == -1:
         # No null terminator, use entire chunk
-        string = chunk.decode('utf-8')
+        string = chunk.decode("utf-8")
     else:
         # Decode up to null terminator
-        string = chunk[:end].decode('utf-8')
+        string = chunk[:end].decode("utf-8")
     return string, offset + size
 
 
@@ -280,7 +277,7 @@ def decode_sint8(data: bytes, offset: int) -> Tuple[int, int]:
     Returns:
         Tuple of (int_value, new_offset)
     """
-    value = struct.unpack('b', bytes([data[offset]]))[0]
+    value = struct.unpack("b", bytes([data[offset]]))[0]
     return value, offset + 1
 
 
@@ -291,7 +288,7 @@ def decode_uint32(data: bytes, offset: int) -> Tuple[int, int]:
     Returns:
         Tuple of (int_value, new_offset)
     """
-    value = struct.unpack('>I', data[offset:offset+4])[0]
+    value = struct.unpack(">I", data[offset : offset + 4])[0]
     return value, offset + 4
 
 
@@ -302,7 +299,7 @@ def decode_sint16(data: bytes, offset: int) -> Tuple[int, int]:
     Returns:
         Tuple of (int_value, new_offset)
     """
-    value = struct.unpack('>h', data[offset:offset+2])[0]
+    value = struct.unpack(">h", data[offset : offset + 2])[0]
     return value, offset + 2
 
 
@@ -313,7 +310,7 @@ def decode_uint16(data: bytes, offset: int) -> Tuple[int, int]:
     Returns:
         Tuple of (int_value, new_offset)
     """
-    value = struct.unpack('>H', data[offset:offset+2])[0]
+    value = struct.unpack(">H", data[offset : offset + 2])[0]
     return value, offset + 2
 
 
@@ -324,7 +321,7 @@ def decode_sint32(data: bytes, offset: int) -> Tuple[int, int]:
     Returns:
         Tuple of (int_value, new_offset)
     """
-    value = struct.unpack('>i', data[offset:offset+4])[0]
+    value = struct.unpack(">i", data[offset : offset + 4])[0]
     return value, offset + 4
 
 
@@ -353,8 +350,8 @@ def encode_packet(packet_type: int, payload: bytes) -> bytes:
     Encode a packet with a header.
     """
     packet_length = len(payload) + 3  # 2 bytes length + 1 byte type + payload
-    length_header = struct.pack('>H', packet_length)
-    return length_header + struct.pack('B', packet_type) + payload
+    length_header = struct.pack(">H", packet_length)
+    return length_header + struct.pack("B", packet_type) + payload
 
 
 def encode_server_join_req(username: str) -> bytes:
@@ -370,18 +367,22 @@ def encode_server_join_req(username: str) -> bytes:
     - UINT32 patch_version
     """
     # Build packet payload (without header)
-    payload = (encode_string(username) +
-               encode_string(CAPABILITY) +
-               encode_string(VERSION_LABEL) +
-               encode_uint32(MAJOR_VERSION) +
-               encode_uint32(MINOR_VERSION) +
-               encode_uint32(PATCH_VERSION))
+    payload = (
+        encode_string(username)
+        + encode_string(CAPABILITY)
+        + encode_string(VERSION_LABEL)
+        + encode_uint32(MAJOR_VERSION)
+        + encode_uint32(MINOR_VERSION)
+        + encode_uint32(PATCH_VERSION)
+    )
 
     # Build complete packet with header
     return encode_packet(PACKET_SERVER_JOIN_REQ, payload)
 
 
-async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = False, validate: bool = False) -> Tuple[int, bytes, bytes]:
+async def read_packet(
+    reader: asyncio.StreamReader, use_two_byte_type: bool = False, validate: bool = False
+) -> Tuple[int, bytes, bytes]:
     """
     Read a packet from the stream.
 
@@ -396,7 +397,7 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
     """
     # Read 2-byte length field (big-endian)
     length_bytes = await _recv_exact(reader, 2)
-    packet_length = struct.unpack('>H', length_bytes)[0]
+    packet_length = struct.unpack(">H", length_bytes)[0]
 
     if validate:
         print(f"[VALIDATE] Length header: {packet_length} bytes")
@@ -409,7 +410,7 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
     if packet_length == JUMBO_SIZE:
         # Read 4-byte actual length (big-endian)
         jumbo_length_bytes = await _recv_exact(reader, 4)
-        actual_length = struct.unpack('>I', jumbo_length_bytes)[0]
+        actual_length = struct.unpack(">I", jumbo_length_bytes)[0]
 
         if validate:
             print(f"[VALIDATE] JUMBO compressed: {actual_length} bytes")
@@ -473,11 +474,11 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
     # Read packet type (1 or 2 bytes depending on connection state)
     if use_two_byte_type:
         type_bytes = await _recv_exact(reader, 2)
-        packet_type = struct.unpack('>H', type_bytes)[0]
+        packet_type = struct.unpack(">H", type_bytes)[0]
         header_size = 4  # 2 bytes length + 2 bytes type
     else:
         type_bytes = await _recv_exact(reader, 1)
-        packet_type = struct.unpack('B', type_bytes)[0]
+        packet_type = struct.unpack("B", type_bytes)[0]
         header_size = 3  # 2 bytes length + 1 byte type
 
     if validate:
@@ -485,7 +486,7 @@ async def read_packet(reader: asyncio.StreamReader, use_two_byte_type: bool = Fa
 
     # Read remaining payload
     payload_length = packet_length - header_size
-    payload = await _recv_exact(reader, payload_length) if payload_length > 0 else b''
+    payload = await _recv_exact(reader, payload_length) if payload_length > 0 else b""
 
     if validate:
         print(f"[VALIDATE] Payload length: {payload_length} bytes")
@@ -533,11 +534,11 @@ def decode_server_join_reply(payload: bytes) -> dict:
     conn_id, offset = decode_sint16(payload, offset)
 
     return {
-        'you_can_join': you_can_join,
-        'message': message,
-        'capability': capability,
-        'challenge_file': challenge_file,
-        'conn_id': conn_id
+        "you_can_join": you_can_join,
+        "message": message,
+        "capability": capability,
+        "challenge_file": challenge_file,
+        "conn_id": conn_id,
     }
 
 
@@ -561,11 +562,11 @@ def decode_server_info(payload: bytes) -> dict:
     emerg_version, offset = decode_uint32(payload, offset)
 
     return {
-        'version_label': version_label,
-        'major_version': major_version,
-        'minor_version': minor_version,
-        'patch_version': patch_version,
-        'emerg_version': emerg_version
+        "version_label": version_label,
+        "major_version": major_version,
+        "minor_version": minor_version,
+        "patch_version": patch_version,
+        "emerg_version": emerg_version,
     }
 
 
@@ -610,12 +611,12 @@ def decode_chat_msg(payload: bytes) -> dict:
         conn_id = -1
 
     return {
-        'message': message,
-        'tile': tile,
-        'event': event,
-        'turn': turn,
-        'phase': phase,
-        'conn_id': conn_id
+        "message": message,
+        "tile": tile,
+        "event": event,
+        "turn": turn,
+        "phase": phase,
+        "conn_id": conn_id,
     }
 
 
@@ -631,9 +632,7 @@ def decode_ruleset_summary(payload: bytes) -> dict:
     offset = 0
     text, offset = decode_string(payload, offset)
 
-    return {
-        'text': text
-    }
+    return {"text": text}
 
 
 def decode_ruleset_description_part(payload: bytes) -> dict:
@@ -652,9 +651,7 @@ def decode_ruleset_description_part(payload: bytes) -> dict:
     offset = 0
     text, offset = decode_string(payload, offset)
 
-    return {
-        'text': text
-    }
+    return {"text": text}
 
 
 def decode_ruleset_nation_sets(payload: bytes) -> dict:
@@ -723,12 +720,7 @@ def decode_ruleset_nation_sets(payload: bytes) -> dict:
             description, offset = decode_string(payload, offset)
             descriptions.append(description)
 
-    return {
-        'nsets': nsets,
-        'names': names,
-        'rule_names': rule_names,
-        'descriptions': descriptions
-    }
+    return {"nsets": nsets, "names": names, "rule_names": rule_names, "descriptions": descriptions}
 
 
 def decode_ruleset_nation_groups(payload: bytes) -> dict:
@@ -788,11 +780,7 @@ def decode_ruleset_nation_groups(payload: bytes) -> dict:
             hidden.append(bool(hidden_byte))
             offset += 1
 
-    return {
-        'ngroups': ngroups,
-        'groups': groups,
-        'hidden': hidden
-    }
+    return {"ngroups": ngroups, "groups": groups, "hidden": hidden}
 
 
 def decode_ruleset_nation(payload: bytes) -> dict:
@@ -831,130 +819,149 @@ def decode_ruleset_nation(payload: bytes) -> dict:
     # This matches FreeCiv's generate_packets.py: bitvector first, then key fields
 
     # Read delta protocol bitvector FIRST (3 bytes = 24 bits for 24 non-key fields)
-    bitvector = int.from_bytes(payload[offset:offset+3], byteorder='little')
+    bitvector = int.from_bytes(payload[offset : offset + 3], byteorder="little")
     offset += 3
 
     # Read key field (id) SECOND - always present after bitvector
     nation_id, offset = decode_sint16(payload, offset)
 
     # Initialize result with key field
-    result = {'id': nation_id}
+    result = {"id": nation_id}
 
     # Helper to check if bit is set
     def has_field(bit_index):
         return bool(bitvector & (1 << bit_index))
 
     # Initialize all fields with defaults
-    result.update({
-        'translation_domain': '', 'adjective': '', 'rule_name': '', 'noun_plural': '',
-        'graphic_str': '', 'graphic_alt': '', 'legend': '',
-        'style': 0, 'leader_count': 0, 'leader_name': [], 'leader_is_male': [],
-        'is_playable': False, 'barbarian_type': 0,
-        'nsets': 0, 'sets': [], 'ngroups': 0, 'groups': [],
-        'init_government_id': -1, 'init_techs_count': 0, 'init_techs': [],
-        'init_units_count': 0, 'init_units': [], 'init_buildings_count': 0, 'init_buildings': []
-    })
+    result.update(
+        {
+            "translation_domain": "",
+            "adjective": "",
+            "rule_name": "",
+            "noun_plural": "",
+            "graphic_str": "",
+            "graphic_alt": "",
+            "legend": "",
+            "style": 0,
+            "leader_count": 0,
+            "leader_name": [],
+            "leader_is_male": [],
+            "is_playable": False,
+            "barbarian_type": 0,
+            "nsets": 0,
+            "sets": [],
+            "ngroups": 0,
+            "groups": [],
+            "init_government_id": -1,
+            "init_techs_count": 0,
+            "init_techs": [],
+            "init_units_count": 0,
+            "init_units": [],
+            "init_buildings_count": 0,
+            "init_buildings": [],
+        }
+    )
 
     # Read ONLY the fields indicated by the bitvector
 
     if has_field(0):  # translation_domain
-        result['translation_domain'], offset = decode_string(payload, offset)
+        result["translation_domain"], offset = decode_string(payload, offset)
 
     if has_field(1):  # adjective
-        result['adjective'], offset = decode_string(payload, offset)
+        result["adjective"], offset = decode_string(payload, offset)
 
     if has_field(2):  # rule_name
-        result['rule_name'], offset = decode_string(payload, offset)
+        result["rule_name"], offset = decode_string(payload, offset)
 
     if has_field(3):  # noun_plural
-        result['noun_plural'], offset = decode_string(payload, offset)
+        result["noun_plural"], offset = decode_string(payload, offset)
 
     if has_field(4):  # graphic_str
-        result['graphic_str'], offset = decode_string(payload, offset)
+        result["graphic_str"], offset = decode_string(payload, offset)
 
     if has_field(5):  # graphic_alt
-        result['graphic_alt'], offset = decode_string(payload, offset)
+        result["graphic_alt"], offset = decode_string(payload, offset)
 
     if has_field(6):  # legend
-        result['legend'], offset = decode_string(payload, offset)
+        result["legend"], offset = decode_string(payload, offset)
 
     if has_field(7):  # style
-        result['style'], offset = decode_uint8(payload, offset)
+        result["style"], offset = decode_uint8(payload, offset)
 
     if has_field(8):  # leader_count
-        result['leader_count'], offset = decode_uint8(payload, offset)
+        result["leader_count"], offset = decode_uint8(payload, offset)
 
     if has_field(9):  # leader_name[]
-        result['leader_name'] = []
-        for i in range(result['leader_count']):
+        result["leader_name"] = []
+        for i in range(result["leader_count"]):
             name, offset = decode_string(payload, offset)
-            result['leader_name'].append(name)
+            result["leader_name"].append(name)
 
     if has_field(10):  # leader_is_male[] (BOOL array)
         # Note: Arrays of BOOLs transmit each element as a byte in the payload
         # (boolean header folding only applies to standalone BOOL fields)
-        result['leader_is_male'] = []
-        for i in range(result['leader_count']):
+        result["leader_is_male"] = []
+        for i in range(result["leader_count"]):
             is_male, offset = decode_bool(payload, offset)
-            result['leader_is_male'].append(is_male)
+            result["leader_is_male"].append(is_male)
 
     # Field 11: is_playable (BOOL) - uses boolean header folding
     # The bitvector bit IS the field value; no payload bytes consumed
     if has_field(11):
-        result['is_playable'] = True
+        result["is_playable"] = True
     else:
-        result['is_playable'] = False
+        result["is_playable"] = False
 
     if has_field(12):  # barbarian_type
-        result['barbarian_type'], offset = decode_uint8(payload, offset)
+        result["barbarian_type"], offset = decode_uint8(payload, offset)
 
     if has_field(13):  # nsets
-        result['nsets'], offset = decode_uint8(payload, offset)
+        result["nsets"], offset = decode_uint8(payload, offset)
 
     if has_field(14):  # sets[]
-        result['sets'] = []
-        for i in range(result['nsets']):
+        result["sets"] = []
+        for i in range(result["nsets"]):
             set_id, offset = decode_uint8(payload, offset)
-            result['sets'].append(set_id)
+            result["sets"].append(set_id)
 
     if has_field(15):  # ngroups
-        result['ngroups'], offset = decode_uint8(payload, offset)
+        result["ngroups"], offset = decode_uint8(payload, offset)
 
     if has_field(16):  # groups[]
-        result['groups'] = []
-        for i in range(result['ngroups']):
+        result["groups"] = []
+        for i in range(result["ngroups"]):
             group_id, offset = decode_uint8(payload, offset)
-            result['groups'].append(group_id)
+            result["groups"].append(group_id)
 
     if has_field(17):  # init_government_id
-        result['init_government_id'], offset = decode_sint8(payload, offset)
+        result["init_government_id"], offset = decode_sint8(payload, offset)
 
     if has_field(18):  # init_techs_count
-        result['init_techs_count'], offset = decode_uint8(payload, offset)
+        result["init_techs_count"], offset = decode_uint8(payload, offset)
 
     if has_field(19):  # init_techs[]
-        result['init_techs'] = []
-        for i in range(result['init_techs_count']):
+        result["init_techs"] = []
+        for i in range(result["init_techs_count"]):
             tech_id, offset = decode_uint16(payload, offset)
-            result['init_techs'].append(tech_id)
+            result["init_techs"].append(tech_id)
 
     if has_field(20):  # init_units_count
-        result['init_units_count'], offset = decode_uint8(payload, offset)
+        result["init_units_count"], offset = decode_uint8(payload, offset)
 
     if has_field(21):  # init_units[]
-        result['init_units'] = []
-        for i in range(result['init_units_count']):
+        result["init_units"] = []
+        for i in range(result["init_units_count"]):
             unit_id, offset = decode_uint16(payload, offset)
-            result['init_units'].append(unit_id)
+            result["init_units"].append(unit_id)
 
     if has_field(22):  # init_buildings_count
-        result['init_buildings_count'], offset = decode_uint8(payload, offset)
+        result["init_buildings_count"], offset = decode_uint8(payload, offset)
 
     if has_field(23):  # init_buildings[]
-        result['init_buildings'] = []
-        for i in range(result['init_buildings_count']):
+        result["init_buildings"] = []
+        for i in range(result["init_buildings_count"]):
             building_id, offset = decode_uint8(payload, offset)
-            result['init_buildings'].append(building_id)
+            result["init_buildings"].append(building_id)
 
     return result
 
@@ -987,33 +994,29 @@ def decode_nation_availability(payload: bytes) -> dict:
     offset += 1
 
     # Initialize result with defaults
-    result = {
-        'ncount': 0,
-        'is_pickable': [],
-        'nationset_change': False
-    }
+    result = {"ncount": 0, "is_pickable": [], "nationset_change": False}
 
     # Field 0: ncount (UINT16, big-endian)
     if bitvector & (1 << 0):
         # Note: FreeCiv uses big-endian for multi-byte integers (consistent with rest of protocol)
-        ncount = int.from_bytes(payload[offset:offset+2], byteorder='big')
+        ncount = int.from_bytes(payload[offset : offset + 2], byteorder="big")
         offset += 2
-        result['ncount'] = ncount
+        result["ncount"] = ncount
 
     # Field 1: is_pickable (BOOL array)
     if bitvector & (1 << 1):
-        ncount = result['ncount']
+        ncount = result["ncount"]
         is_pickable = []
         for i in range(ncount):
             pickable = bool(payload[offset])
             is_pickable.append(pickable)
             offset += 1
-        result['is_pickable'] = is_pickable
+        result["is_pickable"] = is_pickable
 
     # Field 2: nationset_change (BOOL, folded into bitvector)
     # Boolean header folding: the bitvector bit IS the field value
     # No payload bytes consumed for this field
-    result['nationset_change'] = bool(bitvector & (1 << 2))
+    result["nationset_change"] = bool(bitvector & (1 << 2))
 
     return result
 
@@ -1103,24 +1106,24 @@ def decode_ruleset_game(payload: bytes) -> dict:
     background_blue, offset = decode_uint8(payload, offset)
 
     return {
-        'default_specialist': default_specialist,
-        'global_init_techs_count': global_init_techs_count,
-        'global_init_techs': global_init_techs,
-        'global_init_buildings_count': global_init_buildings_count,
-        'global_init_buildings': global_init_buildings,
-        'veteran_levels': veteran_levels,
-        'veteran_name': veteran_name,
-        'power_fact': power_fact,
-        'move_bonus': move_bonus,
-        'base_raise_chance': base_raise_chance,
-        'work_raise_chance': work_raise_chance,
-        'background_red': background_red,
-        'background_green': background_green,
-        'background_blue': background_blue,
+        "default_specialist": default_specialist,
+        "global_init_techs_count": global_init_techs_count,
+        "global_init_techs": global_init_techs,
+        "global_init_buildings_count": global_init_buildings_count,
+        "global_init_buildings": global_init_buildings,
+        "veteran_levels": veteran_levels,
+        "veteran_name": veteran_name,
+        "power_fact": power_fact,
+        "move_bonus": move_bonus,
+        "base_raise_chance": base_raise_chance,
+        "work_raise_chance": work_raise_chance,
+        "background_red": background_red,
+        "background_green": background_green,
+        "background_blue": background_blue,
     }
 
 
-def decode_ruleset_specialist(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_specialist(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_SPECIALIST (142) using delta protocol.
 
@@ -1162,25 +1165,25 @@ def decode_ruleset_specialist(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Initialize from cache or defaults
     if cached:
-        specialist_id = cached.get('id', 0)
-        plural_name = cached.get('plural_name', '')
-        rule_name = cached.get('rule_name', '')
-        short_name = cached.get('short_name', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', []).copy()
-        helptext = cached.get('helptext', '')
+        specialist_id = cached.get("id", 0)
+        plural_name = cached.get("plural_name", "")
+        rule_name = cached.get("rule_name", "")
+        short_name = cached.get("short_name", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        helptext = cached.get("helptext", "")
     else:
         specialist_id = 0
-        plural_name = ''
-        rule_name = ''
-        short_name = ''
-        graphic_str = ''
-        graphic_alt = ''
+        plural_name = ""
+        rule_name = ""
+        short_name = ""
+        graphic_str = ""
+        graphic_alt = ""
         reqs_count = 0
         reqs = []
-        helptext = ''
+        helptext = ""
 
     # Decode conditional fields based on bitvector
     # Bit 0: id (UINT8)
@@ -1224,15 +1227,15 @@ def decode_ruleset_specialist(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Build result
     result = {
-        'id': specialist_id,
-        'plural_name': plural_name,
-        'rule_name': rule_name,
-        'short_name': short_name,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'helptext': helptext
+        "id": specialist_id,
+        "plural_name": plural_name,
+        "rule_name": rule_name,
+        "short_name": short_name,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "helptext": helptext,
     }
 
     # Update cache
@@ -1271,12 +1274,12 @@ def decode_requirement(data: bytes, offset: int) -> Tuple[dict, int]:
     quiet, offset = decode_bool(data, offset)
 
     return {
-        'type': req_type,
-        'value': value,
-        'range': range_val,
-        'survives': survives,
-        'present': present,
-        'quiet': quiet
+        "type": req_type,
+        "value": value,
+        "range": range_val,
+        "survives": survives,
+        "present": present,
+        "quiet": quiet,
     }, offset
 
 
@@ -1315,7 +1318,6 @@ def decode_ruleset_disaster(payload: bytes) -> dict:
         reqs_count, reqs, frequency, effects)
     """
     offset = 0
-
 
     # IMPORTANT: This packet CAN use delta protocol despite packets.def saying "lsend"!
     # First disaster is sent full (no bitvector), subsequent ones use delta protocol.
@@ -1377,13 +1379,13 @@ def decode_ruleset_disaster(payload: bytes) -> dict:
         offset += 1
 
     return {
-        'id': disaster_id,
-        'name': name,
-        'rule_name': rule_name,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'frequency': frequency,
-        'effects': effects_byte
+        "id": disaster_id,
+        "name": name,
+        "rule_name": rule_name,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "frequency": frequency,
+        "effects": effects_byte,
     }
 
 
@@ -1423,11 +1425,11 @@ def decode_ruleset_achievement(payload: bytes) -> dict:
     # Real server packets do NOT include this field!
 
     return {
-        'id': achievement_id,
-        'name': name,
-        'rule_name': rule_name,
-        'type': achievement_type,
-        'unique': unique
+        "id": achievement_id,
+        "name": name,
+        "rule_name": rule_name,
+        "type": achievement_type,
+        "unique": unique,
     }
 
 
@@ -1485,10 +1487,10 @@ def decode_ruleset_trade(payload: bytes) -> dict:
         bonus_type, offset = decode_uint8(payload, offset)
 
     return {
-        'id': trade_id,
-        'trade_pct': trade_pct,
-        'cancelling': cancelling,
-        'bonus_type': bonus_type
+        "id": trade_id,
+        "trade_pct": trade_pct,
+        "cancelling": cancelling,
+        "bonus_type": bonus_type,
     }
 
 
@@ -1536,10 +1538,7 @@ def decode_ruleset_resource(payload: bytes) -> dict:
             value, offset = decode_uint8(payload, offset)
             output.append(value)
 
-    return {
-        'id': resource_id,
-        'output': output
-    }
+    return {"id": resource_id, "output": output}
 
 
 def decode_ruleset_action(payload: bytes) -> dict:
@@ -1639,22 +1638,22 @@ def decode_ruleset_action(payload: bytes) -> dict:
         blocked_by, offset = read_bitvector(payload, offset, 128)
 
     return {
-        'id': action_id,
-        'ui_name': ui_name,
-        'quiet': quiet,
-        'result': result,
-        'sub_results': sub_results,
-        'actor_consuming_always': actor_consuming_always,
-        'act_kind': act_kind,
-        'tgt_kind': tgt_kind,
-        'sub_tgt_kind': sub_tgt_kind,
-        'min_distance': min_distance,
-        'max_distance': max_distance,
-        'blocked_by': blocked_by
+        "id": action_id,
+        "ui_name": ui_name,
+        "quiet": quiet,
+        "result": result,
+        "sub_results": sub_results,
+        "actor_consuming_always": actor_consuming_always,
+        "act_kind": act_kind,
+        "tgt_kind": tgt_kind,
+        "sub_tgt_kind": sub_tgt_kind,
+        "min_distance": min_distance,
+        "max_distance": max_distance,
+        "blocked_by": blocked_by,
     }
 
 
-def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_action_enabler(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_ACTION_ENABLER (235).
 
@@ -1693,11 +1692,11 @@ def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> 
 
     # Initialize from cache or defaults
     if cached:
-        enabled_action = cached.get('enabled_action', 0)
-        actor_reqs_count = cached.get('actor_reqs_count', 0)
-        actor_reqs = cached.get('actor_reqs', []).copy()
-        target_reqs_count = cached.get('target_reqs_count', 0)
-        target_reqs = cached.get('target_reqs', []).copy()
+        enabled_action = cached.get("enabled_action", 0)
+        actor_reqs_count = cached.get("actor_reqs_count", 0)
+        actor_reqs = cached.get("actor_reqs", []).copy()
+        target_reqs_count = cached.get("target_reqs_count", 0)
+        target_reqs = cached.get("target_reqs", []).copy()
     else:
         enabled_action = 0
         actor_reqs_count = 0
@@ -1735,11 +1734,11 @@ def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> 
 
     # Build result
     result = {
-        'enabled_action': enabled_action,
-        'actor_reqs_count': actor_reqs_count,
-        'actor_reqs': actor_reqs,
-        'target_reqs_count': target_reqs_count,
-        'target_reqs': target_reqs
+        "enabled_action": enabled_action,
+        "actor_reqs_count": actor_reqs_count,
+        "actor_reqs": actor_reqs,
+        "target_reqs_count": target_reqs_count,
+        "target_reqs": target_reqs,
     }
 
     # Update cache
@@ -1748,7 +1747,7 @@ def decode_ruleset_action_enabler(payload: bytes, delta_cache: 'DeltaCache') -> 
     return result
 
 
-def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_action_auto(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_ACTION_AUTO (252).
 
@@ -1788,12 +1787,12 @@ def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dic
 
     # Initialize from cache or defaults
     if cached:
-        id = cached.get('id', 0)
-        cause = cached.get('cause', 0)
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', []).copy()
-        alternatives_count = cached.get('alternatives_count', 0)
-        alternatives = cached.get('alternatives', []).copy()
+        id = cached.get("id", 0)
+        cause = cached.get("cause", 0)
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        alternatives_count = cached.get("alternatives_count", 0)
+        alternatives = cached.get("alternatives", []).copy()
     else:
         id = 0
         cause = 0
@@ -1836,12 +1835,12 @@ def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dic
 
     # Build result
     result = {
-        'id': id,
-        'cause': cause,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'alternatives_count': alternatives_count,
-        'alternatives': alternatives
+        "id": id,
+        "cause": cause,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "alternatives_count": alternatives_count,
+        "alternatives": alternatives,
     }
 
     # Update cache
@@ -1850,7 +1849,7 @@ def decode_ruleset_action_auto(payload: bytes, delta_cache: 'DeltaCache') -> dic
     return result
 
 
-def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_tech_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_TECH_FLAG (234).
 
@@ -1886,13 +1885,13 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        tech_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        tech_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         tech_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if has_field(0):
@@ -1907,11 +1906,7 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         helptxt, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'id': tech_id,
-        'name': name,
-        'helptxt': helptxt
-    }
+    result = {"id": tech_id, "name": name, "helptxt": helptxt}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TECH_FLAG, (), result)
@@ -1919,7 +1914,7 @@ def decode_ruleset_tech_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_extra_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_extra_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_EXTRA_FLAG (226).
 
@@ -1955,13 +1950,13 @@ def decode_ruleset_extra_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Initialize from cache or defaults
     if cached:
-        extra_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        extra_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         extra_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if has_field(0):
@@ -1976,11 +1971,7 @@ def decode_ruleset_extra_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict
         helptxt, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'id': extra_id,
-        'name': name,
-        'helptxt': helptxt
-    }
+    result = {"id": extra_id, "name": name, "helptxt": helptxt}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_EXTRA_FLAG, (), result)
@@ -1988,7 +1979,7 @@ def decode_ruleset_extra_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict
     return result
 
 
-def decode_ruleset_terrain_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_terrain_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_TERRAIN_FLAG (231).
 
@@ -2010,13 +2001,13 @@ def decode_ruleset_terrain_flag(payload: bytes, delta_cache: 'DeltaCache') -> di
 
     # Initialize from cache or defaults
     if cached:
-        terrain_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        terrain_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         terrain_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if is_bit_set(bitvector, 0):
@@ -2031,11 +2022,7 @@ def decode_ruleset_terrain_flag(payload: bytes, delta_cache: 'DeltaCache') -> di
         helptxt, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'id': terrain_id,
-        'name': name,
-        'helptxt': helptxt
-    }
+    result = {"id": terrain_id, "name": name, "helptxt": helptxt}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_TERRAIN_FLAG, (), result)
@@ -2043,7 +2030,7 @@ def decode_ruleset_terrain_flag(payload: bytes, delta_cache: 'DeltaCache') -> di
     return result
 
 
-def decode_ruleset_impr_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_impr_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_IMPR_FLAG (20).
 
@@ -2065,13 +2052,13 @@ def decode_ruleset_impr_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        impr_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        impr_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         impr_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if is_bit_set(bitvector, 0):
@@ -2086,11 +2073,7 @@ def decode_ruleset_impr_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         helptxt, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'id': impr_id,
-        'name': name,
-        'helptxt': helptxt
-    }
+    result = {"id": impr_id, "name": name, "helptxt": helptxt}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_IMPR_FLAG, (), result)
@@ -2098,7 +2081,7 @@ def decode_ruleset_impr_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_unit_class(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_UNIT_CLASS (152) - unit class definition.
 
@@ -2136,23 +2119,23 @@ def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Initialize from cache or defaults
     if cached:
-        unit_class_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        min_speed = cached.get('min_speed', 0)
-        hp_loss_pct = cached.get('hp_loss_pct', 0)
-        non_native_def_pct = cached.get('non_native_def_pct', 0)
-        flags = cached.get('flags', 0)
-        helptext = cached.get('helptext', '')
+        unit_class_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        min_speed = cached.get("min_speed", 0)
+        hp_loss_pct = cached.get("hp_loss_pct", 0)
+        non_native_def_pct = cached.get("non_native_def_pct", 0)
+        flags = cached.get("flags", 0)
+        helptext = cached.get("helptext", "")
     else:
         unit_class_id = 0
-        name = ''
-        rule_name = ''
+        name = ""
+        rule_name = ""
         min_speed = 0
         hp_loss_pct = 0
         non_native_def_pct = 0
         flags = 0
-        helptext = ''
+        helptext = ""
 
     # Bit 0: id
     if has_field(0):
@@ -2188,14 +2171,14 @@ def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Build result
     result = {
-        'id': unit_class_id,
-        'name': name,
-        'rule_name': rule_name,
-        'min_speed': min_speed,
-        'hp_loss_pct': hp_loss_pct,
-        'non_native_def_pct': non_native_def_pct,
-        'flags': flags,
-        'helptext': helptext
+        "id": unit_class_id,
+        "name": name,
+        "rule_name": rule_name,
+        "min_speed": min_speed,
+        "hp_loss_pct": hp_loss_pct,
+        "non_native_def_pct": non_native_def_pct,
+        "flags": flags,
+        "helptext": helptext,
     }
 
     # Update cache
@@ -2204,7 +2187,7 @@ def decode_ruleset_unit_class(payload: bytes, delta_cache: 'DeltaCache') -> dict
     return result
 
 
-def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_base(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """Decode PACKET_RULESET_BASE (153) - base type definition."""
     offset = 0
 
@@ -2219,12 +2202,12 @@ def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        base_id = cached.get('id', 0)
-        gui_type = cached.get('gui_type', 0)
-        border_sq = cached.get('border_sq', -1)
-        vision_main_sq = cached.get('vision_main_sq', -1)
-        vision_invis_sq = cached.get('vision_invis_sq', -1)
-        vision_subs_sq = cached.get('vision_subs_sq', -1)
+        base_id = cached.get("id", 0)
+        gui_type = cached.get("gui_type", 0)
+        border_sq = cached.get("border_sq", -1)
+        vision_main_sq = cached.get("vision_main_sq", -1)
+        vision_invis_sq = cached.get("vision_invis_sq", -1)
+        vision_subs_sq = cached.get("vision_subs_sq", -1)
     else:
         base_id = 0
         gui_type = 0
@@ -2249,12 +2232,12 @@ def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result
     result = {
-        'id': base_id,
-        'gui_type': gui_type,
-        'border_sq': border_sq,
-        'vision_main_sq': vision_main_sq,
-        'vision_invis_sq': vision_invis_sq,
-        'vision_subs_sq': vision_subs_sq
+        "id": base_id,
+        "gui_type": gui_type,
+        "border_sq": border_sq,
+        "vision_main_sq": vision_main_sq,
+        "vision_invis_sq": vision_invis_sq,
+        "vision_subs_sq": vision_subs_sq,
     }
 
     # Update cache
@@ -2263,7 +2246,7 @@ def decode_ruleset_base(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_road(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_ROAD (220) - road type definition.
 
@@ -2299,18 +2282,18 @@ def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        road_id = cached.get('id', 0)
-        gui_type = cached.get('gui_type', 0)
-        first_reqs_count = cached.get('first_reqs_count', 0)
-        first_reqs = cached.get('first_reqs', []).copy()
-        move_cost = cached.get('move_cost', 0)
-        move_mode = cached.get('move_mode', 0)
-        tile_incr_const = cached.get('tile_incr_const', [0] * O_LAST).copy()
-        tile_incr = cached.get('tile_incr', [0] * O_LAST).copy()
-        tile_bonus = cached.get('tile_bonus', [0] * O_LAST).copy()
-        compat = cached.get('compat', 3)  # Default: ROCO_NONE
-        integrates = cached.get('integrates', 0)
-        flags = cached.get('flags', 0)
+        road_id = cached.get("id", 0)
+        gui_type = cached.get("gui_type", 0)
+        first_reqs_count = cached.get("first_reqs_count", 0)
+        first_reqs = cached.get("first_reqs", []).copy()
+        move_cost = cached.get("move_cost", 0)
+        move_mode = cached.get("move_mode", 0)
+        tile_incr_const = cached.get("tile_incr_const", [0] * O_LAST).copy()
+        tile_incr = cached.get("tile_incr", [0] * O_LAST).copy()
+        tile_bonus = cached.get("tile_bonus", [0] * O_LAST).copy()
+        compat = cached.get("compat", 3)  # Default: ROCO_NONE
+        integrates = cached.get("integrates", 0)
+        flags = cached.get("flags", 0)
     else:
         road_id = 0
         gui_type = 0
@@ -2376,18 +2359,18 @@ def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result
     result = {
-        'id': road_id,
-        'gui_type': gui_type,
-        'first_reqs_count': first_reqs_count,
-        'first_reqs': first_reqs,
-        'move_cost': move_cost,
-        'move_mode': move_mode,
-        'tile_incr_const': tile_incr_const,
-        'tile_incr': tile_incr,
-        'tile_bonus': tile_bonus,
-        'compat': compat,
-        'integrates': integrates,
-        'flags': flags
+        "id": road_id,
+        "gui_type": gui_type,
+        "first_reqs_count": first_reqs_count,
+        "first_reqs": first_reqs,
+        "move_cost": move_cost,
+        "move_mode": move_mode,
+        "tile_incr_const": tile_incr_const,
+        "tile_incr": tile_incr,
+        "tile_bonus": tile_bonus,
+        "compat": compat,
+        "integrates": integrates,
+        "flags": flags,
     }
 
     # Update cache
@@ -2396,7 +2379,7 @@ def decode_ruleset_road(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_goods(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_goods(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """Decode PACKET_RULESET_GOODS (248) - trade goods configuration."""
     offset = 0
 
@@ -2408,27 +2391,27 @@ def decode_ruleset_goods(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        goods_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', [])
-        from_pct = cached.get('from_pct', 0)
-        to_pct = cached.get('to_pct', 0)
-        onetime_pct = cached.get('onetime_pct', 0)
-        flags = cached.get('flags', 0)
-        helptext = cached.get('helptext', '')
+        goods_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", [])
+        from_pct = cached.get("from_pct", 0)
+        to_pct = cached.get("to_pct", 0)
+        onetime_pct = cached.get("onetime_pct", 0)
+        flags = cached.get("flags", 0)
+        helptext = cached.get("helptext", "")
     else:
         goods_id = 0
-        name = ''
-        rule_name = ''
+        name = ""
+        rule_name = ""
         reqs_count = 0
         reqs = []
         from_pct = 0
         to_pct = 0
         onetime_pct = 0
         flags = 0
-        helptext = ''
+        helptext = ""
 
     # Decode conditional fields based on bitvector
     # Bit 0: id
@@ -2476,16 +2459,16 @@ def decode_ruleset_goods(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result dictionary
     result = {
-        'id': goods_id,
-        'name': name,
-        'rule_name': rule_name,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'from_pct': from_pct,
-        'to_pct': to_pct,
-        'onetime_pct': onetime_pct,
-        'flags': flags,
-        'helptext': helptext
+        "id": goods_id,
+        "name": name,
+        "rule_name": rule_name,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "from_pct": from_pct,
+        "to_pct": to_pct,
+        "onetime_pct": onetime_pct,
+        "flags": flags,
+        "helptext": helptext,
     }
 
     # Update cache for next packet
@@ -2494,7 +2477,7 @@ def decode_ruleset_goods(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_UNIT_CLASS_FLAG (230) - unit class flag definition.
 
@@ -2522,13 +2505,13 @@ def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Initialize from cache or defaults
     if cached:
-        flag_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        flag_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         flag_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if has_field(0):
@@ -2543,11 +2526,7 @@ def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') ->
         helptxt, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'id': flag_id,
-        'name': name,
-        'helptxt': helptxt
-    }
+    result = {"id": flag_id, "name": name, "helptxt": helptxt}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT_CLASS_FLAG, (), result)
@@ -2555,7 +2534,7 @@ def decode_ruleset_unit_class_flag(payload: bytes, delta_cache: 'DeltaCache') ->
     return result
 
 
-def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_unit_flag(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_UNIT_FLAG (229) - unit flag definition.
 
@@ -2576,13 +2555,13 @@ def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        flag_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        helptxt = cached.get('helptxt', '')
+        flag_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        helptxt = cached.get("helptxt", "")
     else:
         flag_id = 0
-        name = ''
-        helptxt = ''
+        name = ""
+        helptxt = ""
 
     # Bit 0: id
     if is_bit_set(bitvector, 0):
@@ -2598,9 +2577,9 @@ def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result
     result = {
-        'id': flag_id,
-        'name': name,
-        'helptxt': helptxt,
+        "id": flag_id,
+        "name": name,
+        "helptxt": helptxt,
     }
 
     # Update cache
@@ -2609,7 +2588,7 @@ def decode_ruleset_unit_flag(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_unit_bonus(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_unit_bonus(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_UNIT_BONUS (228) - unit combat bonus configuration.
 
@@ -2663,24 +2642,18 @@ def decode_ruleset_unit_bonus(payload: bytes, delta_cache: 'DeltaCache') -> dict
     # If cached, use cached values for fields not in bitvector
     if cached:
         if not is_bit_set(bitvector, 0):
-            unit = cached.get('unit', 0)
+            unit = cached.get("unit", 0)
         if not is_bit_set(bitvector, 1):
-            flag = cached.get('flag', 0)
+            flag = cached.get("flag", 0)
         if not is_bit_set(bitvector, 2):
-            btype = cached.get('type', 0)
+            btype = cached.get("type", 0)
         if not is_bit_set(bitvector, 3):
-            value = cached.get('value', 0)
+            value = cached.get("value", 0)
         if not is_bit_set(bitvector, 4):
-            quiet = cached.get('quiet', False)
+            quiet = cached.get("quiet", False)
 
     # Build result
-    result = {
-        'unit': unit,
-        'flag': flag,
-        'type': btype,
-        'value': value,
-        'quiet': quiet
-    }
+    result = {"unit": unit, "flag": flag, "type": btype, "value": value, "quiet": quiet}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_UNIT_BONUS, cache_key, result)
@@ -2688,7 +2661,7 @@ def decode_ruleset_unit_bonus(payload: bytes, delta_cache: 'DeltaCache') -> dict
     return result
 
 
-def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_tech(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_TECH (144) - technology definition.
 
@@ -2712,20 +2685,20 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        tech_id = cached.get('id', 0)
-        root_req = cached.get('root_req', 0)
-        research_reqs_count = cached.get('research_reqs_count', 0)
-        research_reqs = cached.get('research_reqs', []).copy()
-        tclass = cached.get('tclass', 0)
-        removed = cached.get('removed', False)
-        flags = cached.get('flags', 0)
-        cost = cached.get('cost', 0.0)
-        num_reqs = cached.get('num_reqs', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        helptext = cached.get('helptext', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
+        tech_id = cached.get("id", 0)
+        root_req = cached.get("root_req", 0)
+        research_reqs_count = cached.get("research_reqs_count", 0)
+        research_reqs = cached.get("research_reqs", []).copy()
+        tclass = cached.get("tclass", 0)
+        removed = cached.get("removed", False)
+        flags = cached.get("flags", 0)
+        cost = cached.get("cost", 0.0)
+        num_reqs = cached.get("num_reqs", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        helptext = cached.get("helptext", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
     else:
         tech_id = 0
         root_req = 0
@@ -2736,11 +2709,11 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         flags = 0
         cost = 0.0
         num_reqs = 0
-        name = ''
-        rule_name = ''
-        helptext = ''
-        graphic_str = ''
-        graphic_alt = ''
+        name = ""
+        rule_name = ""
+        helptext = ""
+        graphic_str = ""
+        graphic_alt = ""
 
     # Bit 0: id (UINT16)
     if has_field(0):
@@ -2802,20 +2775,20 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result
     result = {
-        'id': tech_id,
-        'root_req': root_req,
-        'research_reqs_count': research_reqs_count,
-        'research_reqs': research_reqs,
-        'tclass': tclass,
-        'removed': removed,
-        'flags': flags,
-        'cost': cost,
-        'num_reqs': num_reqs,
-        'name': name,
-        'rule_name': rule_name,
-        'helptext': helptext,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt
+        "id": tech_id,
+        "root_req": root_req,
+        "research_reqs_count": research_reqs_count,
+        "research_reqs": research_reqs,
+        "tclass": tclass,
+        "removed": removed,
+        "flags": flags,
+        "cost": cost,
+        "num_reqs": num_reqs,
+        "name": name,
+        "rule_name": rule_name,
+        "helptext": helptext,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
     }
 
     # Update cache
@@ -2824,7 +2797,7 @@ def decode_ruleset_tech(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_GOVERNMENT_RULER_TITLE (143).
 
@@ -2852,15 +2825,15 @@ def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: 'DeltaCac
 
     # Initialize from cache or defaults
     if cached:
-        gov = cached.get('gov', 0)
-        nation = cached.get('nation', 0)
-        male_title = cached.get('male_title', '')
-        female_title = cached.get('female_title', '')
+        gov = cached.get("gov", 0)
+        nation = cached.get("nation", 0)
+        male_title = cached.get("male_title", "")
+        female_title = cached.get("female_title", "")
     else:
         gov = 0
         nation = 0
-        male_title = ''
-        female_title = ''
+        male_title = ""
+        female_title = ""
 
     # Decode conditional fields based on bitvector
     if is_bit_set(bitvector, 0):
@@ -2876,12 +2849,7 @@ def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: 'DeltaCac
         female_title, offset = decode_string(payload, offset)
 
     # Build result
-    result = {
-        'gov': gov,
-        'nation': nation,
-        'male_title': male_title,
-        'female_title': female_title
-    }
+    result = {"gov": gov, "nation": nation, "male_title": male_title, "female_title": female_title}
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_GOVERNMENT_RULER_TITLE, (), result)
@@ -2889,7 +2857,7 @@ def decode_ruleset_government_ruler_title(payload: bytes, delta_cache: 'DeltaCac
     return result
 
 
-def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_government(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_GOVERNMENT (145).
 
@@ -2906,23 +2874,23 @@ def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Initialize from cache or defaults
     if cached:
-        gov_id = cached.get('id', 0)
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', []).copy()
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        sound_str = cached.get('sound_str', '')
-        sound_alt = cached.get('sound_alt', '')
-        sound_alt2 = cached.get('sound_alt2', '')
-        helptext = cached.get('helptext', '')
+        gov_id = cached.get("id", 0)
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        sound_str = cached.get("sound_str", "")
+        sound_alt = cached.get("sound_alt", "")
+        sound_alt2 = cached.get("sound_alt2", "")
+        helptext = cached.get("helptext", "")
     else:
         gov_id = 0
         reqs_count = 0
         reqs = []
-        name = rule_name = graphic_str = graphic_alt = ''
-        sound_str = sound_alt = sound_alt2 = helptext = ''
+        name = rule_name = graphic_str = graphic_alt = ""
+        sound_str = sound_alt = sound_alt2 = helptext = ""
 
     # Decode conditional fields based on bitvector
     if is_bit_set(bitvector, 0):
@@ -2963,17 +2931,17 @@ def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict
 
     # Build result
     result = {
-        'id': gov_id,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'name': name,
-        'rule_name': rule_name,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'sound_str': sound_str,
-        'sound_alt': sound_alt,
-        'sound_alt2': sound_alt2,
-        'helptext': helptext
+        "id": gov_id,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "name": name,
+        "rule_name": rule_name,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "sound_str": sound_str,
+        "sound_alt": sound_alt,
+        "sound_alt2": sound_alt2,
+        "helptext": helptext,
     }
 
     # Update cache
@@ -2982,7 +2950,7 @@ def decode_ruleset_government(payload: bytes, delta_cache: 'DeltaCache') -> dict
     return result
 
 
-def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_unit(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_UNIT (140) - unit type definition.
 
@@ -3003,58 +2971,58 @@ def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        unit_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        graphic_alt2 = cached.get('graphic_alt2', '')
-        sound_move = cached.get('sound_move', '')
-        sound_move_alt = cached.get('sound_move_alt', '')
-        sound_fight = cached.get('sound_fight', '')
-        sound_fight_alt = cached.get('sound_fight_alt', '')
-        unit_class_id = cached.get('unit_class_id', 0)
-        build_cost = cached.get('build_cost', 0)
-        pop_cost = cached.get('pop_cost', 0)
-        attack_strength = cached.get('attack_strength', 0)
-        defense_strength = cached.get('defense_strength', 0)
-        move_rate = cached.get('move_rate', 0)
-        build_reqs_count = cached.get('build_reqs_count', 0)
-        build_reqs = cached.get('build_reqs', []).copy()
-        vision_radius_sq = cached.get('vision_radius_sq', 0)
-        transport_capacity = cached.get('transport_capacity', 0)
-        hp = cached.get('hp', 0)
-        firepower = cached.get('firepower', 0)
-        obsoleted_by = cached.get('obsoleted_by', 0)
-        converted_to = cached.get('converted_to', 0)
-        convert_time = cached.get('convert_time', 0)
-        fuel = cached.get('fuel', 0)
-        happy_cost = cached.get('happy_cost', 0)
-        upkeep = cached.get('upkeep', [0] * O_LAST).copy()
-        paratroopers_range = cached.get('paratroopers_range', 0)
-        veteran_levels = cached.get('veteran_levels', 0)
-        veteran_name = cached.get('veteran_name', []).copy()
-        power_fact = cached.get('power_fact', []).copy()
-        move_bonus = cached.get('move_bonus', []).copy()
-        base_raise_chance = cached.get('base_raise_chance', []).copy()
-        work_raise_chance = cached.get('work_raise_chance', []).copy()
-        bombard_rate = cached.get('bombard_rate', 0)
-        city_size = cached.get('city_size', 0)
-        city_slots = cached.get('city_slots', 0)
-        tp_defense = cached.get('tp_defense', 0)
-        cargo = cached.get('cargo', 0)
-        targets = cached.get('targets', 0)
-        embarks = cached.get('embarks', 0)
-        disembarks = cached.get('disembarks', 0)
-        vlayer = cached.get('vlayer', 0)
-        helptext = cached.get('helptext', '')
-        flags = cached.get('flags', 0)
-        roles = cached.get('roles', 0)
-        worker = cached.get('worker', False)
+        unit_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        graphic_alt2 = cached.get("graphic_alt2", "")
+        sound_move = cached.get("sound_move", "")
+        sound_move_alt = cached.get("sound_move_alt", "")
+        sound_fight = cached.get("sound_fight", "")
+        sound_fight_alt = cached.get("sound_fight_alt", "")
+        unit_class_id = cached.get("unit_class_id", 0)
+        build_cost = cached.get("build_cost", 0)
+        pop_cost = cached.get("pop_cost", 0)
+        attack_strength = cached.get("attack_strength", 0)
+        defense_strength = cached.get("defense_strength", 0)
+        move_rate = cached.get("move_rate", 0)
+        build_reqs_count = cached.get("build_reqs_count", 0)
+        build_reqs = cached.get("build_reqs", []).copy()
+        vision_radius_sq = cached.get("vision_radius_sq", 0)
+        transport_capacity = cached.get("transport_capacity", 0)
+        hp = cached.get("hp", 0)
+        firepower = cached.get("firepower", 0)
+        obsoleted_by = cached.get("obsoleted_by", 0)
+        converted_to = cached.get("converted_to", 0)
+        convert_time = cached.get("convert_time", 0)
+        fuel = cached.get("fuel", 0)
+        happy_cost = cached.get("happy_cost", 0)
+        upkeep = cached.get("upkeep", [0] * O_LAST).copy()
+        paratroopers_range = cached.get("paratroopers_range", 0)
+        veteran_levels = cached.get("veteran_levels", 0)
+        veteran_name = cached.get("veteran_name", []).copy()
+        power_fact = cached.get("power_fact", []).copy()
+        move_bonus = cached.get("move_bonus", []).copy()
+        base_raise_chance = cached.get("base_raise_chance", []).copy()
+        work_raise_chance = cached.get("work_raise_chance", []).copy()
+        bombard_rate = cached.get("bombard_rate", 0)
+        city_size = cached.get("city_size", 0)
+        city_slots = cached.get("city_slots", 0)
+        tp_defense = cached.get("tp_defense", 0)
+        cargo = cached.get("cargo", 0)
+        targets = cached.get("targets", 0)
+        embarks = cached.get("embarks", 0)
+        disembarks = cached.get("disembarks", 0)
+        vlayer = cached.get("vlayer", 0)
+        helptext = cached.get("helptext", "")
+        flags = cached.get("flags", 0)
+        roles = cached.get("roles", 0)
+        worker = cached.get("worker", False)
     else:
         unit_id = 0
-        name = rule_name = graphic_str = graphic_alt = graphic_alt2 = ''
-        sound_move = sound_move_alt = sound_fight = sound_fight_alt = ''
+        name = rule_name = graphic_str = graphic_alt = graphic_alt2 = ""
+        sound_move = sound_move_alt = sound_fight = sound_fight_alt = ""
         unit_class_id = build_cost = pop_cost = 0
         attack_strength = defense_strength = move_rate = 0
         build_reqs_count = 0
@@ -3071,7 +3039,7 @@ def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         bombard_rate = city_size = city_slots = tp_defense = 0
         cargo = targets = embarks = disembarks = 0
         vlayer = 0
-        helptext = ''
+        helptext = ""
         flags = roles = 0
         worker = False
 
@@ -3291,54 +3259,54 @@ def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result dictionary
     result = {
-        'id': unit_id,
-        'name': name,
-        'rule_name': rule_name,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'graphic_alt2': graphic_alt2,
-        'sound_move': sound_move,
-        'sound_move_alt': sound_move_alt,
-        'sound_fight': sound_fight,
-        'sound_fight_alt': sound_fight_alt,
-        'unit_class_id': unit_class_id,
-        'build_cost': build_cost,
-        'pop_cost': pop_cost,
-        'attack_strength': attack_strength,
-        'defense_strength': defense_strength,
-        'move_rate': move_rate,
-        'build_reqs_count': build_reqs_count,
-        'build_reqs': build_reqs,
-        'vision_radius_sq': vision_radius_sq,
-        'transport_capacity': transport_capacity,
-        'hp': hp,
-        'firepower': firepower,
-        'obsoleted_by': obsoleted_by,
-        'converted_to': converted_to,
-        'convert_time': convert_time,
-        'fuel': fuel,
-        'happy_cost': happy_cost,
-        'upkeep': upkeep,
-        'paratroopers_range': paratroopers_range,
-        'veteran_levels': veteran_levels,
-        'veteran_name': veteran_name,
-        'power_fact': power_fact,
-        'move_bonus': move_bonus,
-        'base_raise_chance': base_raise_chance,
-        'work_raise_chance': work_raise_chance,
-        'bombard_rate': bombard_rate,
-        'city_size': city_size,
-        'city_slots': city_slots,
-        'tp_defense': tp_defense,
-        'cargo': cargo,
-        'targets': targets,
-        'embarks': embarks,
-        'disembarks': disembarks,
-        'vlayer': vlayer,
-        'helptext': helptext,
-        'flags': flags,
-        'roles': roles,
-        'worker': worker,
+        "id": unit_id,
+        "name": name,
+        "rule_name": rule_name,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "graphic_alt2": graphic_alt2,
+        "sound_move": sound_move,
+        "sound_move_alt": sound_move_alt,
+        "sound_fight": sound_fight,
+        "sound_fight_alt": sound_fight_alt,
+        "unit_class_id": unit_class_id,
+        "build_cost": build_cost,
+        "pop_cost": pop_cost,
+        "attack_strength": attack_strength,
+        "defense_strength": defense_strength,
+        "move_rate": move_rate,
+        "build_reqs_count": build_reqs_count,
+        "build_reqs": build_reqs,
+        "vision_radius_sq": vision_radius_sq,
+        "transport_capacity": transport_capacity,
+        "hp": hp,
+        "firepower": firepower,
+        "obsoleted_by": obsoleted_by,
+        "converted_to": converted_to,
+        "convert_time": convert_time,
+        "fuel": fuel,
+        "happy_cost": happy_cost,
+        "upkeep": upkeep,
+        "paratroopers_range": paratroopers_range,
+        "veteran_levels": veteran_levels,
+        "veteran_name": veteran_name,
+        "power_fact": power_fact,
+        "move_bonus": move_bonus,
+        "base_raise_chance": base_raise_chance,
+        "work_raise_chance": work_raise_chance,
+        "bombard_rate": bombard_rate,
+        "city_size": city_size,
+        "city_slots": city_slots,
+        "tp_defense": tp_defense,
+        "cargo": cargo,
+        "targets": targets,
+        "embarks": embarks,
+        "disembarks": disembarks,
+        "vlayer": vlayer,
+        "helptext": helptext,
+        "flags": flags,
+        "roles": roles,
+        "worker": worker,
     }
 
     # Update cache
@@ -3347,7 +3315,7 @@ def decode_ruleset_unit(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_extra(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_EXTRA (232) - extra type definition.
 
@@ -3372,55 +3340,55 @@ def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        extra_id = cached.get('id', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        category = cached.get('category', 0)
-        causes = cached.get('causes', 0)
-        rmcauses = cached.get('rmcauses', 0)
-        activity_gfx = cached.get('activity_gfx', '')
-        act_gfx_alt = cached.get('act_gfx_alt', '')
-        act_gfx_alt2 = cached.get('act_gfx_alt2', '')
-        rmact_gfx = cached.get('rmact_gfx', '')
-        rmact_gfx_alt = cached.get('rmact_gfx_alt', '')
-        rmact_gfx_alt2 = cached.get('rmact_gfx_alt2', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', []).copy()
-        rmreqs_count = cached.get('rmreqs_count', 0)
-        rmreqs = cached.get('rmreqs', []).copy()
-        appearance_chance = cached.get('appearance_chance', 0)
-        appearance_reqs_count = cached.get('appearance_reqs_count', 0)
-        appearance_reqs = cached.get('appearance_reqs', []).copy()
-        disappearance_chance = cached.get('disappearance_chance', 0)
-        disappearance_reqs_count = cached.get('disappearance_reqs_count', 0)
-        disappearance_reqs = cached.get('disappearance_reqs', []).copy()
-        visibility_req = cached.get('visibility_req', 0)
-        buildable = cached.get('buildable', False)
-        generated = cached.get('generated', False)
-        build_time = cached.get('build_time', 0)
-        build_time_factor = cached.get('build_time_factor', 0)
-        removal_time = cached.get('removal_time', 0)
-        removal_time_factor = cached.get('removal_time_factor', 0)
-        infracost = cached.get('infracost', 0)
-        defense_bonus = cached.get('defense_bonus', 0)
-        eus = cached.get('eus', 0)
-        native_to = cached.get('native_to', 0)
-        flags = cached.get('flags', 0)
-        hidden_by = cached.get('hidden_by', 0)
-        bridged_over = cached.get('bridged_over', 0)
-        conflicts = cached.get('conflicts', 0)
-        no_aggr_near_city = cached.get('no_aggr_near_city', 0)
-        helptext = cached.get('helptext', '')
+        extra_id = cached.get("id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        category = cached.get("category", 0)
+        causes = cached.get("causes", 0)
+        rmcauses = cached.get("rmcauses", 0)
+        activity_gfx = cached.get("activity_gfx", "")
+        act_gfx_alt = cached.get("act_gfx_alt", "")
+        act_gfx_alt2 = cached.get("act_gfx_alt2", "")
+        rmact_gfx = cached.get("rmact_gfx", "")
+        rmact_gfx_alt = cached.get("rmact_gfx_alt", "")
+        rmact_gfx_alt2 = cached.get("rmact_gfx_alt2", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        rmreqs_count = cached.get("rmreqs_count", 0)
+        rmreqs = cached.get("rmreqs", []).copy()
+        appearance_chance = cached.get("appearance_chance", 0)
+        appearance_reqs_count = cached.get("appearance_reqs_count", 0)
+        appearance_reqs = cached.get("appearance_reqs", []).copy()
+        disappearance_chance = cached.get("disappearance_chance", 0)
+        disappearance_reqs_count = cached.get("disappearance_reqs_count", 0)
+        disappearance_reqs = cached.get("disappearance_reqs", []).copy()
+        visibility_req = cached.get("visibility_req", 0)
+        buildable = cached.get("buildable", False)
+        generated = cached.get("generated", False)
+        build_time = cached.get("build_time", 0)
+        build_time_factor = cached.get("build_time_factor", 0)
+        removal_time = cached.get("removal_time", 0)
+        removal_time_factor = cached.get("removal_time_factor", 0)
+        infracost = cached.get("infracost", 0)
+        defense_bonus = cached.get("defense_bonus", 0)
+        eus = cached.get("eus", 0)
+        native_to = cached.get("native_to", 0)
+        flags = cached.get("flags", 0)
+        hidden_by = cached.get("hidden_by", 0)
+        bridged_over = cached.get("bridged_over", 0)
+        conflicts = cached.get("conflicts", 0)
+        no_aggr_near_city = cached.get("no_aggr_near_city", 0)
+        helptext = cached.get("helptext", "")
     else:
         extra_id = 0
-        name = rule_name = ''
+        name = rule_name = ""
         category = 0
         causes = rmcauses = 0
-        activity_gfx = act_gfx_alt = act_gfx_alt2 = ''
-        rmact_gfx = rmact_gfx_alt = rmact_gfx_alt2 = ''
-        graphic_str = graphic_alt = ''
+        activity_gfx = act_gfx_alt = act_gfx_alt2 = ""
+        rmact_gfx = rmact_gfx_alt = rmact_gfx_alt2 = ""
+        graphic_str = graphic_alt = ""
         reqs_count = 0
         reqs = []
         rmreqs_count = 0
@@ -3439,7 +3407,7 @@ def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         native_to = flags = 0
         hidden_by = bridged_over = conflicts = 0
         no_aggr_near_city = 0
-        helptext = ''
+        helptext = ""
 
     # Decode conditional fields based on bitvector
     # Bit 0: id (UINT8)
@@ -3618,47 +3586,47 @@ def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result dict with all 41 fields
     result = {
-        'id': extra_id,
-        'name': name,
-        'rule_name': rule_name,
-        'category': category,
-        'causes': causes,
-        'rmcauses': rmcauses,
-        'activity_gfx': activity_gfx,
-        'act_gfx_alt': act_gfx_alt,
-        'act_gfx_alt2': act_gfx_alt2,
-        'rmact_gfx': rmact_gfx,
-        'rmact_gfx_alt': rmact_gfx_alt,
-        'rmact_gfx_alt2': rmact_gfx_alt2,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'rmreqs_count': rmreqs_count,
-        'rmreqs': rmreqs,
-        'appearance_chance': appearance_chance,
-        'appearance_reqs_count': appearance_reqs_count,
-        'appearance_reqs': appearance_reqs,
-        'disappearance_chance': disappearance_chance,
-        'disappearance_reqs_count': disappearance_reqs_count,
-        'disappearance_reqs': disappearance_reqs,
-        'visibility_req': visibility_req,
-        'buildable': buildable,
-        'generated': generated,
-        'build_time': build_time,
-        'build_time_factor': build_time_factor,
-        'removal_time': removal_time,
-        'removal_time_factor': removal_time_factor,
-        'infracost': infracost,
-        'defense_bonus': defense_bonus,
-        'eus': eus,
-        'native_to': native_to,
-        'flags': flags,
-        'hidden_by': hidden_by,
-        'bridged_over': bridged_over,
-        'conflicts': conflicts,
-        'no_aggr_near_city': no_aggr_near_city,
-        'helptext': helptext,
+        "id": extra_id,
+        "name": name,
+        "rule_name": rule_name,
+        "category": category,
+        "causes": causes,
+        "rmcauses": rmcauses,
+        "activity_gfx": activity_gfx,
+        "act_gfx_alt": act_gfx_alt,
+        "act_gfx_alt2": act_gfx_alt2,
+        "rmact_gfx": rmact_gfx,
+        "rmact_gfx_alt": rmact_gfx_alt,
+        "rmact_gfx_alt2": rmact_gfx_alt2,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "rmreqs_count": rmreqs_count,
+        "rmreqs": rmreqs,
+        "appearance_chance": appearance_chance,
+        "appearance_reqs_count": appearance_reqs_count,
+        "appearance_reqs": appearance_reqs,
+        "disappearance_chance": disappearance_chance,
+        "disappearance_reqs_count": disappearance_reqs_count,
+        "disappearance_reqs": disappearance_reqs,
+        "visibility_req": visibility_req,
+        "buildable": buildable,
+        "generated": generated,
+        "build_time": build_time,
+        "build_time_factor": build_time_factor,
+        "removal_time": removal_time,
+        "removal_time_factor": removal_time_factor,
+        "infracost": infracost,
+        "defense_bonus": defense_bonus,
+        "eus": eus,
+        "native_to": native_to,
+        "flags": flags,
+        "hidden_by": hidden_by,
+        "bridged_over": bridged_over,
+        "conflicts": conflicts,
+        "no_aggr_near_city": no_aggr_near_city,
+        "helptext": helptext,
     }
 
     # Update cache with empty tuple key
@@ -3667,7 +3635,7 @@ def decode_ruleset_extra(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_terrain_control(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_TERRAIN_CONTROL (146) - terrain control settings.
 
@@ -3690,18 +3658,18 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Initialize from cache or defaults
     if cached:
-        ocean_reclaim_requirement_pct = cached.get('ocean_reclaim_requirement_pct', 0)
-        land_channel_requirement_pct = cached.get('land_channel_requirement_pct', 0)
-        terrain_thaw_requirement_pct = cached.get('terrain_thaw_requirement_pct', 0)
-        terrain_freeze_requirement_pct = cached.get('terrain_freeze_requirement_pct', 0)
-        lake_max_size = cached.get('lake_max_size', 0)
-        min_start_native_area = cached.get('min_start_native_area', 0)
-        move_fragments = cached.get('move_fragments', 0)
-        igter_cost = cached.get('igter_cost', 0)
-        pythagorean_diagonal = cached.get('pythagorean_diagonal', False)
-        infrapoints = cached.get('infrapoints', False)
-        gui_type_base0 = cached.get('gui_type_base0', '')
-        gui_type_base1 = cached.get('gui_type_base1', '')
+        ocean_reclaim_requirement_pct = cached.get("ocean_reclaim_requirement_pct", 0)
+        land_channel_requirement_pct = cached.get("land_channel_requirement_pct", 0)
+        terrain_thaw_requirement_pct = cached.get("terrain_thaw_requirement_pct", 0)
+        terrain_freeze_requirement_pct = cached.get("terrain_freeze_requirement_pct", 0)
+        lake_max_size = cached.get("lake_max_size", 0)
+        min_start_native_area = cached.get("min_start_native_area", 0)
+        move_fragments = cached.get("move_fragments", 0)
+        igter_cost = cached.get("igter_cost", 0)
+        pythagorean_diagonal = cached.get("pythagorean_diagonal", False)
+        infrapoints = cached.get("infrapoints", False)
+        gui_type_base0 = cached.get("gui_type_base0", "")
+        gui_type_base1 = cached.get("gui_type_base1", "")
     else:
         ocean_reclaim_requirement_pct = 0
         land_channel_requirement_pct = 0
@@ -3713,8 +3681,8 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
         igter_cost = 0
         pythagorean_diagonal = False
         infrapoints = False
-        gui_type_base0 = ''
-        gui_type_base1 = ''
+        gui_type_base0 = ""
+        gui_type_base1 = ""
 
     # Decode conditional fields based on bitvector
     # Bit 0: ocean_reclaim_requirement_pct (UINT8)
@@ -3765,18 +3733,18 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
 
     # Build result dict with all 12 fields
     result = {
-        'ocean_reclaim_requirement_pct': ocean_reclaim_requirement_pct,
-        'land_channel_requirement_pct': land_channel_requirement_pct,
-        'terrain_thaw_requirement_pct': terrain_thaw_requirement_pct,
-        'terrain_freeze_requirement_pct': terrain_freeze_requirement_pct,
-        'lake_max_size': lake_max_size,
-        'min_start_native_area': min_start_native_area,
-        'move_fragments': move_fragments,
-        'igter_cost': igter_cost,
-        'pythagorean_diagonal': pythagorean_diagonal,
-        'infrapoints': infrapoints,
-        'gui_type_base0': gui_type_base0,
-        'gui_type_base1': gui_type_base1,
+        "ocean_reclaim_requirement_pct": ocean_reclaim_requirement_pct,
+        "land_channel_requirement_pct": land_channel_requirement_pct,
+        "terrain_thaw_requirement_pct": terrain_thaw_requirement_pct,
+        "terrain_freeze_requirement_pct": terrain_freeze_requirement_pct,
+        "lake_max_size": lake_max_size,
+        "min_start_native_area": min_start_native_area,
+        "move_fragments": move_fragments,
+        "igter_cost": igter_cost,
+        "pythagorean_diagonal": pythagorean_diagonal,
+        "infrapoints": infrapoints,
+        "gui_type_base0": gui_type_base0,
+        "gui_type_base1": gui_type_base1,
     }
 
     # Update cache with empty tuple key
@@ -3785,7 +3753,7 @@ def decode_ruleset_terrain_control(payload: bytes, delta_cache: 'DeltaCache') ->
     return result
 
 
-def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_building(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_BUILDING (150) - building/improvement type definition.
 
@@ -3809,33 +3777,33 @@ def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        building_id = cached.get('id', 0)
-        genus = cached.get('genus', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        graphic_alt2 = cached.get('graphic_alt2', '')
-        reqs_count = cached.get('reqs_count', 0)
-        reqs = cached.get('reqs', []).copy()
-        obs_count = cached.get('obs_count', 0)
-        obs_reqs = cached.get('obs_reqs', []).copy()
-        build_cost = cached.get('build_cost', 0)
-        upkeep = cached.get('upkeep', 0)
-        sabotage = cached.get('sabotage', 0)
-        flags = cached.get('flags', 0)
-        soundtag = cached.get('soundtag', '')
-        soundtag_alt = cached.get('soundtag_alt', '')
-        soundtag_alt2 = cached.get('soundtag_alt2', '')
-        helptext = cached.get('helptext', '')
+        building_id = cached.get("id", 0)
+        genus = cached.get("genus", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        graphic_alt2 = cached.get("graphic_alt2", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        obs_count = cached.get("obs_count", 0)
+        obs_reqs = cached.get("obs_reqs", []).copy()
+        build_cost = cached.get("build_cost", 0)
+        upkeep = cached.get("upkeep", 0)
+        sabotage = cached.get("sabotage", 0)
+        flags = cached.get("flags", 0)
+        soundtag = cached.get("soundtag", "")
+        soundtag_alt = cached.get("soundtag_alt", "")
+        soundtag_alt2 = cached.get("soundtag_alt2", "")
+        helptext = cached.get("helptext", "")
     else:
         building_id = 0
         genus = 0
-        name = ''
-        rule_name = ''
-        graphic_str = ''
-        graphic_alt = ''
-        graphic_alt2 = ''
+        name = ""
+        rule_name = ""
+        graphic_str = ""
+        graphic_alt = ""
+        graphic_alt2 = ""
         reqs_count = 0
         reqs = []
         obs_count = 0
@@ -3844,10 +3812,10 @@ def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         upkeep = 0
         sabotage = 0
         flags = 0
-        soundtag = ''
-        soundtag_alt = ''
-        soundtag_alt2 = ''
-        helptext = ''
+        soundtag = ""
+        soundtag_alt = ""
+        soundtag_alt2 = ""
+        helptext = ""
 
     # Decode conditional fields based on bitvector
     # Bit 0: id (UINT8) - key field
@@ -3914,7 +3882,7 @@ def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Bit 14: flags (BV_IMPR_FLAGS - bitvector)
     if is_bit_set(bitvector, 14):
-        flags, offset = decode_uint32(payload, offset)  # Assuming 32-bit bitvector
+        flags, offset = decode_uint16(payload, offset)  # BV_IMPR_FLAGS is 12 bits = 2 bytes
 
     # Bit 15: soundtag (STRING)
     if is_bit_set(bitvector, 15):
@@ -3934,25 +3902,25 @@ def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result
     result = {
-        'id': building_id,
-        'genus': genus,
-        'name': name,
-        'rule_name': rule_name,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'graphic_alt2': graphic_alt2,
-        'reqs_count': reqs_count,
-        'reqs': reqs,
-        'obs_count': obs_count,
-        'obs_reqs': obs_reqs,
-        'build_cost': build_cost,
-        'upkeep': upkeep,
-        'sabotage': sabotage,
-        'flags': flags,
-        'soundtag': soundtag,
-        'soundtag_alt': soundtag_alt,
-        'soundtag_alt2': soundtag_alt2,
-        'helptext': helptext
+        "id": building_id,
+        "genus": genus,
+        "name": name,
+        "rule_name": rule_name,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "graphic_alt2": graphic_alt2,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "obs_count": obs_count,
+        "obs_reqs": obs_reqs,
+        "build_cost": build_cost,
+        "upkeep": upkeep,
+        "sabotage": sabotage,
+        "flags": flags,
+        "soundtag": soundtag,
+        "soundtag_alt": soundtag_alt,
+        "soundtag_alt2": soundtag_alt2,
+        "helptext": helptext,
     }
 
     # Update cache with empty tuple (hash_const packet)
@@ -3961,7 +3929,7 @@ def decode_ruleset_building(payload: bytes, delta_cache: 'DeltaCache') -> dict:
     return result
 
 
-def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
+def decode_ruleset_terrain(payload: bytes, delta_cache: "DeltaCache") -> dict:
     """
     Decode PACKET_RULESET_TERRAIN (151) - terrain type definition.
 
@@ -3983,53 +3951,53 @@ def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Initialize from cache or defaults
     if cached:
-        terrain_id = cached.get('id', 0)
-        tclass = cached.get('tclass', 0)
-        flags = cached.get('flags', 0)
-        native_to = cached.get('native_to', 0)
-        name = cached.get('name', '')
-        rule_name = cached.get('rule_name', '')
-        graphic_str = cached.get('graphic_str', '')
-        graphic_alt = cached.get('graphic_alt', '')
-        graphic_alt2 = cached.get('graphic_alt2', '')
-        movement_cost = cached.get('movement_cost', 0)
-        defense_bonus = cached.get('defense_bonus', 0)
-        output = cached.get('output', [0] * O_LAST)
-        num_resources = cached.get('num_resources', 0)
-        resources = cached.get('resources', [])
-        resource_freq = cached.get('resource_freq', [])
-        road_output_incr_pct = cached.get('road_output_incr_pct', [0] * O_LAST)
-        base_time = cached.get('base_time', 0)
-        road_time = cached.get('road_time', 0)
-        cultivate_result = cached.get('cultivate_result', 0)
-        cultivate_time = cached.get('cultivate_time', 0)
-        plant_result = cached.get('plant_result', 0)
-        plant_time = cached.get('plant_time', 0)
-        irrigation_food_incr = cached.get('irrigation_food_incr', 0)
-        irrigation_time = cached.get('irrigation_time', 0)
-        mining_shield_incr = cached.get('mining_shield_incr', 0)
-        mining_time = cached.get('mining_time', 0)
-        animal = cached.get('animal', 0)
-        transform_result = cached.get('transform_result', 0)
-        transform_time = cached.get('transform_time', 0)
-        placing_time = cached.get('placing_time', 0)
-        pillage_time = cached.get('pillage_time', 0)
-        extra_count = cached.get('extra_count', 0)
-        extra_removal_times = cached.get('extra_removal_times', [])
-        color_red = cached.get('color_red', 0)
-        color_green = cached.get('color_green', 0)
-        color_blue = cached.get('color_blue', 0)
-        helptext = cached.get('helptext', '')
+        terrain_id = cached.get("id", 0)
+        tclass = cached.get("tclass", 0)
+        flags = cached.get("flags", 0)
+        native_to = cached.get("native_to", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        graphic_str = cached.get("graphic_str", "")
+        graphic_alt = cached.get("graphic_alt", "")
+        graphic_alt2 = cached.get("graphic_alt2", "")
+        movement_cost = cached.get("movement_cost", 0)
+        defense_bonus = cached.get("defense_bonus", 0)
+        output = cached.get("output", [0] * O_LAST)
+        num_resources = cached.get("num_resources", 0)
+        resources = cached.get("resources", [])
+        resource_freq = cached.get("resource_freq", [])
+        road_output_incr_pct = cached.get("road_output_incr_pct", [0] * O_LAST)
+        base_time = cached.get("base_time", 0)
+        road_time = cached.get("road_time", 0)
+        cultivate_result = cached.get("cultivate_result", 0)
+        cultivate_time = cached.get("cultivate_time", 0)
+        plant_result = cached.get("plant_result", 0)
+        plant_time = cached.get("plant_time", 0)
+        irrigation_food_incr = cached.get("irrigation_food_incr", 0)
+        irrigation_time = cached.get("irrigation_time", 0)
+        mining_shield_incr = cached.get("mining_shield_incr", 0)
+        mining_time = cached.get("mining_time", 0)
+        animal = cached.get("animal", 0)
+        transform_result = cached.get("transform_result", 0)
+        transform_time = cached.get("transform_time", 0)
+        placing_time = cached.get("placing_time", 0)
+        pillage_time = cached.get("pillage_time", 0)
+        extra_count = cached.get("extra_count", 0)
+        extra_removal_times = cached.get("extra_removal_times", [])
+        color_red = cached.get("color_red", 0)
+        color_green = cached.get("color_green", 0)
+        color_blue = cached.get("color_blue", 0)
+        helptext = cached.get("helptext", "")
     else:
         terrain_id = 0
         tclass = 0
         flags = 0
         native_to = 0
-        name = ''
-        rule_name = ''
-        graphic_str = ''
-        graphic_alt = ''
-        graphic_alt2 = ''
+        name = ""
+        rule_name = ""
+        graphic_str = ""
+        graphic_alt = ""
+        graphic_alt2 = ""
         movement_cost = 0
         defense_bonus = 0
         output = [0] * O_LAST
@@ -4057,7 +4025,7 @@ def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
         color_red = 0
         color_green = 0
         color_blue = 0
-        helptext = ''
+        helptext = ""
 
     # Decode conditional fields based on bitvector
 
@@ -4226,43 +4194,43 @@ def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 
     # Build result dict with all fields
     result = {
-        'id': terrain_id,
-        'tclass': tclass,
-        'flags': flags,
-        'native_to': native_to,
-        'name': name,
-        'rule_name': rule_name,
-        'graphic_str': graphic_str,
-        'graphic_alt': graphic_alt,
-        'graphic_alt2': graphic_alt2,
-        'movement_cost': movement_cost,
-        'defense_bonus': defense_bonus,
-        'output': output,
-        'num_resources': num_resources,
-        'resources': resources,
-        'resource_freq': resource_freq,
-        'road_output_incr_pct': road_output_incr_pct,
-        'base_time': base_time,
-        'road_time': road_time,
-        'cultivate_result': cultivate_result,
-        'cultivate_time': cultivate_time,
-        'plant_result': plant_result,
-        'plant_time': plant_time,
-        'irrigation_food_incr': irrigation_food_incr,
-        'irrigation_time': irrigation_time,
-        'mining_shield_incr': mining_shield_incr,
-        'mining_time': mining_time,
-        'animal': animal,
-        'transform_result': transform_result,
-        'transform_time': transform_time,
-        'placing_time': placing_time,
-        'pillage_time': pillage_time,
-        'extra_count': extra_count,
-        'extra_removal_times': extra_removal_times,
-        'color_red': color_red,
-        'color_green': color_green,
-        'color_blue': color_blue,
-        'helptext': helptext,
+        "id": terrain_id,
+        "tclass": tclass,
+        "flags": flags,
+        "native_to": native_to,
+        "name": name,
+        "rule_name": rule_name,
+        "graphic_str": graphic_str,
+        "graphic_alt": graphic_alt,
+        "graphic_alt2": graphic_alt2,
+        "movement_cost": movement_cost,
+        "defense_bonus": defense_bonus,
+        "output": output,
+        "num_resources": num_resources,
+        "resources": resources,
+        "resource_freq": resource_freq,
+        "road_output_incr_pct": road_output_incr_pct,
+        "base_time": base_time,
+        "road_time": road_time,
+        "cultivate_result": cultivate_result,
+        "cultivate_time": cultivate_time,
+        "plant_result": plant_result,
+        "plant_time": plant_time,
+        "irrigation_food_incr": irrigation_food_incr,
+        "irrigation_time": irrigation_time,
+        "mining_shield_incr": mining_shield_incr,
+        "mining_time": mining_time,
+        "animal": animal,
+        "transform_result": transform_result,
+        "transform_time": transform_time,
+        "placing_time": placing_time,
+        "pillage_time": pillage_time,
+        "extra_count": extra_count,
+        "extra_removal_times": extra_removal_times,
+        "color_red": color_red,
+        "color_green": color_green,
+        "color_blue": color_blue,
+        "helptext": helptext,
     }
 
     # Update cache with empty tuple key
@@ -4274,6 +4242,7 @@ def decode_ruleset_terrain(payload: bytes, delta_cache: 'DeltaCache') -> dict:
 # ============================================================================
 # Delta Protocol Support
 # ============================================================================
+
 
 def read_bitvector(data: bytes, offset: int, num_bits: int) -> Tuple[int, int]:
     """
@@ -4299,9 +4268,9 @@ def read_bitvector(data: bytes, offset: int, num_bits: int) -> Tuple[int, int]:
         bitvector_as_int is an integer where bit positions can be tested with (value & (1 << bit_index))
     """
     num_bytes = (num_bits + 7) // 8  # Ceiling division
-    bitvector_bytes = data[offset:offset + num_bytes]
+    bitvector_bytes = data[offset : offset + num_bytes]
     # Use 'little' because FreeCiv stores bitvectors as byte arrays with LSB-first in each byte
-    bitvector = int.from_bytes(bitvector_bytes, 'little')
+    bitvector = int.from_bytes(bitvector_bytes, "little")
     return bitvector, offset + num_bytes
 
 
@@ -4332,32 +4301,28 @@ def _decode_field(data: bytes, offset: int, type_name: str) -> Tuple[Any, int]:
     Raises:
         ValueError: If type_name is not supported
     """
-    if type_name == 'STRING':
+    if type_name == "STRING":
         return decode_string(data, offset)
-    elif type_name == 'SINT32':
+    elif type_name == "SINT32":
         return decode_sint32(data, offset)
-    elif type_name == 'SINT16':
+    elif type_name == "SINT16":
         return decode_sint16(data, offset)
-    elif type_name == 'SINT8':
+    elif type_name == "SINT8":
         return decode_sint8(data, offset)
-    elif type_name == 'UINT32':
+    elif type_name == "UINT32":
         return decode_uint32(data, offset)
-    elif type_name == 'UINT16':
+    elif type_name == "UINT16":
         return decode_uint16(data, offset)
-    elif type_name == 'UINT8':
+    elif type_name == "UINT8":
         return decode_uint8(data, offset)
-    elif type_name == 'BOOL':
+    elif type_name == "BOOL":
         return decode_bool(data, offset)
     else:
         raise ValueError(f"Unsupported field type: {type_name}")
 
 
 def decode_array_diff(
-    data: bytes,
-    offset: int,
-    element_type: str,
-    array_size: int,
-    cached_array: list = None
+    data: bytes, offset: int, element_type: str, array_size: int, cached_array: list = None
 ) -> Tuple[list, int]:
     """
     Decode an array transmitted using array-diff optimization.
@@ -4403,11 +4368,11 @@ def decode_array_diff(
         result = cached_array.copy()
     else:
         # No cache or wrong size - initialize with default values
-        if element_type == 'BOOL':
+        if element_type == "BOOL":
             result = [False] * array_size
-        elif element_type in ('SINT8', 'SINT16', 'SINT32', 'PLAYER'):
+        elif element_type in ("SINT8", "SINT16", "SINT32", "PLAYER"):
             result = [0] * array_size
-        elif element_type in ('UINT8', 'UINT16', 'UINT32'):
+        elif element_type in ("UINT8", "UINT16", "UINT32"):
             result = [0] * array_size
         else:
             result = [None] * array_size
@@ -4426,9 +4391,7 @@ def decode_array_diff(
 
         # Validate index
         if index > array_size:
-            raise ValueError(
-                f"Array-diff index {index} exceeds array size {array_size}"
-            )
+            raise ValueError(f"Array-diff index {index} exceeds array size {array_size}")
 
         # Read value for this index
         value, offset = _decode_field(data, offset, element_type)
@@ -4437,11 +4400,7 @@ def decode_array_diff(
     return result, offset
 
 
-def decode_delta_packet(
-    payload: bytes,
-    packet_spec: PacketSpec,
-    delta_cache: 'DeltaCache'
-) -> dict:
+def decode_delta_packet(payload: bytes, packet_spec: PacketSpec, delta_cache: "DeltaCache") -> dict:
     """
     Generic delta decoder for any packet with delta support.
 
@@ -4470,9 +4429,7 @@ def decode_delta_packet(
 
     # Step 1: Read bitvector FIRST (if packet has non-key fields)
     if packet_spec.num_bitvector_bits > 0:
-        bitvector, offset = read_bitvector(
-            payload, offset, packet_spec.num_bitvector_bits
-        )
+        bitvector, offset = read_bitvector(payload, offset, packet_spec.num_bitvector_bits)
     else:
         bitvector = 0
 
@@ -4489,10 +4446,7 @@ def decode_delta_packet(
     cached = delta_cache.get_cached_packet(packet_spec.packet_type, key_tuple)
     if cached is None:
         # No cached packet - use default values for all non-key fields
-        cached = {
-            field.name: field.default_value
-            for field in packet_spec.non_key_fields
-        }
+        cached = {field.name: field.default_value for field in packet_spec.non_key_fields}
 
     # Step 4: Read non-key fields based on bitvector
     for bit_index, field_spec in enumerate(packet_spec.non_key_fields):
@@ -4506,10 +4460,7 @@ def decode_delta_packet(
                 # Array with diff optimization - only changed elements transmitted
                 cached_array = cached.get(field_spec.name, None)
                 value, offset = decode_array_diff(
-                    payload, offset,
-                    field_spec.element_type,
-                    field_spec.array_size,
-                    cached_array
+                    payload, offset, field_spec.element_type, field_spec.array_size, cached_array
                 )
             else:
                 # Regular field or full array transmission

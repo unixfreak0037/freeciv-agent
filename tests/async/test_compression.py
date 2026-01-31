@@ -21,22 +21,24 @@ from fc_client.protocol import (
     JUMBO_BORDER,
 )
 
-
 # ============================================================================
 # Test Fixtures and Helpers
 # ============================================================================
 
-def make_uncompressed_packet(packet_type: int, payload: bytes, use_two_byte_type: bool = False) -> bytes:
+
+def make_uncompressed_packet(
+    packet_type: int, payload: bytes, use_two_byte_type: bool = False
+) -> bytes:
     """Create an uncompressed packet with proper header."""
     if use_two_byte_type:
         header_size = 4
-        type_bytes = struct.pack('>H', packet_type)
+        type_bytes = struct.pack(">H", packet_type)
     else:
         header_size = 3
-        type_bytes = struct.pack('B', packet_type)
+        type_bytes = struct.pack("B", packet_type)
 
     packet_length = header_size + len(payload)
-    length_bytes = struct.pack('>H', packet_length)
+    length_bytes = struct.pack(">H", packet_length)
 
     return length_bytes + type_bytes + payload
 
@@ -53,7 +55,7 @@ def make_compressed_packet(packets_data: list[bytes], force_jumbo: bool = False)
         Complete compressed packet bytes
     """
     # Concatenate packets
-    decompressed_buffer = b''.join(packets_data)
+    decompressed_buffer = b"".join(packets_data)
 
     # Compress
     compressed_data = zlib.compress(decompressed_buffer)
@@ -63,11 +65,11 @@ def make_compressed_packet(packets_data: list[bytes], force_jumbo: bool = False)
     if force_jumbo or compressed_size + 2 > JUMBO_BORDER:
         # JUMBO format: [0xFFFF] [4-byte actual_length] [compressed_data]
         actual_length = compressed_size + 6
-        header = struct.pack('>H', JUMBO_SIZE) + struct.pack('>I', actual_length)
+        header = struct.pack(">H", JUMBO_SIZE) + struct.pack(">I", actual_length)
     else:
         # Normal compressed: [2-byte (length + COMPRESSION_BORDER)] [compressed_data]
         length = compressed_size + COMPRESSION_BORDER
-        header = struct.pack('>H', length)
+        header = struct.pack(">H", length)
 
     return header + compressed_data
 
@@ -82,6 +84,7 @@ def mock_reader():
 # ============================================================================
 # Unit Tests - Decompression and Buffer Parsing
 # ============================================================================
+
 
 def test_decompress_packet_valid():
     """Test decompression with valid zlib data."""
@@ -180,7 +183,7 @@ async def test_parse_packet_buffer_incomplete_header():
 async def test_parse_packet_buffer_incomplete_payload():
     """Test parsing buffer with incomplete payload raises ValueError."""
     # Header says length=10, but payload is shorter
-    incomplete = struct.pack('>H', 10) + struct.pack('B', 5) + b"short"
+    incomplete = struct.pack(">H", 10) + struct.pack("B", 5) + b"short"
 
     with pytest.raises(ValueError, match="Incomplete packet"):
         await _parse_packet_buffer(incomplete, use_two_byte_type=False)
@@ -190,7 +193,7 @@ async def test_parse_packet_buffer_incomplete_payload():
 async def test_parse_packet_buffer_invalid_length():
     """Test parsing buffer with invalid length raises ValueError."""
     # Length=2 is less than header size (3)
-    invalid = struct.pack('>H', 2) + struct.pack('B', 5)
+    invalid = struct.pack(">H", 2) + struct.pack("B", 5)
 
     with pytest.raises(ValueError, match="Invalid packet length"):
         await _parse_packet_buffer(invalid, use_two_byte_type=False)
@@ -200,6 +203,7 @@ async def test_parse_packet_buffer_invalid_length():
 # Async Tests - read_packet() with Compression
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_read_packet_uncompressed_unchanged(mock_reader):
     """Test that uncompressed packets still work after compression code added."""
@@ -207,11 +211,9 @@ async def test_read_packet_uncompressed_unchanged(mock_reader):
     packet = make_uncompressed_packet(5, b"hello", use_two_byte_type=False)
 
     # Mock reader to return packet bytes
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        packet[0:2],   # length bytes
-        packet[2:3],   # type byte
-        packet[3:]     # payload
-    ])
+    mock_reader.readexactly = AsyncMock(
+        side_effect=[packet[0:2], packet[2:3], packet[3:]]  # length bytes  # type byte  # payload
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
 
@@ -231,10 +233,12 @@ async def test_read_packet_normal_compressed(mock_reader):
     length_bytes = compressed_packet[0:2]
     compressed_data = compressed_packet[2:]
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,      # length field (>= COMPRESSION_BORDER)
-        compressed_data    # compressed data
-    ])
+    mock_reader.readexactly = AsyncMock(
+        side_effect=[
+            length_bytes,  # length field (>= COMPRESSION_BORDER)
+            compressed_data,  # compressed data
+        ]
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
 
@@ -255,11 +259,13 @@ async def test_read_packet_jumbo_compressed(mock_reader):
     actual_length_bytes = compressed_packet[2:6]
     compressed_data = compressed_packet[6:]
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,          # JUMBO_SIZE marker
-        actual_length_bytes,   # 4-byte actual length
-        compressed_data        # compressed data
-    ])
+    mock_reader.readexactly = AsyncMock(
+        side_effect=[
+            length_bytes,  # JUMBO_SIZE marker
+            actual_length_bytes,  # 4-byte actual length
+            compressed_data,  # compressed data
+        ]
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
 
@@ -277,10 +283,7 @@ async def test_read_packet_compressed_2byte_type(mock_reader):
     length_bytes = compressed_packet[0:2]
     compressed_data = compressed_packet[2:]
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, compressed_data])
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=True)
 
@@ -299,10 +302,7 @@ async def test_read_packet_compressed_multiple_raises(mock_reader):
     length_bytes = compressed_packet[0:2]
     compressed_data = compressed_packet[2:]
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, compressed_data])
 
     with pytest.raises(NotImplementedError, match="multi-packet buffering not implemented"):
         await read_packet(mock_reader, use_two_byte_type=False)
@@ -313,13 +313,10 @@ async def test_read_packet_decompression_error(mock_reader):
     """Test that decompression error raises ConnectionError."""
     # Create packet with corrupt compressed data
     length = COMPRESSION_BORDER + 10
-    length_bytes = struct.pack('>H', length)
+    length_bytes = struct.pack(">H", length)
     corrupt_data = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09"
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        corrupt_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, corrupt_data])
 
     with pytest.raises(ConnectionError, match="Decompression failed"):
         await read_packet(mock_reader, use_two_byte_type=False)
@@ -331,12 +328,9 @@ async def test_read_packet_compressed_empty_buffer(mock_reader):
     # Create compressed packet with empty decompressed buffer
     compressed_data = zlib.compress(b"")
     length = COMPRESSION_BORDER + len(compressed_data)
-    length_bytes = struct.pack('>H', length)
+    length_bytes = struct.pack(">H", length)
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, compressed_data])
 
     with pytest.raises(ValueError, match="contained no packets"):
         await read_packet(mock_reader, use_two_byte_type=False)
@@ -351,10 +345,7 @@ async def test_read_packet_validate_compressed(mock_reader, capsys):
     length_bytes = compressed_packet[0:2]
     compressed_data = compressed_packet[2:]
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, compressed_data])
 
     await read_packet(mock_reader, use_two_byte_type=False, validate=True)
 
@@ -367,6 +358,7 @@ async def test_read_packet_validate_compressed(mock_reader, capsys):
 # Edge Cases and Boundary Conditions
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_read_packet_compression_border_minus_one(mock_reader):
     """Test packet with length = COMPRESSION_BORDER - 1 (uncompressed)."""
@@ -374,13 +366,13 @@ async def test_read_packet_compression_border_minus_one(mock_reader):
     payload = b"X" * (COMPRESSION_BORDER - 4)  # Account for header
     packet = make_uncompressed_packet(10, payload, use_two_byte_type=False)
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        packet[0:2],   # length bytes
-        packet[2:3],   # type byte
-        packet[3:]     # payload
-    ])
+    mock_reader.readexactly = AsyncMock(
+        side_effect=[packet[0:2], packet[2:3], packet[3:]]  # length bytes  # type byte  # payload
+    )
 
-    packet_type, returned_payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
+    packet_type, returned_payload, raw_packet = await read_packet(
+        mock_reader, use_two_byte_type=False
+    )
 
     assert packet_type == 10
     assert returned_payload == payload
@@ -394,12 +386,9 @@ async def test_read_packet_compression_border_exact(mock_reader):
     compressed_data = zlib.compress(inner_packet)
 
     # Manually create packet at exact COMPRESSION_BORDER
-    length_bytes = struct.pack('>H', COMPRESSION_BORDER)
+    length_bytes = struct.pack(">H", COMPRESSION_BORDER)
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(side_effect=[length_bytes, compressed_data])
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
 
@@ -414,15 +403,13 @@ async def test_read_packet_jumbo_size_exact(mock_reader):
     compressed_data = zlib.compress(inner_packet)
 
     # JUMBO format
-    length_bytes = struct.pack('>H', JUMBO_SIZE)
+    length_bytes = struct.pack(">H", JUMBO_SIZE)
     actual_length = len(compressed_data) + 6
-    actual_length_bytes = struct.pack('>I', actual_length)
+    actual_length_bytes = struct.pack(">I", actual_length)
 
-    mock_reader.readexactly = AsyncMock(side_effect=[
-        length_bytes,
-        actual_length_bytes,
-        compressed_data
-    ])
+    mock_reader.readexactly = AsyncMock(
+        side_effect=[length_bytes, actual_length_bytes, compressed_data]
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_reader, use_two_byte_type=False)
 

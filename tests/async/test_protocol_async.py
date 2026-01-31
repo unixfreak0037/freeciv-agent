@@ -14,7 +14,6 @@ from fc_client.protocol import (
     read_packet,
 )
 
-
 # ============================================================================
 # Helper Functions
 # ============================================================================
@@ -44,11 +43,11 @@ def setup_mock_reader_sequence(mock_reader, byte_sequences: list):
 async def test_recv_exact_success(mock_stream_reader):
     """Test _recv_exact successfully reads exact number of bytes."""
     # Mock returns 5 bytes
-    mock_stream_reader.readexactly = AsyncMock(return_value=b'\x01\x02\x03\x04\x05')
+    mock_stream_reader.readexactly = AsyncMock(return_value=b"\x01\x02\x03\x04\x05")
 
     result = await _recv_exact(mock_stream_reader, 5)
 
-    assert result == b'\x01\x02\x03\x04\x05'
+    assert result == b"\x01\x02\x03\x04\x05"
     mock_stream_reader.readexactly.assert_called_once_with(5)
 
 
@@ -57,9 +56,7 @@ async def test_recv_exact_success(mock_stream_reader):
 async def test_recv_exact_incomplete_read(mock_stream_reader):
     """Test _recv_exact raises ConnectionError on incomplete read."""
     # Mock raises IncompleteReadError
-    mock_stream_reader.readexactly = AsyncMock(
-        side_effect=asyncio.IncompleteReadError(b'\x01', 5)
-    )
+    mock_stream_reader.readexactly = AsyncMock(side_effect=asyncio.IncompleteReadError(b"\x01", 5))
 
     with pytest.raises(ConnectionError, match="Socket closed while reading data"):
         await _recv_exact(mock_stream_reader, 5)
@@ -69,11 +66,11 @@ async def test_recv_exact_incomplete_read(mock_stream_reader):
 @pytest.mark.network
 async def test_recv_exact_zero_bytes(mock_stream_reader):
     """Test _recv_exact edge case with 0 bytes requested."""
-    mock_stream_reader.readexactly = AsyncMock(return_value=b'')
+    mock_stream_reader.readexactly = AsyncMock(return_value=b"")
 
     result = await _recv_exact(mock_stream_reader, 0)
 
-    assert result == b''
+    assert result == b""
     mock_stream_reader.readexactly.assert_called_once_with(0)
 
 
@@ -81,7 +78,7 @@ async def test_recv_exact_zero_bytes(mock_stream_reader):
 @pytest.mark.network
 async def test_recv_exact_large_read(mock_stream_reader):
     """Test _recv_exact with large byte count (10000 bytes)."""
-    large_data = b'\xaa' * 10000
+    large_data = b"\xaa" * 10000
     mock_stream_reader.readexactly = AsyncMock(return_value=large_data)
 
     result = await _recv_exact(mock_stream_reader, 10000)
@@ -98,17 +95,18 @@ async def test_recv_exact_large_read(mock_stream_reader):
 async def test_read_packet_one_byte_type_minimal(mock_stream_reader):
     """Test reading minimal packet with 1-byte type and no payload."""
     # Packet: length=3, type=5, no payload
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x03',  # Length = 3
-        b'\x05',      # Type = 5 (1 byte)
-        b''           # No payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [b"\x00\x03", b"\x05", b""],  # Length = 3  # Type = 5 (1 byte)  # No payload
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
 
     assert packet_type == 5
-    assert payload == b''
-    assert raw_packet == b'\x00\x03\x05'
+    assert payload == b""
+    assert raw_packet == b"\x00\x03\x05"
 
 
 @pytest.mark.async_test
@@ -116,17 +114,18 @@ async def test_read_packet_one_byte_type_minimal(mock_stream_reader):
 async def test_read_packet_one_byte_type_with_payload(mock_stream_reader):
     """Test reading packet with 1-byte type and 7-byte payload."""
     # Packet: length=10, type=25, payload=7 bytes
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x0a',     # Length = 10
-        b'\x19',         # Type = 25 (1 byte)
-        b'payload'       # 7-byte payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [b"\x00\x0a", b"\x19", b"payload"],  # Length = 10  # Type = 25 (1 byte)  # 7-byte payload
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
 
     assert packet_type == 25
-    assert payload == b'payload'
-    assert raw_packet == b'\x00\x0a\x19payload'
+    assert payload == b"payload"
+    assert raw_packet == b"\x00\x0a\x19payload"
 
 
 @pytest.mark.async_test
@@ -134,17 +133,16 @@ async def test_read_packet_one_byte_type_with_payload(mock_stream_reader):
 async def test_read_packet_two_byte_type(mock_stream_reader):
     """Test reading packet with 2-byte type (type > 255)."""
     # Packet: length=4, type=300, no payload
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x04',     # Length = 4
-        b'\x01\x2c',     # Type = 300 (2 bytes)
-        b''              # No payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [b"\x00\x04", b"\x01\x2c", b""],  # Length = 4  # Type = 300 (2 bytes)  # No payload
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=True)
 
     assert packet_type == 300
-    assert payload == b''
-    assert raw_packet == b'\x00\x04\x01\x2c'
+    assert payload == b""
+    assert raw_packet == b"\x00\x04\x01\x2c"
 
 
 @pytest.mark.async_test
@@ -152,18 +150,21 @@ async def test_read_packet_two_byte_type(mock_stream_reader):
 async def test_read_packet_two_byte_type_with_payload(mock_stream_reader):
     """Test reading packet with 2-byte type and payload, verify header_size=4."""
     # Packet: length=12, type=500, payload=8 bytes
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x0c',     # Length = 12
-        b'\x01\xf4',     # Type = 500 (2 bytes)
-        b'testdata'      # 8-byte payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [
+            b"\x00\x0c",  # Length = 12
+            b"\x01\xf4",  # Type = 500 (2 bytes)
+            b"testdata",  # 8-byte payload
+        ],
+    )
 
     packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=True)
 
     assert packet_type == 500
-    assert payload == b'testdata'
+    assert payload == b"testdata"
     assert len(raw_packet) == 12
-    assert raw_packet == b'\x00\x0c\x01\xf4testdata'
+    assert raw_packet == b"\x00\x0c\x01\xf4testdata"
 
 
 @pytest.mark.async_test
@@ -171,20 +172,21 @@ async def test_read_packet_two_byte_type_with_payload(mock_stream_reader):
 async def test_read_packet_raw_packet_reconstruction(mock_stream_reader):
     """Test that raw_packet correctly includes complete packet with header."""
     # Packet with known structure
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x08',     # Length = 8
-        b'\x0f',         # Type = 15
-        b'12345'         # 5-byte payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [b"\x00\x08", b"\x0f", b"12345"],  # Length = 8  # Type = 15  # 5-byte payload
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
 
     # Verify raw_packet is complete and correct
-    assert raw_packet == b'\x00\x08\x0f12345'
+    assert raw_packet == b"\x00\x08\x0f12345"
     assert len(raw_packet) == 8
 
     # Verify we can parse the raw packet
-    packet_length = struct.unpack('>H', raw_packet[0:2])[0]
+    packet_length = struct.unpack(">H", raw_packet[0:2])[0]
     assert packet_length == 8
 
 
@@ -193,25 +195,25 @@ async def test_read_packet_raw_packet_reconstruction(mock_stream_reader):
 async def test_read_packet_sequential_reads(mock_stream_reader):
     """Test sequential packet reads verify mock call sequence."""
     # First packet
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x03',     # Length
-        b'\x01',         # Type
-        b''              # No payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader, [b"\x00\x03", b"\x01", b""]  # Length  # Type  # No payload
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
     assert packet_type == 1
 
     # Second packet (reset mock for new sequence)
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x05',     # Length
-        b'\x05',         # Type
-        b'ab'            # 2-byte payload
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader, [b"\x00\x05", b"\x05", b"ab"]  # Length  # Type  # 2-byte payload
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
     assert packet_type == 5
-    assert payload == b'ab'
+    assert payload == b"ab"
 
 
 @pytest.mark.async_test
@@ -219,9 +221,7 @@ async def test_read_packet_sequential_reads(mock_stream_reader):
 async def test_read_packet_connection_lost_during_length(mock_stream_reader):
     """Test error handling when connection closes during length read."""
     # Connection closes while reading length
-    mock_stream_reader.readexactly = AsyncMock(
-        side_effect=asyncio.IncompleteReadError(b'\x00', 2)
-    )
+    mock_stream_reader.readexactly = AsyncMock(side_effect=asyncio.IncompleteReadError(b"\x00", 2))
 
     with pytest.raises(ConnectionError):
         await read_packet(mock_stream_reader, use_two_byte_type=False)
@@ -232,19 +232,24 @@ async def test_read_packet_connection_lost_during_length(mock_stream_reader):
 async def test_read_packet_connection_lost_during_payload(mock_stream_reader):
     """Test error handling when connection closes during payload read."""
     # Connection closes while reading payload
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x0a',     # Length = 10 (expects 7 bytes payload)
-        b'\x19',         # Type = 25
-        # Incomplete payload read
-        AsyncMock(side_effect=asyncio.IncompleteReadError(b'pay', 7))()
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [
+            b"\x00\x0a",  # Length = 10 (expects 7 bytes payload)
+            b"\x19",  # Type = 25
+            # Incomplete payload read
+            AsyncMock(side_effect=asyncio.IncompleteReadError(b"pay", 7))(),
+        ],
+    )
 
     # Use side_effect to handle the sequence properly
-    mock_stream_reader.readexactly = AsyncMock(side_effect=[
-        b'\x00\x0a',  # Length
-        b'\x19',       # Type
-        asyncio.IncompleteReadError(b'pay', 7)  # Incomplete payload
-    ])
+    mock_stream_reader.readexactly = AsyncMock(
+        side_effect=[
+            b"\x00\x0a",  # Length
+            b"\x19",  # Type
+            asyncio.IncompleteReadError(b"pay", 7),  # Incomplete payload
+        ]
+    )
 
     with pytest.raises(ConnectionError):
         await read_packet(mock_stream_reader, use_two_byte_type=False)
@@ -255,15 +260,20 @@ async def test_read_packet_connection_lost_during_payload(mock_stream_reader):
 async def test_read_packet_zero_length_payload(mock_stream_reader):
     """Test reading packet with zero-length payload (edge case)."""
     # Packet with header only, no payload
-    setup_mock_reader_sequence(mock_stream_reader, [
-        b'\x00\x03',     # Length = 3 (header only)
-        b'\xff',         # Type = 255
-        b''              # Empty payload (length=0)
-    ])
+    setup_mock_reader_sequence(
+        mock_stream_reader,
+        [
+            b"\x00\x03",  # Length = 3 (header only)
+            b"\xff",  # Type = 255
+            b"",  # Empty payload (length=0)
+        ],
+    )
 
-    packet_type, payload, raw_packet = await read_packet(mock_stream_reader, use_two_byte_type=False)
+    packet_type, payload, raw_packet = await read_packet(
+        mock_stream_reader, use_two_byte_type=False
+    )
 
     assert packet_type == 255
-    assert payload == b''
+    assert payload == b""
     assert len(payload) == 0
-    assert raw_packet == b'\x00\x03\xff'
+    assert raw_packet == b"\x00\x03\xff"

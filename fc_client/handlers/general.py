@@ -4,7 +4,10 @@ from fc_client.game_state import GameState
 if TYPE_CHECKING:
     from fc_client.client import FreeCivClient
 
-async def handle_processing_started(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_processing_started(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_PROCESSING_STARTED.
 
@@ -14,7 +17,9 @@ async def handle_processing_started(client: 'FreeCivClient', game_state: GameSta
     print("Received PROCESSING_STARTED packet")
 
 
-async def handle_processing_finished(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_processing_finished(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_PROCESSING_FINISHED.
 
@@ -22,6 +27,7 @@ async def handle_processing_finished(client: 'FreeCivClient', game_state: GameSt
     No payload to decode.
     """
     print("Received PROCESSING_FINISHED packet")
+
 
 __all__ = [
     "handle_processing_started",

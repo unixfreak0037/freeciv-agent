@@ -6,7 +6,10 @@ from fc_client.game_state import GameState, RulesetControl, TerrainControl
 if TYPE_CHECKING:
     from fc_client.client import FreeCivClient
 
-async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_ruleset_control(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_CONTROL.
 
@@ -39,7 +42,10 @@ async def handle_ruleset_control(client: 'FreeCivClient', game_state: GameState,
     print(f"  Terrain: {ruleset.terrain_count}")
     print(f"  Governments: {ruleset.government_count}")
 
-async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_ruleset_summary(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_SUMMARY.
 
@@ -52,10 +58,10 @@ async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState,
     data = protocol.decode_ruleset_summary(payload)
 
     # Store in game state
-    game_state.ruleset_summary = data['text']
+    game_state.ruleset_summary = data["text"]
 
     # Display summary (truncate if very long)
-    text = data['text']
+    text = data["text"]
     if len(text) > 200:
         preview = text[:200] + "..."
     else:
@@ -64,7 +70,10 @@ async def handle_ruleset_summary(client: 'FreeCivClient', game_state: GameState,
     print(f"\n[RULESET SUMMARY]")
     print(preview)
 
-async def handle_ruleset_description_part(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_ruleset_description_part(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_DESCRIPTION_PART.
 
@@ -86,31 +95,35 @@ async def handle_ruleset_description_part(client: 'FreeCivClient', game_state: G
     """
     # Decode packet (simple, non-delta)
     data = protocol.decode_ruleset_description_part(payload)
-    chunk_text = data['text']
+    chunk_text = data["text"]
 
     # Append chunk to accumulator
     game_state.ruleset_description_parts.append(chunk_text)
 
     # Calculate total bytes accumulated (UTF-8 encoding, not character count)
-    total_bytes = sum(len(part.encode('utf-8')) for part in game_state.ruleset_description_parts)
+    total_bytes = sum(len(part.encode("utf-8")) for part in game_state.ruleset_description_parts)
 
     # Check if we have expected desc_length from RULESET_CONTROL
     if game_state.ruleset_control is None:
         print(f"\n[WARNING] Received RULESET_DESCRIPTION_PART before RULESET_CONTROL")
-        print(f"  Accumulated {len(game_state.ruleset_description_parts)} part(s), {total_bytes} bytes")
+        print(
+            f"  Accumulated {len(game_state.ruleset_description_parts)} part(s), {total_bytes} bytes"
+        )
         return
 
     expected_length = game_state.ruleset_control.desc_length
 
     # Print progress
     progress_pct = min(100, int(100 * total_bytes / expected_length)) if expected_length > 0 else 0
-    print(f"[RULESET DESC] Part {len(game_state.ruleset_description_parts)}: "
-          f"{len(chunk_text)} bytes (total: {total_bytes}/{expected_length} bytes, {progress_pct}%)")
+    print(
+        f"[RULESET DESC] Part {len(game_state.ruleset_description_parts)}: "
+        f"{len(chunk_text)} bytes (total: {total_bytes}/{expected_length} bytes, {progress_pct}%)"
+    )
 
     # Check if assembly is complete
     if total_bytes >= expected_length:
         # Join all parts into complete description
-        complete_description = ''.join(game_state.ruleset_description_parts)
+        complete_description = "".join(game_state.ruleset_description_parts)
         game_state.ruleset_description = complete_description
 
         # Clear accumulator
@@ -129,7 +142,9 @@ async def handle_ruleset_description_part(client: 'FreeCivClient', game_state: G
         print()  # Blank line for readability
 
 
-async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_nation_sets(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_NATION_SETS.
 
@@ -145,11 +160,11 @@ async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameSt
 
     # Transform parallel arrays into list of objects
     nation_sets = []
-    for i in range(data['nsets']):
+    for i in range(data["nsets"]):
         nation_set = NationSet(
-            name=data['names'][i],
-            rule_name=data['rule_names'][i],
-            description=data['descriptions'][i]
+            name=data["names"][i],
+            rule_name=data["rule_names"][i],
+            description=data["descriptions"][i],
         )
         nation_sets.append(nation_set)
 
@@ -160,15 +175,19 @@ async def handle_ruleset_nation_sets(client: 'FreeCivClient', game_state: GameSt
     print(f"\n[NATION SETS] {len(nation_sets)} available")
     for nation_set in nation_sets:
         # Truncate long descriptions for console output
-        desc_preview = (nation_set.description[:60] + "..."
-                       if len(nation_set.description) > 60
-                       else nation_set.description)
+        desc_preview = (
+            nation_set.description[:60] + "..."
+            if len(nation_set.description) > 60
+            else nation_set.description
+        )
         print(f"  - {nation_set.name} ({nation_set.rule_name})")
         if desc_preview:
             print(f"    {desc_preview}")
 
 
-async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_nation_groups(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_NATION_GROUPS.
 
@@ -185,11 +204,8 @@ async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: Game
 
     # Transform parallel arrays into list of objects
     nation_groups = []
-    for i in range(data['ngroups']):
-        nation_group = NationGroup(
-            name=data['groups'][i],
-            hidden=data['hidden'][i]
-        )
+    for i in range(data["ngroups"]):
+        nation_group = NationGroup(name=data["groups"][i], hidden=data["hidden"][i])
         nation_groups.append(nation_group)
 
     # Store in game state (replaces previous data)
@@ -202,7 +218,9 @@ async def handle_ruleset_nation_groups(client: 'FreeCivClient', game_state: Game
         print(f"  - {nation_group.name} ({visibility})")
 
 
-async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_nation(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_NATION (148) - nation/civilization data.
 
@@ -220,31 +238,31 @@ async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, 
 
     # Create Nation object from decoded data
     nation = Nation(
-        id=data['id'],
-        translation_domain=data.get('translation_domain', ''),
-        adjective=data.get('adjective', ''),
-        rule_name=data.get('rule_name', ''),
-        noun_plural=data.get('noun_plural', ''),
-        graphic_str=data.get('graphic_str', ''),
-        graphic_alt=data.get('graphic_alt', ''),
-        legend=data.get('legend', ''),
-        style=data.get('style', 0),
-        leader_count=data.get('leader_count', 0),
-        leader_name=data.get('leader_name', []),
-        leader_is_male=data.get('leader_is_male', []),
-        is_playable=data.get('is_playable', False),
-        barbarian_type=data.get('barbarian_type', 0),
-        nsets=data.get('nsets', 0),
-        sets=data.get('sets', []),
-        ngroups=data.get('ngroups', 0),
-        groups=data.get('groups', []),
-        init_government_id=data.get('init_government_id', -1),
-        init_techs_count=data.get('init_techs_count', 0),
-        init_techs=data.get('init_techs', []),
-        init_units_count=data.get('init_units_count', 0),
-        init_units=data.get('init_units', []),
-        init_buildings_count=data.get('init_buildings_count', 0),
-        init_buildings=data.get('init_buildings', [])
+        id=data["id"],
+        translation_domain=data.get("translation_domain", ""),
+        adjective=data.get("adjective", ""),
+        rule_name=data.get("rule_name", ""),
+        noun_plural=data.get("noun_plural", ""),
+        graphic_str=data.get("graphic_str", ""),
+        graphic_alt=data.get("graphic_alt", ""),
+        legend=data.get("legend", ""),
+        style=data.get("style", 0),
+        leader_count=data.get("leader_count", 0),
+        leader_name=data.get("leader_name", []),
+        leader_is_male=data.get("leader_is_male", []),
+        is_playable=data.get("is_playable", False),
+        barbarian_type=data.get("barbarian_type", 0),
+        nsets=data.get("nsets", 0),
+        sets=data.get("sets", []),
+        ngroups=data.get("ngroups", 0),
+        groups=data.get("groups", []),
+        init_government_id=data.get("init_government_id", -1),
+        init_techs_count=data.get("init_techs_count", 0),
+        init_techs=data.get("init_techs", []),
+        init_units_count=data.get("init_units_count", 0),
+        init_units=data.get("init_units", []),
+        init_buildings_count=data.get("init_buildings_count", 0),
+        init_buildings=data.get("init_buildings", []),
     )
 
     # Store in game state by nation ID
@@ -261,11 +279,15 @@ async def handle_ruleset_nation(client: 'FreeCivClient', game_state: GameState, 
     print(f"  Leaders: {leaders_str}")
     print(f"  Status: {playable}")
     print(f"  Sets: {len(nation.sets)}, Groups: {len(nation.groups)}")
-    print(f"  Starting: {nation.init_techs_count} techs, "
-          f"{nation.init_units_count} units, {nation.init_buildings_count} buildings")
+    print(
+        f"  Starting: {nation.init_techs_count} techs, "
+        f"{nation.init_units_count} units, {nation.init_buildings_count} buildings"
+    )
 
 
-async def handle_nation_availability(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_nation_availability(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_NATION_AVAILABILITY (237).
 
@@ -280,24 +302,24 @@ async def handle_nation_availability(client: 'FreeCivClient', game_state: GameSt
 
     # Store in game state
     game_state.nation_availability = {
-        'ncount': data['ncount'],
-        'is_pickable': data['is_pickable'],
-        'nationset_change': data['nationset_change']
+        "ncount": data["ncount"],
+        "is_pickable": data["is_pickable"],
+        "nationset_change": data["nationset_change"],
     }
 
     # Display summary
-    available_count = sum(data['is_pickable'])
-    total_count = data['ncount']
+    available_count = sum(data["is_pickable"])
+    total_count = data["ncount"]
 
     print(f"\n[NATION AVAILABILITY] {available_count}/{total_count} nations available")
-    if data['nationset_change']:
+    if data["nationset_change"]:
         print("  Nation set changed")
 
     # Display detailed availability (limit to first 10 for brevity)
     if game_state.nations:
         print("  Available nations:")
         shown = 0
-        for nation_id, is_available in enumerate(data['is_pickable']):
+        for nation_id, is_available in enumerate(data["is_pickable"]):
             if is_available and nation_id in game_state.nations:
                 nation = game_state.nations[nation_id]
                 print(f"    - {nation.adjective} ({nation.rule_name})")
@@ -309,7 +331,9 @@ async def handle_nation_availability(client: 'FreeCivClient', game_state: GameSt
                     break
 
 
-async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_game(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_GAME (141) - core game configuration.
 
@@ -328,20 +352,20 @@ async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, pa
 
     # Create RulesetGame object
     ruleset_game = RulesetGame(
-        default_specialist=data['default_specialist'],
-        global_init_techs_count=data['global_init_techs_count'],
-        global_init_techs=data['global_init_techs'],
-        global_init_buildings_count=data['global_init_buildings_count'],
-        global_init_buildings=data['global_init_buildings'],
-        veteran_levels=data['veteran_levels'],
-        veteran_name=data['veteran_name'],
-        power_fact=data['power_fact'],
-        move_bonus=data['move_bonus'],
-        base_raise_chance=data['base_raise_chance'],
-        work_raise_chance=data['work_raise_chance'],
-        background_red=data['background_red'],
-        background_green=data['background_green'],
-        background_blue=data['background_blue'],
+        default_specialist=data["default_specialist"],
+        global_init_techs_count=data["global_init_techs_count"],
+        global_init_techs=data["global_init_techs"],
+        global_init_buildings_count=data["global_init_buildings_count"],
+        global_init_buildings=data["global_init_buildings"],
+        veteran_levels=data["veteran_levels"],
+        veteran_name=data["veteran_name"],
+        power_fact=data["power_fact"],
+        move_bonus=data["move_bonus"],
+        base_raise_chance=data["base_raise_chance"],
+        work_raise_chance=data["work_raise_chance"],
+        background_red=data["background_red"],
+        background_green=data["background_green"],
+        background_blue=data["background_blue"],
     )
 
     # Store in game state
@@ -350,27 +374,33 @@ async def handle_ruleset_game(client: 'FreeCivClient', game_state: GameState, pa
     # Display summary
     print(f"\n[RULESET GAME] Game Configuration")
     print(f"  Default Specialist: {ruleset_game.default_specialist}")
-    print(f"  Global Starting Techs: {ruleset_game.global_init_techs_count} "
-          f"(IDs: {ruleset_game.global_init_techs})")
-    print(f"  Global Starting Buildings: {ruleset_game.global_init_buildings_count} "
-          f"(IDs: {ruleset_game.global_init_buildings})")
-    print(f"  Background Color: RGB({ruleset_game.background_red}, "
-          f"{ruleset_game.background_green}, {ruleset_game.background_blue})")
+    print(
+        f"  Global Starting Techs: {ruleset_game.global_init_techs_count} "
+        f"(IDs: {ruleset_game.global_init_techs})"
+    )
+    print(
+        f"  Global Starting Buildings: {ruleset_game.global_init_buildings_count} "
+        f"(IDs: {ruleset_game.global_init_buildings})"
+    )
+    print(
+        f"  Background Color: RGB({ruleset_game.background_red}, "
+        f"{ruleset_game.background_green}, {ruleset_game.background_blue})"
+    )
 
     # Display veteran system
     print(f"\n  Veteran System: {ruleset_game.veteran_levels} levels")
     for i in range(ruleset_game.veteran_levels):
-        print(f"    {i}: {ruleset_game.veteran_name[i]} - "
-              f"Power: {ruleset_game.power_fact[i]}, "
-              f"Move: {ruleset_game.move_bonus[i]}, "
-              f"Base: {ruleset_game.base_raise_chance[i]}%, "
-              f"Work: {ruleset_game.work_raise_chance[i]}%")
+        print(
+            f"    {i}: {ruleset_game.veteran_name[i]} - "
+            f"Power: {ruleset_game.power_fact[i]}, "
+            f"Move: {ruleset_game.move_bonus[i]}, "
+            f"Base: {ruleset_game.base_raise_chance[i]}%, "
+            f"Work: {ruleset_game.work_raise_chance[i]}%"
+        )
 
 
 async def handle_ruleset_specialist(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_SPECIALIST (142) - specialist type definitions.
@@ -391,21 +421,19 @@ async def handle_ruleset_specialist(
     data = protocol.decode_ruleset_specialist(payload, client._delta_cache)
 
     # Convert requirements list
-    requirements = [
-        Requirement(**req) for req in data.get('reqs', [])
-    ]
+    requirements = [Requirement(**req) for req in data.get("reqs", [])]
 
     # Create typed dataclass
     specialist = Specialist(
-        id=data['id'],
-        plural_name=data.get('plural_name', ''),
-        rule_name=data.get('rule_name', ''),
-        short_name=data.get('short_name', ''),
-        graphic_str=data.get('graphic_str', ''),
-        graphic_alt=data.get('graphic_alt', ''),
-        reqs_count=data.get('reqs_count', 0),
+        id=data["id"],
+        plural_name=data.get("plural_name", ""),
+        rule_name=data.get("rule_name", ""),
+        short_name=data.get("short_name", ""),
+        graphic_str=data.get("graphic_str", ""),
+        graphic_alt=data.get("graphic_alt", ""),
+        reqs_count=data.get("reqs_count", 0),
         reqs=requirements,
-        helptext=data.get('helptext', '')
+        helptext=data.get("helptext", ""),
     )
 
     # Store in game state
@@ -415,23 +443,23 @@ async def handle_ruleset_specialist(
     print(f"\n[SPECIALIST {specialist.id}] {specialist.plural_name} ({specialist.rule_name})")
     print(f"  Short Name: {specialist.short_name}")
     print(f"  Graphics: {specialist.graphic_str}")
-    if specialist.graphic_alt and specialist.graphic_alt != '-':
+    if specialist.graphic_alt and specialist.graphic_alt != "-":
         print(f"    Alt: {specialist.graphic_alt}")
     if specialist.reqs_count > 0:
         print(f"  Requirements: {specialist.reqs_count}")
 
     # Display help text (truncated)
     if specialist.helptext:
-        help_preview = (specialist.helptext[:100] + '...'
-                       if len(specialist.helptext) > 100
-                       else specialist.helptext)
+        help_preview = (
+            specialist.helptext[:100] + "..."
+            if len(specialist.helptext) > 100
+            else specialist.helptext
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_disaster(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_DISASTER (224) - disaster type configuration.
@@ -450,25 +478,25 @@ async def handle_ruleset_disaster(
     # Convert requirements to Requirement objects
     requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['reqs']
+        for req in data["reqs"]
     ]
 
     # Create DisasterType object
     disaster = DisasterType(
-        id=data['id'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        reqs_count=data['reqs_count'],
+        id=data["id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        reqs_count=data["reqs_count"],
         reqs=requirements,
-        frequency=data['frequency'],
-        effects=data['effects']
+        frequency=data["frequency"],
+        effects=data["effects"],
     )
 
     # Store in game state
@@ -483,11 +511,11 @@ async def handle_ruleset_disaster(
         3: "EmptyProdStock",
         4: "Pollution",
         5: "Fallout",
-        6: "ReducePopDestroy"
+        6: "ReducePopDestroy",
     }
 
     for bit in range(7):
-        if data['effects'] & (1 << bit):
+        if data["effects"] & (1 << bit):
             effect_names.append(effect_mapping[bit])
 
     effects_str = ", ".join(effect_names) if effect_names else "none"
@@ -500,9 +528,7 @@ async def handle_ruleset_disaster(
 
 
 async def handle_ruleset_achievement(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_ACHIEVEMENT (233) - achievement type configuration.
@@ -519,11 +545,11 @@ async def handle_ruleset_achievement(
 
     # Create AchievementType object
     achievement = AchievementType(
-        id=data['id'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        type=data['type'],
-        unique=data['unique']
+        id=data["id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        type=data["type"],
+        unique=data["unique"],
     )
 
     # Store in game state
@@ -531,9 +557,16 @@ async def handle_ruleset_achievement(
 
     # Map achievement type enum to human-readable names
     type_names = {
-        0: "Spaceship", 1: "Map_Known", 2: "Multicultural",
-        3: "Cultured_City", 4: "Cultured_Nation", 5: "Lucky",
-        6: "Huts", 7: "Metropolis", 8: "Literate", 9: "Land_Ahoy"
+        0: "Spaceship",
+        1: "Map_Known",
+        2: "Multicultural",
+        3: "Cultured_City",
+        4: "Cultured_Nation",
+        5: "Lucky",
+        6: "Huts",
+        7: "Metropolis",
+        8: "Literate",
+        9: "Land_Ahoy",
     }
 
     type_str = type_names.get(achievement.type, f"Unknown({achievement.type})")
@@ -546,9 +579,7 @@ async def handle_ruleset_achievement(
 
 
 async def handle_ruleset_trade(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_TRADE (227) - trade route configuration."""
     from ..game_state import TradeRouteType
@@ -558,10 +589,10 @@ async def handle_ruleset_trade(
 
     # Create TradeRouteType object
     trade_route = TradeRouteType(
-        id=data['id'],
-        trade_pct=data['trade_pct'],
-        cancelling=data['cancelling'],
-        bonus_type=data['bonus_type']
+        id=data["id"],
+        trade_pct=data["trade_pct"],
+        cancelling=data["cancelling"],
+        bonus_type=data["bonus_type"],
     )
 
     # Store in game state
@@ -574,9 +605,7 @@ async def handle_ruleset_trade(
     cancelling_str = cancelling_names.get(
         trade_route.cancelling, f"Unknown({trade_route.cancelling})"
     )
-    bonus_str = bonus_type_names.get(
-        trade_route.bonus_type, f"Unknown({trade_route.bonus_type})"
-    )
+    bonus_str = bonus_type_names.get(trade_route.bonus_type, f"Unknown({trade_route.bonus_type})")
 
     # Display summary
     print(f"\n[TRADE ROUTE {trade_route.id}]")
@@ -586,9 +615,7 @@ async def handle_ruleset_trade(
 
 
 async def handle_ruleset_resource(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_RESOURCE (177) - resource type configuration.
 
@@ -603,10 +630,7 @@ async def handle_ruleset_resource(
     data = protocol.decode_ruleset_resource(payload)
 
     # Create Resource object
-    resource = Resource(
-        id=data['id'],
-        output=data['output']
-    )
+    resource = Resource(id=data["id"], output=data["output"])
 
     # Store in game state
     game_state.resources[resource.id] = resource
@@ -623,9 +647,7 @@ async def handle_ruleset_resource(
 
 
 async def handle_ruleset_action(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_ACTION (246) - action type configuration.
 
@@ -642,18 +664,18 @@ async def handle_ruleset_action(
 
     # Create ActionType object
     action = ActionType(
-        id=data['id'],
-        ui_name=data['ui_name'],
-        quiet=data['quiet'],
-        result=data['result'],
-        sub_results=data['sub_results'],
-        actor_consuming_always=data['actor_consuming_always'],
-        act_kind=data['act_kind'],
-        tgt_kind=data['tgt_kind'],
-        sub_tgt_kind=data['sub_tgt_kind'],
-        min_distance=data['min_distance'],
-        max_distance=data['max_distance'],
-        blocked_by=data['blocked_by']
+        id=data["id"],
+        ui_name=data["ui_name"],
+        quiet=data["quiet"],
+        result=data["result"],
+        sub_results=data["sub_results"],
+        actor_consuming_always=data["actor_consuming_always"],
+        act_kind=data["act_kind"],
+        tgt_kind=data["tgt_kind"],
+        sub_tgt_kind=data["sub_tgt_kind"],
+        min_distance=data["min_distance"],
+        max_distance=data["max_distance"],
+        blocked_by=data["blocked_by"],
     )
 
     # Store in game state
@@ -673,7 +695,7 @@ async def handle_ruleset_action(
         distance_str = f"{action.min_distance}-{action.max_distance}"
 
     # Count blocking actions
-    blocking_count = bin(action.blocked_by).count('1')
+    blocking_count = bin(action.blocked_by).count("1")
 
     # Display summary
     print(f"\n[ACTION {action.id}] {action.ui_name}")
@@ -686,9 +708,7 @@ async def handle_ruleset_action(
 
 
 async def handle_ruleset_action_enabler(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_ACTION_ENABLER (235) - action enabler configuration.
@@ -707,36 +727,36 @@ async def handle_ruleset_action_enabler(
     # Convert actor requirements to Requirement objects
     actor_requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['actor_reqs']
+        for req in data["actor_reqs"]
     ]
 
     # Convert target requirements to Requirement objects
     target_requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['target_reqs']
+        for req in data["target_reqs"]
     ]
 
     # Create ActionEnabler object
     enabler = ActionEnabler(
-        enabled_action=data['enabled_action'],
-        actor_reqs_count=data['actor_reqs_count'],
+        enabled_action=data["enabled_action"],
+        actor_reqs_count=data["actor_reqs_count"],
         actor_reqs=actor_requirements,
-        target_reqs_count=data['target_reqs_count'],
-        target_reqs=target_requirements
+        target_reqs_count=data["target_reqs_count"],
+        target_reqs=target_requirements,
     )
 
     # Append to game state (multiple enablers can exist for same action)
@@ -765,9 +785,7 @@ async def handle_ruleset_action_enabler(
 
 
 async def handle_ruleset_action_auto(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_ACTION_AUTO (252) - automatic action configuration.
@@ -786,24 +804,24 @@ async def handle_ruleset_action_auto(
     # Convert requirements to Requirement objects
     requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['reqs']
+        for req in data["reqs"]
     ]
 
     # Create ActionAutoPerformer object
     auto_performer = ActionAutoPerformer(
-        id=data['id'],
-        cause=data['cause'],
-        reqs_count=data['reqs_count'],
+        id=data["id"],
+        cause=data["cause"],
+        reqs_count=data["reqs_count"],
         reqs=requirements,
-        alternatives_count=data['alternatives_count'],
-        alternatives=data['alternatives']
+        alternatives_count=data["alternatives_count"],
+        alternatives=data["alternatives"],
     )
 
     # Append to game state (multiple auto performers can exist)
@@ -815,14 +833,16 @@ async def handle_ruleset_action_auto(
         1: "UNIT_MOVED_ADJ",
         2: "POST_ACTION",
         3: "CITY_GONE",
-        4: "UNIT_STACK_DEATH"
+        4: "UNIT_STACK_DEATH",
     }
     cause_name = cause_names.get(auto_performer.cause, f"UNKNOWN({auto_performer.cause})")
 
     # Display summary
     print(f"\n[ACTION AUTO] ID {auto_performer.id}, Cause: {cause_name}")
     print(f"  Requirements: {auto_performer.reqs_count}")
-    print(f"  Alternative actions: {auto_performer.alternatives_count} - {auto_performer.alternatives}")
+    print(
+        f"  Alternative actions: {auto_performer.alternatives_count} - {auto_performer.alternatives}"
+    )
 
     # If requirement count is small (<=3), show detailed view
     if auto_performer.reqs_count <= 3 and auto_performer.reqs_count > 0:
@@ -831,7 +851,9 @@ async def handle_ruleset_action_auto(
             print(f"    Req {i}: type={req.type}, value={req.value}, {present_str}")
 
 
-async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_tech_flag(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_TECH_FLAG (234).
 
@@ -846,11 +868,7 @@ async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameStat
     data = protocol.decode_ruleset_tech_flag(payload, client._delta_cache)
 
     # Create TechFlag object
-    tech_flag = TechFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    tech_flag = TechFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state (keyed by ID)
     game_state.tech_flags[tech_flag.id] = tech_flag
@@ -859,11 +877,15 @@ async def handle_ruleset_tech_flag(client: 'FreeCivClient', game_state: GameStat
     print(f"\n[TECH FLAG {tech_flag.id}] {tech_flag.name}")
     if tech_flag.helptxt:
         # Truncate long help text for console display
-        help_preview = tech_flag.helptxt[:100] + '...' if len(tech_flag.helptxt) > 100 else tech_flag.helptxt
+        help_preview = (
+            tech_flag.helptxt[:100] + "..." if len(tech_flag.helptxt) > 100 else tech_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
-async def handle_ruleset_extra_flag(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+async def handle_ruleset_extra_flag(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_RULESET_EXTRA_FLAG (226).
 
@@ -878,11 +900,7 @@ async def handle_ruleset_extra_flag(client: 'FreeCivClient', game_state: GameSta
     data = protocol.decode_ruleset_extra_flag(payload, client._delta_cache)
 
     # Create ExtraFlag object
-    extra_flag = ExtraFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    extra_flag = ExtraFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state (keyed by ID)
     game_state.extra_flags[extra_flag.id] = extra_flag
@@ -891,14 +909,16 @@ async def handle_ruleset_extra_flag(client: 'FreeCivClient', game_state: GameSta
     print(f"\n[EXTRA FLAG {extra_flag.id}] {extra_flag.name}")
     if extra_flag.helptxt:
         # Truncate long help text for console display
-        help_preview = extra_flag.helptxt[:100] + '...' if len(extra_flag.helptxt) > 100 else extra_flag.helptxt
+        help_preview = (
+            extra_flag.helptxt[:100] + "..."
+            if len(extra_flag.helptxt) > 100
+            else extra_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_terrain_flag(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_TERRAIN_FLAG (231).
@@ -914,11 +934,7 @@ async def handle_ruleset_terrain_flag(
     data = protocol.decode_ruleset_terrain_flag(payload, client._delta_cache)
 
     # Create TerrainFlag object
-    terrain_flag = TerrainFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    terrain_flag = TerrainFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state (keyed by ID)
     game_state.terrain_flags[terrain_flag.id] = terrain_flag
@@ -927,14 +943,16 @@ async def handle_ruleset_terrain_flag(
     print(f"\n[TERRAIN FLAG {terrain_flag.id}] {terrain_flag.name}")
     if terrain_flag.helptxt:
         # Truncate long help text for console display
-        help_preview = terrain_flag.helptxt[:100] + '...' if len(terrain_flag.helptxt) > 100 else terrain_flag.helptxt
+        help_preview = (
+            terrain_flag.helptxt[:100] + "..."
+            if len(terrain_flag.helptxt) > 100
+            else terrain_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_impr_flag(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_IMPR_FLAG (20).
@@ -950,11 +968,7 @@ async def handle_ruleset_impr_flag(
     data = protocol.decode_ruleset_impr_flag(payload, client._delta_cache)
 
     # Create ImprFlag object
-    impr_flag = ImprFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    impr_flag = ImprFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state (keyed by ID)
     game_state.improvement_flags[impr_flag.id] = impr_flag
@@ -963,14 +977,14 @@ async def handle_ruleset_impr_flag(
     print(f"\n[IMPR FLAG {impr_flag.id}] {impr_flag.name}")
     if impr_flag.helptxt:
         # Truncate long help text for console display
-        help_preview = impr_flag.helptxt[:100] + '...' if len(impr_flag.helptxt) > 100 else impr_flag.helptxt
+        help_preview = (
+            impr_flag.helptxt[:100] + "..." if len(impr_flag.helptxt) > 100 else impr_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_unit_class(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_UNIT_CLASS (152) - unit class definition.
@@ -988,14 +1002,14 @@ async def handle_ruleset_unit_class(
 
     # Create UnitClass object
     unit_class = UnitClass(
-        id=data['id'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        min_speed=data['min_speed'],
-        hp_loss_pct=data['hp_loss_pct'],
-        non_native_def_pct=data['non_native_def_pct'],
-        flags=data['flags'],
-        helptext=data['helptext']
+        id=data["id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        min_speed=data["min_speed"],
+        hp_loss_pct=data["hp_loss_pct"],
+        non_native_def_pct=data["non_native_def_pct"],
+        flags=data["flags"],
+        helptext=data["helptext"],
     )
 
     # Store in game state (keyed by ID)
@@ -1010,14 +1024,16 @@ async def handle_ruleset_unit_class(
 
     if unit_class.helptext:
         # Truncate long help text for console display
-        help_preview = unit_class.helptext[:100] + '...' if len(unit_class.helptext) > 100 else unit_class.helptext
+        help_preview = (
+            unit_class.helptext[:100] + "..."
+            if len(unit_class.helptext) > 100
+            else unit_class.helptext
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_base(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_BASE (153) - base type definition."""
     from ..game_state import BaseType
@@ -1027,32 +1043,36 @@ async def handle_ruleset_base(
 
     # Create BaseType object
     base_type = BaseType(
-        id=data['id'],
-        gui_type=data['gui_type'],
-        border_sq=data['border_sq'],
-        vision_main_sq=data['vision_main_sq'],
-        vision_invis_sq=data['vision_invis_sq'],
-        vision_subs_sq=data['vision_subs_sq']
+        id=data["id"],
+        gui_type=data["gui_type"],
+        border_sq=data["border_sq"],
+        vision_main_sq=data["vision_main_sq"],
+        vision_invis_sq=data["vision_invis_sq"],
+        vision_subs_sq=data["vision_subs_sq"],
     )
 
     # Store in game state
     game_state.base_types[base_type.id] = base_type
 
     # Display summary
-    gui_type_names = {0: 'Fortress', 1: 'Airbase', 2: 'Other'}
-    gui_name = gui_type_names.get(base_type.gui_type, f'Unknown({base_type.gui_type})')
+    gui_type_names = {0: "Fortress", 1: "Airbase", 2: "Other"}
+    gui_name = gui_type_names.get(base_type.gui_type, f"Unknown({base_type.gui_type})")
 
     print(f"\n[BASE TYPE {base_type.id}] {gui_name}")
     print(f"  Border Expansion: {base_type.border_sq if base_type.border_sq >= 0 else 'None'}")
-    print(f"  Vision (Main): {base_type.vision_main_sq if base_type.vision_main_sq >= 0 else 'None'}")
-    print(f"  Vision (Invisible): {base_type.vision_invis_sq if base_type.vision_invis_sq >= 0 else 'None'}")
-    print(f"  Vision (Submarines): {base_type.vision_subs_sq if base_type.vision_subs_sq >= 0 else 'None'}")
+    print(
+        f"  Vision (Main): {base_type.vision_main_sq if base_type.vision_main_sq >= 0 else 'None'}"
+    )
+    print(
+        f"  Vision (Invisible): {base_type.vision_invis_sq if base_type.vision_invis_sq >= 0 else 'None'}"
+    )
+    print(
+        f"  Vision (Submarines): {base_type.vision_subs_sq if base_type.vision_subs_sq >= 0 else 'None'}"
+    )
 
 
 async def handle_ruleset_road(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_ROAD (220) - road type definition."""
     from ..game_state import RoadType, Requirement
@@ -1061,39 +1081,37 @@ async def handle_ruleset_road(
     data = protocol.decode_ruleset_road(payload, client._delta_cache)
 
     # Convert requirement dicts to Requirement objects
-    first_reqs = [
-        Requirement(**req) for req in data['first_reqs']
-    ]
+    first_reqs = [Requirement(**req) for req in data["first_reqs"]]
 
     # Create RoadType object
     road_type = RoadType(
-        id=data['id'],
-        gui_type=data['gui_type'],
-        first_reqs_count=data['first_reqs_count'],
+        id=data["id"],
+        gui_type=data["gui_type"],
+        first_reqs_count=data["first_reqs_count"],
         first_reqs=first_reqs,
-        move_cost=data['move_cost'],
-        move_mode=data['move_mode'],
-        tile_incr_const=data['tile_incr_const'],
-        tile_incr=data['tile_incr'],
-        tile_bonus=data['tile_bonus'],
-        compat=data['compat'],
-        integrates=data['integrates'],
-        flags=data['flags']
+        move_cost=data["move_cost"],
+        move_mode=data["move_mode"],
+        tile_incr_const=data["tile_incr_const"],
+        tile_incr=data["tile_incr"],
+        tile_bonus=data["tile_bonus"],
+        compat=data["compat"],
+        integrates=data["integrates"],
+        flags=data["flags"],
     )
 
     # Store in game state
     game_state.road_types[road_type.id] = road_type
 
     # Display summary
-    gui_type_names = {0: 'Road', 1: 'Railroad', 2: 'Maglev', 3: 'Other'}
-    move_mode_names = {0: 'Cardinal', 1: 'Relaxed', 2: 'FastAlways'}
-    compat_names = {0: 'Road', 1: 'Railroad', 2: 'River', 3: 'None'}
-    output_names = ['Food', 'Shield', 'Trade', 'Gold', 'Luxury', 'Science']
-    flag_names = {0: 'River', 1: 'UnrestrictedInfra', 2: 'JumpFrom', 3: 'JumpTo'}
+    gui_type_names = {0: "Road", 1: "Railroad", 2: "Maglev", 3: "Other"}
+    move_mode_names = {0: "Cardinal", 1: "Relaxed", 2: "FastAlways"}
+    compat_names = {0: "Road", 1: "Railroad", 2: "River", 3: "None"}
+    output_names = ["Food", "Shield", "Trade", "Gold", "Luxury", "Science"]
+    flag_names = {0: "River", 1: "UnrestrictedInfra", 2: "JumpFrom", 3: "JumpTo"}
 
-    gui_name = gui_type_names.get(road_type.gui_type, f'Unknown({road_type.gui_type})')
-    mode_name = move_mode_names.get(road_type.move_mode, f'Unknown({road_type.move_mode})')
-    compat_name = compat_names.get(road_type.compat, f'Unknown({road_type.compat})')
+    gui_name = gui_type_names.get(road_type.gui_type, f"Unknown({road_type.gui_type})")
+    mode_name = move_mode_names.get(road_type.move_mode, f"Unknown({road_type.move_mode})")
+    compat_name = compat_names.get(road_type.compat, f"Unknown({road_type.compat})")
 
     print(f"\n[ROAD TYPE {road_type.id}] {gui_name}")
     print(f"  Movement: cost={road_type.move_cost}, mode={mode_name}")
@@ -1101,11 +1119,9 @@ async def handle_ruleset_road(
 
     # Display tile bonuses (only non-zero values)
     bonuses = []
-    for i, (const_val, incr_val, bonus_val) in enumerate(zip(
-        road_type.tile_incr_const,
-        road_type.tile_incr,
-        road_type.tile_bonus
-    )):
+    for i, (const_val, incr_val, bonus_val) in enumerate(
+        zip(road_type.tile_incr_const, road_type.tile_incr, road_type.tile_bonus)
+    ):
         if const_val != 0 or incr_val != 0 or bonus_val != 0:
             parts = []
             if const_val != 0:
@@ -1134,14 +1150,12 @@ async def handle_ruleset_road(
     # Display integrates count (if non-zero)
     if road_type.integrates != 0:
         # Count set bits
-        integrates_count = bin(road_type.integrates).count('1')
+        integrates_count = bin(road_type.integrates).count("1")
         print(f"  Integrates with: {integrates_count} extras")
 
 
 async def handle_ruleset_goods(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_GOODS (248) - trade goods configuration."""
     from ..game_state import Goods, Requirement
@@ -1150,20 +1164,20 @@ async def handle_ruleset_goods(
     data = protocol.decode_ruleset_goods(payload, client._delta_cache)
 
     # Convert requirement dicts to Requirement objects
-    requirements = [Requirement(**req) for req in data.get('reqs', [])]
+    requirements = [Requirement(**req) for req in data.get("reqs", [])]
 
     # Create Goods object
     goods = Goods(
-        id=data['id'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        reqs_count=data['reqs_count'],
+        id=data["id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        reqs_count=data["reqs_count"],
         reqs=requirements,
-        from_pct=data['from_pct'],
-        to_pct=data['to_pct'],
-        onetime_pct=data['onetime_pct'],
-        flags=data['flags'],
-        helptext=data['helptext']
+        from_pct=data["from_pct"],
+        to_pct=data["to_pct"],
+        onetime_pct=data["onetime_pct"],
+        flags=data["flags"],
+        helptext=data["helptext"],
     )
 
     # Store in game state
@@ -1171,7 +1185,9 @@ async def handle_ruleset_goods(
 
     # Display formatted summary
     print(f"\n[GOODS {goods.id}] {goods.name} ({goods.rule_name})")
-    print(f"  Trade Percentages: from={goods.from_pct}%, to={goods.to_pct}%, onetime={goods.onetime_pct}%")
+    print(
+        f"  Trade Percentages: from={goods.from_pct}%, to={goods.to_pct}%, onetime={goods.onetime_pct}%"
+    )
 
     if goods.reqs_count > 0:
         print(f"  Requirements: {goods.reqs_count}")
@@ -1187,16 +1203,12 @@ async def handle_ruleset_goods(
         print(f"  Flags: {', '.join(flag_names)}")
 
     if goods.helptext:
-        help_preview = (goods.helptext[:100] + '...'
-                       if len(goods.helptext) > 100
-                       else goods.helptext)
+        help_preview = goods.helptext[:100] + "..." if len(goods.helptext) > 100 else goods.helptext
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_unit_class_flag(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_UNIT_CLASS_FLAG (230) - unit class flag definition.
@@ -1212,11 +1224,7 @@ async def handle_ruleset_unit_class_flag(
     data = protocol.decode_ruleset_unit_class_flag(payload, client._delta_cache)
 
     # Create UnitClassFlag object
-    unit_class_flag = UnitClassFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    unit_class_flag = UnitClassFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state (keyed by ID)
     game_state.unit_class_flags[unit_class_flag.id] = unit_class_flag
@@ -1225,14 +1233,16 @@ async def handle_ruleset_unit_class_flag(
     print(f"\n[UNIT CLASS FLAG {unit_class_flag.id}] {unit_class_flag.name}")
     if unit_class_flag.helptxt:
         # Truncate long help text for console display
-        help_preview = unit_class_flag.helptxt[:100] + '...' if len(unit_class_flag.helptxt) > 100 else unit_class_flag.helptxt
+        help_preview = (
+            unit_class_flag.helptxt[:100] + "..."
+            if len(unit_class_flag.helptxt) > 100
+            else unit_class_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_unit_flag(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_UNIT_FLAG (229) - unit flag definition.
@@ -1246,11 +1256,7 @@ async def handle_ruleset_unit_flag(
     data = protocol.decode_ruleset_unit_flag(payload, client._delta_cache)
 
     # Create UnitFlag object
-    unit_flag = UnitFlag(
-        id=data['id'],
-        name=data['name'],
-        helptxt=data['helptxt']
-    )
+    unit_flag = UnitFlag(id=data["id"], name=data["name"], helptxt=data["helptxt"])
 
     # Store in game state
     game_state.unit_flags[unit_flag.id] = unit_flag
@@ -1258,14 +1264,14 @@ async def handle_ruleset_unit_flag(
     # Display summary
     print(f"\n[UNIT FLAG {unit_flag.id}] {unit_flag.name}")
     if unit_flag.helptxt:
-        help_preview = unit_flag.helptxt[:100] + '...' if len(unit_flag.helptxt) > 100 else unit_flag.helptxt
+        help_preview = (
+            unit_flag.helptxt[:100] + "..." if len(unit_flag.helptxt) > 100 else unit_flag.helptxt
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_unit_bonus(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_UNIT_BONUS (228) - unit combat bonus configuration.
@@ -1282,11 +1288,11 @@ async def handle_ruleset_unit_bonus(
 
     # Create UnitBonus object
     bonus = UnitBonus(
-        unit=data['unit'],
-        flag=data['flag'],
-        type=data['type'],
-        value=data['value'],
-        quiet=data['quiet']
+        unit=data["unit"],
+        flag=data["flag"],
+        type=data["type"],
+        value=data["value"],
+        quiet=data["quiet"],
     )
 
     # Append to game state (multiple bonuses can exist)
@@ -1297,7 +1303,7 @@ async def handle_ruleset_unit_bonus(
         0: "DefenseMultiplier",
         1: "DefenseDivider",
         2: "FirepowerMultiplier",
-        3: "FirepowerDivider"
+        3: "FirepowerDivider",
     }
 
     type_str = bonus_type_names.get(bonus.type, f"Unknown({bonus.type})")
@@ -1319,9 +1325,7 @@ async def handle_ruleset_unit_bonus(
 
 
 async def handle_ruleset_tech(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_TECH (144) - technology definition.
@@ -1337,32 +1341,32 @@ async def handle_ruleset_tech(
     # Convert research requirements to Requirement objects
     research_requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['research_reqs']
+        for req in data["research_reqs"]
     ]
 
     # Create Tech object
     tech = Tech(
-        id=data['id'],
-        root_req=data['root_req'],
-        research_reqs_count=data['research_reqs_count'],
+        id=data["id"],
+        root_req=data["root_req"],
+        research_reqs_count=data["research_reqs_count"],
         research_reqs=research_requirements,
-        tclass=data['tclass'],
-        removed=data['removed'],
-        flags=data['flags'],
-        cost=data['cost'],
-        num_reqs=data['num_reqs'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        helptext=data['helptext'],
-        graphic_str=data['graphic_str'],
-        graphic_alt=data['graphic_alt']
+        tclass=data["tclass"],
+        removed=data["removed"],
+        flags=data["flags"],
+        cost=data["cost"],
+        num_reqs=data["num_reqs"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        helptext=data["helptext"],
+        graphic_str=data["graphic_str"],
+        graphic_alt=data["graphic_alt"],
     )
 
     # Store in game state
@@ -1385,18 +1389,16 @@ async def handle_ruleset_tech(
                 print(f"    Req {i}: type={req.type}, value={req.value}, {present_str}")
 
     if tech.flags != 0:
-        flag_count = bin(tech.flags).count('1')
+        flag_count = bin(tech.flags).count("1")
         print(f"  Flags: {flag_count} active (0x{tech.flags:x})")
 
     if tech.helptext:
-        help_preview = tech.helptext[:80] + '...' if len(tech.helptext) > 80 else tech.helptext
+        help_preview = tech.helptext[:80] + "..." if len(tech.helptext) > 80 else tech.helptext
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_government_ruler_title(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_GOVERNMENT_RULER_TITLE (143) - ruler title definition.
@@ -1411,24 +1413,24 @@ async def handle_ruleset_government_ruler_title(
 
     # Create GovernmentRulerTitle object
     ruler_title = GovernmentRulerTitle(
-        gov=data['gov'],
-        nation=data['nation'],
-        male_title=data['male_title'],
-        female_title=data['female_title']
+        gov=data["gov"],
+        nation=data["nation"],
+        male_title=data["male_title"],
+        female_title=data["female_title"],
     )
 
     # Store in game state
     game_state.government_ruler_titles.append(ruler_title)
 
     # Display summary
-    print(f"[RULER TITLE] Gov {ruler_title.gov}, Nation {ruler_title.nation}: "
-          f"{ruler_title.male_title}/{ruler_title.female_title}")
+    print(
+        f"[RULER TITLE] Gov {ruler_title.gov}, Nation {ruler_title.nation}: "
+        f"{ruler_title.male_title}/{ruler_title.female_title}"
+    )
 
 
 async def handle_ruleset_government(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_GOVERNMENT (145) - government type definition.
@@ -1443,29 +1445,29 @@ async def handle_ruleset_government(
     # Convert requirements to Requirement objects
     requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['reqs']
+        for req in data["reqs"]
     ]
 
     # Create Government object
     government = Government(
-        id=data['id'],
-        reqs_count=data['reqs_count'],
+        id=data["id"],
+        reqs_count=data["reqs_count"],
         reqs=requirements,
-        name=data['name'],
-        rule_name=data['rule_name'],
-        graphic_str=data['graphic_str'],
-        graphic_alt=data['graphic_alt'],
-        sound_str=data['sound_str'],
-        sound_alt=data['sound_alt'],
-        sound_alt2=data['sound_alt2'],
-        helptext=data['helptext']
+        name=data["name"],
+        rule_name=data["rule_name"],
+        graphic_str=data["graphic_str"],
+        graphic_alt=data["graphic_alt"],
+        sound_str=data["sound_str"],
+        sound_alt=data["sound_alt"],
+        sound_alt2=data["sound_alt2"],
+        helptext=data["helptext"],
     )
 
     # Store in game state
@@ -1480,9 +1482,7 @@ async def handle_ruleset_government(
 
 
 async def handle_ruleset_unit(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_UNIT (140) - unit type definition.
@@ -1498,66 +1498,66 @@ async def handle_ruleset_unit(
     # Convert requirements dicts to Requirement objects
     requirements = [
         Requirement(
-            type=req['type'],
-            value=req['value'],
-            range=req['range'],
-            survives=req['survives'],
-            present=req['present'],
-            quiet=req['quiet']
+            type=req["type"],
+            value=req["value"],
+            range=req["range"],
+            survives=req["survives"],
+            present=req["present"],
+            quiet=req["quiet"],
         )
-        for req in data['build_reqs']
+        for req in data["build_reqs"]
     ]
 
     # Create UnitType object
     unit_type = UnitType(
-        id=data['id'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        graphic_str=data['graphic_str'],
-        graphic_alt=data['graphic_alt'],
-        graphic_alt2=data['graphic_alt2'],
-        sound_move=data['sound_move'],
-        sound_move_alt=data['sound_move_alt'],
-        sound_fight=data['sound_fight'],
-        sound_fight_alt=data['sound_fight_alt'],
-        unit_class_id=data['unit_class_id'],
-        build_cost=data['build_cost'],
-        pop_cost=data['pop_cost'],
-        happy_cost=data['happy_cost'],
-        upkeep=data['upkeep'],
-        attack_strength=data['attack_strength'],
-        defense_strength=data['defense_strength'],
-        firepower=data['firepower'],
-        hp=data['hp'],
-        move_rate=data['move_rate'],
-        fuel=data['fuel'],
-        build_reqs_count=data['build_reqs_count'],
+        id=data["id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        graphic_str=data["graphic_str"],
+        graphic_alt=data["graphic_alt"],
+        graphic_alt2=data["graphic_alt2"],
+        sound_move=data["sound_move"],
+        sound_move_alt=data["sound_move_alt"],
+        sound_fight=data["sound_fight"],
+        sound_fight_alt=data["sound_fight_alt"],
+        unit_class_id=data["unit_class_id"],
+        build_cost=data["build_cost"],
+        pop_cost=data["pop_cost"],
+        happy_cost=data["happy_cost"],
+        upkeep=data["upkeep"],
+        attack_strength=data["attack_strength"],
+        defense_strength=data["defense_strength"],
+        firepower=data["firepower"],
+        hp=data["hp"],
+        move_rate=data["move_rate"],
+        fuel=data["fuel"],
+        build_reqs_count=data["build_reqs_count"],
         build_reqs=requirements,
-        vision_radius_sq=data['vision_radius_sq'],
-        transport_capacity=data['transport_capacity'],
-        cargo=data['cargo'],
-        embarks=data['embarks'],
-        disembarks=data['disembarks'],
-        obsoleted_by=data['obsoleted_by'],
-        converted_to=data['converted_to'],
-        convert_time=data['convert_time'],
-        bombard_rate=data['bombard_rate'],
-        paratroopers_range=data['paratroopers_range'],
-        city_size=data['city_size'],
-        city_slots=data['city_slots'],
-        tp_defense=data['tp_defense'],
-        targets=data['targets'],
-        vlayer=data['vlayer'],
-        veteran_levels=data['veteran_levels'],
-        veteran_name=data['veteran_name'],
-        power_fact=data['power_fact'],
-        move_bonus=data['move_bonus'],
-        base_raise_chance=data['base_raise_chance'],
-        work_raise_chance=data['work_raise_chance'],
-        flags=data['flags'],
-        roles=data['roles'],
-        worker=data['worker'],
-        helptext=data['helptext']
+        vision_radius_sq=data["vision_radius_sq"],
+        transport_capacity=data["transport_capacity"],
+        cargo=data["cargo"],
+        embarks=data["embarks"],
+        disembarks=data["disembarks"],
+        obsoleted_by=data["obsoleted_by"],
+        converted_to=data["converted_to"],
+        convert_time=data["convert_time"],
+        bombard_rate=data["bombard_rate"],
+        paratroopers_range=data["paratroopers_range"],
+        city_size=data["city_size"],
+        city_slots=data["city_slots"],
+        tp_defense=data["tp_defense"],
+        targets=data["targets"],
+        vlayer=data["vlayer"],
+        veteran_levels=data["veteran_levels"],
+        veteran_name=data["veteran_name"],
+        power_fact=data["power_fact"],
+        move_bonus=data["move_bonus"],
+        base_raise_chance=data["base_raise_chance"],
+        work_raise_chance=data["work_raise_chance"],
+        flags=data["flags"],
+        roles=data["roles"],
+        worker=data["worker"],
+        helptext=data["helptext"],
     )
 
     # Store in game state
@@ -1565,19 +1565,22 @@ async def handle_ruleset_unit(
 
     # Display summary
     print(f"\n[UNIT {unit_type.id}] {unit_type.name} ({unit_type.rule_name})")
-    print(f"  Cost: {unit_type.build_cost} shields", end='')
+    print(f"  Cost: {unit_type.build_cost} shields", end="")
     if unit_type.pop_cost > 0:
-        print(f", {unit_type.pop_cost} pop", end='')
+        print(f", {unit_type.pop_cost} pop", end="")
     print()
 
-    print(f"  Combat: {unit_type.attack_strength}/{unit_type.defense_strength}/{unit_type.hp} HP", end='')
+    print(
+        f"  Combat: {unit_type.attack_strength}/{unit_type.defense_strength}/{unit_type.hp} HP",
+        end="",
+    )
     if unit_type.firepower > 1:
-        print(f", firepower {unit_type.firepower}", end='')
+        print(f", firepower {unit_type.firepower}", end="")
     print()
 
-    print(f"  Movement: {unit_type.move_rate}", end='')
+    print(f"  Movement: {unit_type.move_rate}", end="")
     if unit_type.fuel > 0:
-        print(f", fuel {unit_type.fuel}", end='')
+        print(f", fuel {unit_type.fuel}", end="")
     print()
 
     # Display special abilities
@@ -1602,9 +1605,7 @@ async def handle_ruleset_unit(
 
 
 async def handle_ruleset_extra(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """
     Handle PACKET_RULESET_EXTRA (232) - extra type definition.
@@ -1621,54 +1622,54 @@ async def handle_ruleset_extra(
     data = protocol.decode_ruleset_extra(payload, client._delta_cache)
 
     # Convert requirement arrays to Requirement objects
-    reqs = [Requirement(**req) for req in data.get('reqs', [])]
-    rmreqs = [Requirement(**req) for req in data.get('rmreqs', [])]
-    appearance_reqs = [Requirement(**req) for req in data.get('appearance_reqs', [])]
-    disappearance_reqs = [Requirement(**req) for req in data.get('disappearance_reqs', [])]
+    reqs = [Requirement(**req) for req in data.get("reqs", [])]
+    rmreqs = [Requirement(**req) for req in data.get("rmreqs", [])]
+    appearance_reqs = [Requirement(**req) for req in data.get("appearance_reqs", [])]
+    disappearance_reqs = [Requirement(**req) for req in data.get("disappearance_reqs", [])]
 
     # Create ExtraType object with all 41 fields
     extra = ExtraType(
-        id=data['id'],
-        name=data.get('name', ''),
-        rule_name=data.get('rule_name', ''),
-        category=data.get('category', 0),
-        causes=data.get('causes', 0),
-        rmcauses=data.get('rmcauses', 0),
-        activity_gfx=data.get('activity_gfx', ''),
-        act_gfx_alt=data.get('act_gfx_alt', ''),
-        act_gfx_alt2=data.get('act_gfx_alt2', ''),
-        rmact_gfx=data.get('rmact_gfx', ''),
-        rmact_gfx_alt=data.get('rmact_gfx_alt', ''),
-        rmact_gfx_alt2=data.get('rmact_gfx_alt2', ''),
-        graphic_str=data.get('graphic_str', ''),
-        graphic_alt=data.get('graphic_alt', ''),
-        reqs_count=data.get('reqs_count', 0),
+        id=data["id"],
+        name=data.get("name", ""),
+        rule_name=data.get("rule_name", ""),
+        category=data.get("category", 0),
+        causes=data.get("causes", 0),
+        rmcauses=data.get("rmcauses", 0),
+        activity_gfx=data.get("activity_gfx", ""),
+        act_gfx_alt=data.get("act_gfx_alt", ""),
+        act_gfx_alt2=data.get("act_gfx_alt2", ""),
+        rmact_gfx=data.get("rmact_gfx", ""),
+        rmact_gfx_alt=data.get("rmact_gfx_alt", ""),
+        rmact_gfx_alt2=data.get("rmact_gfx_alt2", ""),
+        graphic_str=data.get("graphic_str", ""),
+        graphic_alt=data.get("graphic_alt", ""),
+        reqs_count=data.get("reqs_count", 0),
         reqs=reqs,
-        rmreqs_count=data.get('rmreqs_count', 0),
+        rmreqs_count=data.get("rmreqs_count", 0),
         rmreqs=rmreqs,
-        appearance_chance=data.get('appearance_chance', 0),
-        appearance_reqs_count=data.get('appearance_reqs_count', 0),
+        appearance_chance=data.get("appearance_chance", 0),
+        appearance_reqs_count=data.get("appearance_reqs_count", 0),
         appearance_reqs=appearance_reqs,
-        disappearance_chance=data.get('disappearance_chance', 0),
-        disappearance_reqs_count=data.get('disappearance_reqs_count', 0),
+        disappearance_chance=data.get("disappearance_chance", 0),
+        disappearance_reqs_count=data.get("disappearance_reqs_count", 0),
         disappearance_reqs=disappearance_reqs,
-        visibility_req=data.get('visibility_req', 0),
-        buildable=data.get('buildable', False),
-        generated=data.get('generated', False),
-        build_time=data.get('build_time', 0),
-        build_time_factor=data.get('build_time_factor', 0),
-        removal_time=data.get('removal_time', 0),
-        removal_time_factor=data.get('removal_time_factor', 0),
-        infracost=data.get('infracost', 0),
-        defense_bonus=data.get('defense_bonus', 0),
-        eus=data.get('eus', 0),
-        native_to=data.get('native_to', 0),
-        flags=data.get('flags', 0),
-        hidden_by=data.get('hidden_by', 0),
-        bridged_over=data.get('bridged_over', 0),
-        conflicts=data.get('conflicts', 0),
-        no_aggr_near_city=data.get('no_aggr_near_city', 0),
-        helptext=data.get('helptext', '')
+        visibility_req=data.get("visibility_req", 0),
+        buildable=data.get("buildable", False),
+        generated=data.get("generated", False),
+        build_time=data.get("build_time", 0),
+        build_time_factor=data.get("build_time_factor", 0),
+        removal_time=data.get("removal_time", 0),
+        removal_time_factor=data.get("removal_time_factor", 0),
+        infracost=data.get("infracost", 0),
+        defense_bonus=data.get("defense_bonus", 0),
+        eus=data.get("eus", 0),
+        native_to=data.get("native_to", 0),
+        flags=data.get("flags", 0),
+        hidden_by=data.get("hidden_by", 0),
+        bridged_over=data.get("bridged_over", 0),
+        conflicts=data.get("conflicts", 0),
+        no_aggr_near_city=data.get("no_aggr_near_city", 0),
+        helptext=data.get("helptext", ""),
     )
 
     # Store in game state
@@ -1707,9 +1708,7 @@ async def handle_ruleset_extra(
 
 
 async def handle_ruleset_terrain_control(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_TERRAIN_CONTROL (146) - terrain control settings.
 
@@ -1723,18 +1722,18 @@ async def handle_ruleset_terrain_control(
 
     # Create TerrainControl object
     terrain_control = TerrainControl(
-        ocean_reclaim_requirement_pct=data['ocean_reclaim_requirement_pct'],
-        land_channel_requirement_pct=data['land_channel_requirement_pct'],
-        terrain_thaw_requirement_pct=data['terrain_thaw_requirement_pct'],
-        terrain_freeze_requirement_pct=data['terrain_freeze_requirement_pct'],
-        lake_max_size=data['lake_max_size'],
-        min_start_native_area=data['min_start_native_area'],
-        move_fragments=data['move_fragments'],
-        igter_cost=data['igter_cost'],
-        pythagorean_diagonal=data['pythagorean_diagonal'],
-        infrapoints=data['infrapoints'],
-        gui_type_base0=data['gui_type_base0'],
-        gui_type_base1=data['gui_type_base1']
+        ocean_reclaim_requirement_pct=data["ocean_reclaim_requirement_pct"],
+        land_channel_requirement_pct=data["land_channel_requirement_pct"],
+        terrain_thaw_requirement_pct=data["terrain_thaw_requirement_pct"],
+        terrain_freeze_requirement_pct=data["terrain_freeze_requirement_pct"],
+        lake_max_size=data["lake_max_size"],
+        min_start_native_area=data["min_start_native_area"],
+        move_fragments=data["move_fragments"],
+        igter_cost=data["igter_cost"],
+        pythagorean_diagonal=data["pythagorean_diagonal"],
+        infrapoints=data["infrapoints"],
+        gui_type_base0=data["gui_type_base0"],
+        gui_type_base1=data["gui_type_base1"],
     )
 
     # Store in game state
@@ -1779,9 +1778,7 @@ async def handle_ruleset_terrain_control(
 
 
 async def handle_ruleset_building(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_BUILDING (150) - building/improvement type definition."""
     from fc_client.game_state import Building, Requirement
@@ -1790,38 +1787,38 @@ async def handle_ruleset_building(
     data = protocol.decode_ruleset_building(payload, client._delta_cache)
 
     # Convert requirement dicts to Requirement objects
-    reqs = [Requirement(**req) for req in data['reqs']]
-    obs_reqs = [Requirement(**req) for req in data['obs_reqs']]
+    reqs = [Requirement(**req) for req in data["reqs"]]
+    obs_reqs = [Requirement(**req) for req in data["obs_reqs"]]
 
     # Create Building object
     building = Building(
-        id=data['id'],
-        genus=data['genus'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        graphic_str=data['graphic_str'],
-        graphic_alt=data['graphic_alt'],
-        graphic_alt2=data['graphic_alt2'],
-        reqs_count=data['reqs_count'],
+        id=data["id"],
+        genus=data["genus"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        graphic_str=data["graphic_str"],
+        graphic_alt=data["graphic_alt"],
+        graphic_alt2=data["graphic_alt2"],
+        reqs_count=data["reqs_count"],
         reqs=reqs,
-        obs_count=data['obs_count'],
+        obs_count=data["obs_count"],
         obs_reqs=obs_reqs,
-        build_cost=data['build_cost'],
-        upkeep=data['upkeep'],
-        sabotage=data['sabotage'],
-        flags=data['flags'],
-        soundtag=data['soundtag'],
-        soundtag_alt=data['soundtag_alt'],
-        soundtag_alt2=data['soundtag_alt2'],
-        helptext=data['helptext']
+        build_cost=data["build_cost"],
+        upkeep=data["upkeep"],
+        sabotage=data["sabotage"],
+        flags=data["flags"],
+        soundtag=data["soundtag"],
+        soundtag_alt=data["soundtag_alt"],
+        soundtag_alt2=data["soundtag_alt2"],
+        helptext=data["helptext"],
     )
 
     # Store in game state
     game_state.buildings[building.id] = building
 
     # Display summary
-    genus_names = {0: 'GreatWonder', 1: 'SmallWonder', 2: 'Improvement'}
-    genus_name = genus_names.get(building.genus, f'Unknown({building.genus})')
+    genus_names = {0: "GreatWonder", 1: "SmallWonder", 2: "Improvement"}
+    genus_name = genus_names.get(building.genus, f"Unknown({building.genus})")
 
     print(f"\n[BUILDING {building.id}] {building.name} ({building.rule_name})")
     print(f"  Type: {genus_name}")
@@ -1834,14 +1831,14 @@ async def handle_ruleset_building(
 
     if building.helptext:
         # Truncate long help text for console display
-        help_preview = building.helptext[:100] + '...' if len(building.helptext) > 100 else building.helptext
+        help_preview = (
+            building.helptext[:100] + "..." if len(building.helptext) > 100 else building.helptext
+        )
         print(f"  Help: {help_preview}")
 
 
 async def handle_ruleset_terrain(
-    client: 'FreeCivClient',
-    game_state: GameState,
-    payload: bytes
+    client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
     """Handle PACKET_RULESET_TERRAIN (151) - terrain type definition."""
     from fc_client.game_state import Terrain
@@ -1851,43 +1848,43 @@ async def handle_ruleset_terrain(
 
     # Create Terrain object
     terrain = Terrain(
-        id=data['id'],
-        tclass=data['tclass'],
-        flags=data['flags'],
-        native_to=data['native_to'],
-        name=data['name'],
-        rule_name=data['rule_name'],
-        graphic_str=data['graphic_str'],
-        graphic_alt=data['graphic_alt'],
-        graphic_alt2=data['graphic_alt2'],
-        movement_cost=data['movement_cost'],
-        defense_bonus=data['defense_bonus'],
-        output=data['output'],
-        num_resources=data['num_resources'],
-        resources=data['resources'],
-        resource_freq=data['resource_freq'],
-        road_output_incr_pct=data['road_output_incr_pct'],
-        base_time=data['base_time'],
-        road_time=data['road_time'],
-        cultivate_result=data['cultivate_result'],
-        cultivate_time=data['cultivate_time'],
-        plant_result=data['plant_result'],
-        plant_time=data['plant_time'],
-        irrigation_food_incr=data['irrigation_food_incr'],
-        irrigation_time=data['irrigation_time'],
-        mining_shield_incr=data['mining_shield_incr'],
-        mining_time=data['mining_time'],
-        animal=data['animal'],
-        transform_result=data['transform_result'],
-        transform_time=data['transform_time'],
-        placing_time=data['placing_time'],
-        pillage_time=data['pillage_time'],
-        extra_count=data['extra_count'],
-        extra_removal_times=data['extra_removal_times'],
-        color_red=data['color_red'],
-        color_green=data['color_green'],
-        color_blue=data['color_blue'],
-        helptext=data['helptext'],
+        id=data["id"],
+        tclass=data["tclass"],
+        flags=data["flags"],
+        native_to=data["native_to"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        graphic_str=data["graphic_str"],
+        graphic_alt=data["graphic_alt"],
+        graphic_alt2=data["graphic_alt2"],
+        movement_cost=data["movement_cost"],
+        defense_bonus=data["defense_bonus"],
+        output=data["output"],
+        num_resources=data["num_resources"],
+        resources=data["resources"],
+        resource_freq=data["resource_freq"],
+        road_output_incr_pct=data["road_output_incr_pct"],
+        base_time=data["base_time"],
+        road_time=data["road_time"],
+        cultivate_result=data["cultivate_result"],
+        cultivate_time=data["cultivate_time"],
+        plant_result=data["plant_result"],
+        plant_time=data["plant_time"],
+        irrigation_food_incr=data["irrigation_food_incr"],
+        irrigation_time=data["irrigation_time"],
+        mining_shield_incr=data["mining_shield_incr"],
+        mining_time=data["mining_time"],
+        animal=data["animal"],
+        transform_result=data["transform_result"],
+        transform_time=data["transform_time"],
+        placing_time=data["placing_time"],
+        pillage_time=data["pillage_time"],
+        extra_count=data["extra_count"],
+        extra_removal_times=data["extra_removal_times"],
+        color_red=data["color_red"],
+        color_green=data["color_green"],
+        color_blue=data["color_blue"],
+        helptext=data["helptext"],
     )
 
     # Store in game state

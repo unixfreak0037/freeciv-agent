@@ -3,11 +3,11 @@ from typing_extensions import TYPE_CHECKING
 from fc_client import protocol
 from fc_client.game_state import GameState
 
-
 if TYPE_CHECKING:
     from fc_client.client import FreeCivClient
 
-async def handle_chat_msg(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_chat_msg(client: "FreeCivClient", game_state: GameState, payload: bytes) -> None:
     """
     Handle PACKET_CHAT_MSG.
 
@@ -23,24 +23,25 @@ async def handle_chat_msg(client: 'FreeCivClient', game_state: GameState, payloa
     # Create history entry with timestamp
     timestamp = datetime.now().isoformat()
     history_entry = {
-        'timestamp': timestamp,
-        'message': data['message'],
-        'tile': data['tile'],
-        'event': data['event'],
-        'turn': data['turn'],
-        'phase': data['phase'],
-        'conn_id': data['conn_id']
+        "timestamp": timestamp,
+        "message": data["message"],
+        "tile": data["tile"],
+        "event": data["event"],
+        "turn": data["turn"],
+        "phase": data["phase"],
+        "conn_id": data["conn_id"],
     }
 
     # Store in game state
     game_state.chat_history.append(history_entry)
 
     # Display to console
-    time_str = datetime.fromisoformat(timestamp).strftime('%H:%M:%S')
+    time_str = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
     print(f"\n[CHAT {time_str}] {data['message']}")
-    print(f"  Turn: {data['turn']} | Phase: {data['phase']} | "
-          f"Event: {data['event']} | Tile: {data['tile']} | Conn: {data['conn_id']}")
+    print(
+        f"  Turn: {data['turn']} | Phase: {data['phase']} | "
+        f"Event: {data['event']} | Tile: {data['tile']} | Conn: {data['conn_id']}"
+    )
 
-__all__ = [
-    "handle_chat_msg"
-]
+
+__all__ = ["handle_chat_msg"]

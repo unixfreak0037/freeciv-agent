@@ -24,6 +24,7 @@ class FieldSpec:
         array_diff: True if array uses diff optimization (only changed elements transmitted)
         element_type: Element type for arrays (e.g., 'BOOL', 'SINT32', 'PLAYER')
     """
+
     name: str
     type_name: str
     is_key: bool = False
@@ -42,12 +43,12 @@ class FieldSpec:
             if self.is_array:
                 # Arrays default to empty list
                 self.default_value = []
-            elif self.type_name == 'STRING':
+            elif self.type_name == "STRING":
                 self.default_value = ""
-            elif self.type_name == 'BOOL':
+            elif self.type_name == "BOOL":
                 self.default_value = False
                 self.is_bool = True  # Auto-detect bool fields
-            elif 'SINT' in self.type_name:
+            elif "SINT" in self.type_name:
                 self.default_value = -1
             else:
                 self.default_value = 0
@@ -63,6 +64,7 @@ class PacketSpec:
         has_delta: True if this packet supports delta encoding
         fields: List of field specifications in order
     """
+
     packet_type: int
     name: str
     has_delta: bool
@@ -121,12 +123,12 @@ PACKET_SPECS[29] = PacketSpec(
     name="PACKET_SERVER_INFO",
     has_delta=True,
     fields=[
-        FieldSpec(name='version_label', type_name='STRING'),
-        FieldSpec(name='major_version', type_name='UINT32'),
-        FieldSpec(name='minor_version', type_name='UINT32'),
-        FieldSpec(name='patch_version', type_name='UINT32'),
-        FieldSpec(name='emerg_version', type_name='UINT32'),
-    ]
+        FieldSpec(name="version_label", type_name="STRING"),
+        FieldSpec(name="major_version", type_name="UINT32"),
+        FieldSpec(name="minor_version", type_name="UINT32"),
+        FieldSpec(name="patch_version", type_name="UINT32"),
+        FieldSpec(name="emerg_version", type_name="UINT32"),
+    ],
 )
 
 PACKET_SPECS[25] = PacketSpec(
@@ -134,13 +136,13 @@ PACKET_SPECS[25] = PacketSpec(
     name="PACKET_CHAT_MSG",
     has_delta=True,
     fields=[
-        FieldSpec(name='message', type_name='STRING'),
-        FieldSpec(name='tile', type_name='SINT32'),
-        FieldSpec(name='event', type_name='SINT16'),
-        FieldSpec(name='turn', type_name='SINT16'),
-        FieldSpec(name='phase', type_name='SINT16'),
-        FieldSpec(name='conn_id', type_name='SINT16'),
-    ]
+        FieldSpec(name="message", type_name="STRING"),
+        FieldSpec(name="tile", type_name="SINT32"),
+        FieldSpec(name="event", type_name="SINT16"),
+        FieldSpec(name="turn", type_name="SINT16"),
+        FieldSpec(name="phase", type_name="SINT16"),
+        FieldSpec(name="conn_id", type_name="SINT16"),
+    ],
 )
 
 
@@ -152,40 +154,40 @@ PACKET_SPECS[155] = PacketSpec(
     has_delta=True,
     fields=[
         # Entity counts (22 UINT16 fields - lines 1971-1994)
-        FieldSpec(name='num_unit_classes', type_name='UINT16'),
-        FieldSpec(name='num_unit_types', type_name='UINT16'),
-        FieldSpec(name='num_impr_types', type_name='UINT16'),
-        FieldSpec(name='num_tech_classes', type_name='UINT16'),
-        FieldSpec(name='num_tech_types', type_name='UINT16'),
-        FieldSpec(name='num_extra_types', type_name='UINT16'),
-        FieldSpec(name='num_base_types', type_name='UINT16'),
-        FieldSpec(name='num_road_types', type_name='UINT16'),
-        FieldSpec(name='num_resource_types', type_name='UINT16'),
-        FieldSpec(name='num_goods_types', type_name='UINT16'),
-        FieldSpec(name='num_disaster_types', type_name='UINT16'),
-        FieldSpec(name='num_achievement_types', type_name='UINT16'),
-        FieldSpec(name='num_multipliers', type_name='UINT16'),
-        FieldSpec(name='num_styles', type_name='UINT16'),
-        FieldSpec(name='num_music_styles', type_name='UINT16'),
-        FieldSpec(name='government_count', type_name='UINT16'),
-        FieldSpec(name='nation_count', type_name='UINT16'),
-        FieldSpec(name='num_city_styles', type_name='UINT16'),
-        FieldSpec(name='terrain_count', type_name='UINT16'),
-        FieldSpec(name='num_specialist_types', type_name='UINT16'),
-        FieldSpec(name='num_nation_groups', type_name='UINT16'),
-        FieldSpec(name='num_nation_sets', type_name='UINT16'),
+        FieldSpec(name="num_unit_classes", type_name="UINT16"),
+        FieldSpec(name="num_unit_types", type_name="UINT16"),
+        FieldSpec(name="num_impr_types", type_name="UINT16"),
+        FieldSpec(name="num_tech_classes", type_name="UINT16"),
+        FieldSpec(name="num_tech_types", type_name="UINT16"),
+        FieldSpec(name="num_extra_types", type_name="UINT16"),
+        FieldSpec(name="num_base_types", type_name="UINT16"),
+        FieldSpec(name="num_road_types", type_name="UINT16"),
+        FieldSpec(name="num_resource_types", type_name="UINT16"),
+        FieldSpec(name="num_goods_types", type_name="UINT16"),
+        FieldSpec(name="num_disaster_types", type_name="UINT16"),
+        FieldSpec(name="num_achievement_types", type_name="UINT16"),
+        FieldSpec(name="num_multipliers", type_name="UINT16"),
+        FieldSpec(name="num_styles", type_name="UINT16"),
+        FieldSpec(name="num_music_styles", type_name="UINT16"),
+        FieldSpec(name="government_count", type_name="UINT16"),
+        FieldSpec(name="nation_count", type_name="UINT16"),
+        FieldSpec(name="num_city_styles", type_name="UINT16"),
+        FieldSpec(name="terrain_count", type_name="UINT16"),
+        FieldSpec(name="num_specialist_types", type_name="UINT16"),
+        FieldSpec(name="num_nation_groups", type_name="UINT16"),
+        FieldSpec(name="num_nation_sets", type_name="UINT16"),
         # Client preferences (lines 1996-1999)
-        FieldSpec(name='preferred_tileset', type_name='STRING'),
-        FieldSpec(name='preferred_soundset', type_name='STRING'),
-        FieldSpec(name='preferred_musicset', type_name='STRING'),
-        FieldSpec(name='popup_tech_help', type_name='BOOL'),
+        FieldSpec(name="preferred_tileset", type_name="STRING"),
+        FieldSpec(name="preferred_soundset", type_name="STRING"),
+        FieldSpec(name="preferred_musicset", type_name="STRING"),
+        FieldSpec(name="popup_tech_help", type_name="BOOL"),
         # Ruleset metadata (lines 2001-2005)
-        FieldSpec(name='name', type_name='STRING'),
-        FieldSpec(name='version', type_name='STRING'),
-        FieldSpec(name='alt_dir', type_name='STRING'),
-        FieldSpec(name='desc_length', type_name='UINT32'),
-        FieldSpec(name='num_counters', type_name='UINT16'),
-    ]
+        FieldSpec(name="name", type_name="STRING"),
+        FieldSpec(name="version", type_name="STRING"),
+        FieldSpec(name="alt_dir", type_name="STRING"),
+        FieldSpec(name="desc_length", type_name="UINT32"),
+        FieldSpec(name="num_counters", type_name="UINT16"),
+    ],
 )
 
 # PACKET_RULESET_DESCRIPTION_PART = 247
@@ -201,8 +203,8 @@ PACKET_SPECS[247] = PacketSpec(
     name="PACKET_RULESET_DESCRIPTION_PART",
     has_delta=False,  # Simple packet, no delta encoding
     fields=[
-        FieldSpec(name='text', type_name='STRING'),
-    ]
+        FieldSpec(name="text", type_name="STRING"),
+    ],
 )
 
 
@@ -224,30 +226,30 @@ PACKET_SPECS[16] = PacketSpec(
     fields=[
         # Key field for delta protocol (minimal set - actual packet has no key fields)
         # Non-key fields (partial list - focusing on array-diff fields)
-        FieldSpec(name='global_advance_count', type_name='UINT16'),
+        FieldSpec(name="global_advance_count", type_name="UINT16"),
         # Array-diff field: Boolean array of discovered technologies
         FieldSpec(
-            name='global_advances',
-            type_name='BOOL',  # Not used for array-diff, element_type is used instead
+            name="global_advances",
+            type_name="BOOL",  # Not used for array-diff, element_type is used instead
             is_array=True,
             array_diff=True,
-            element_type='BOOL',
+            element_type="BOOL",
             array_size=401,  # A_LAST = MAX_NUM_ADVANCES + 1
-            default_value=[]
+            default_value=[],
         ),
         # Array-diff field: Player IDs owning each wonder
         FieldSpec(
-            name='great_wonder_owners',
-            type_name='SINT8',  # Not used for array-diff, element_type is used instead
+            name="great_wonder_owners",
+            type_name="SINT8",  # Not used for array-diff, element_type is used instead
             is_array=True,
             array_diff=True,
-            element_type='SINT8',  # PLAYER type maps to SINT8
+            element_type="SINT8",  # PLAYER type maps to SINT8
             array_size=200,  # B_LAST = MAX_NUM_BUILDINGS
-            default_value=[]
+            default_value=[],
         ),
         # Additional fields would go here...
         # (100+ more fields in actual packet - omitted for minimal implementation)
-    ]
+    ],
 )
 
 
@@ -256,11 +258,11 @@ PACKET_SPECS[143] = PacketSpec(
     name="PACKET_RULESET_GOVERNMENT_RULER_TITLE",
     has_delta=True,
     fields=[
-        FieldSpec(name='gov', type_name='SINT8', is_key=False),
-        FieldSpec(name='nation', type_name='SINT16', is_key=False),
-        FieldSpec(name='male_title', type_name='STRING', is_key=False),
-        FieldSpec(name='female_title', type_name='STRING', is_key=False),
-    ]
+        FieldSpec(name="gov", type_name="SINT8", is_key=False),
+        FieldSpec(name="nation", type_name="SINT16", is_key=False),
+        FieldSpec(name="male_title", type_name="STRING", is_key=False),
+        FieldSpec(name="female_title", type_name="STRING", is_key=False),
+    ],
 )
 
 
@@ -269,15 +271,15 @@ PACKET_SPECS[152] = PacketSpec(
     name="PACKET_RULESET_UNIT_CLASS",
     has_delta=True,
     fields=[
-        FieldSpec(name='id', type_name='UINT8', is_key=False),
-        FieldSpec(name='name', type_name='STRING', is_key=False),
-        FieldSpec(name='rule_name', type_name='STRING', is_key=False),
-        FieldSpec(name='min_speed', type_name='UINT32', is_key=False),
-        FieldSpec(name='hp_loss_pct', type_name='UINT8', is_key=False),
-        FieldSpec(name='non_native_def_pct', type_name='UINT16', is_key=False),
-        FieldSpec(name='flags', type_name='UINT32', is_key=False),  # 32-bit bitvector
-        FieldSpec(name='helptext', type_name='STRING', is_key=False),
-    ]
+        FieldSpec(name="id", type_name="UINT8", is_key=False),
+        FieldSpec(name="name", type_name="STRING", is_key=False),
+        FieldSpec(name="rule_name", type_name="STRING", is_key=False),
+        FieldSpec(name="min_speed", type_name="UINT32", is_key=False),
+        FieldSpec(name="hp_loss_pct", type_name="UINT8", is_key=False),
+        FieldSpec(name="non_native_def_pct", type_name="UINT16", is_key=False),
+        FieldSpec(name="flags", type_name="UINT32", is_key=False),  # 32-bit bitvector
+        FieldSpec(name="helptext", type_name="STRING", is_key=False),
+    ],
 )
 
 PACKET_SPECS[153] = PacketSpec(
@@ -285,13 +287,13 @@ PACKET_SPECS[153] = PacketSpec(
     name="PACKET_RULESET_BASE",
     has_delta=True,
     fields=[
-        FieldSpec(name='id', type_name='UINT8', is_key=False),
-        FieldSpec(name='gui_type', type_name='UINT8', is_key=False),
-        FieldSpec(name='border_sq', type_name='SINT8', is_key=False),
-        FieldSpec(name='vision_main_sq', type_name='SINT8', is_key=False),
-        FieldSpec(name='vision_invis_sq', type_name='SINT8', is_key=False),
-        FieldSpec(name='vision_subs_sq', type_name='SINT8', is_key=False),
-    ]
+        FieldSpec(name="id", type_name="UINT8", is_key=False),
+        FieldSpec(name="gui_type", type_name="UINT8", is_key=False),
+        FieldSpec(name="border_sq", type_name="SINT8", is_key=False),
+        FieldSpec(name="vision_main_sq", type_name="SINT8", is_key=False),
+        FieldSpec(name="vision_invis_sq", type_name="SINT8", is_key=False),
+        FieldSpec(name="vision_subs_sq", type_name="SINT8", is_key=False),
+    ],
 )
 
 PACKET_SPECS[229] = PacketSpec(
@@ -299,10 +301,10 @@ PACKET_SPECS[229] = PacketSpec(
     name="PACKET_RULESET_UNIT_FLAG",
     has_delta=True,
     fields=[
-        FieldSpec(name='id', type_name='UINT8', is_key=False),
-        FieldSpec(name='name', type_name='STRING', is_key=False),
-        FieldSpec(name='helptxt', type_name='STRING', is_key=False),
-    ]
+        FieldSpec(name="id", type_name="UINT8", is_key=False),
+        FieldSpec(name="name", type_name="STRING", is_key=False),
+        FieldSpec(name="helptxt", type_name="STRING", is_key=False),
+    ],
 )
 
 PACKET_SPECS[228] = PacketSpec(
@@ -310,12 +312,12 @@ PACKET_SPECS[228] = PacketSpec(
     name="PACKET_RULESET_UNIT_BONUS",
     has_delta=True,
     fields=[
-        FieldSpec(name='unit', type_name='UINT16', is_key=True),
-        FieldSpec(name='flag', type_name='UINT8', is_key=True),
-        FieldSpec(name='type', type_name='UINT8', is_key=True),
-        FieldSpec(name='value', type_name='SINT16', is_key=True),
-        FieldSpec(name='quiet', type_name='BOOL', is_key=True),
-    ]
+        FieldSpec(name="unit", type_name="UINT16", is_key=True),
+        FieldSpec(name="flag", type_name="UINT8", is_key=True),
+        FieldSpec(name="type", type_name="UINT8", is_key=True),
+        FieldSpec(name="value", type_name="SINT16", is_key=True),
+        FieldSpec(name="quiet", type_name="BOOL", is_key=True),
+    ],
 )
 
 PACKET_SPECS[231] = PacketSpec(
@@ -323,10 +325,10 @@ PACKET_SPECS[231] = PacketSpec(
     name="PACKET_RULESET_TERRAIN_FLAG",
     has_delta=True,
     fields=[
-        FieldSpec(name='id', type_name='UINT8', is_key=False),
-        FieldSpec(name='name', type_name='STRING', is_key=False),
-        FieldSpec(name='helptxt', type_name='STRING', is_key=False),
-    ]
+        FieldSpec(name="id", type_name="UINT8", is_key=False),
+        FieldSpec(name="name", type_name="STRING", is_key=False),
+        FieldSpec(name="helptxt", type_name="STRING", is_key=False),
+    ],
 )
 
 PACKET_SPECS[20] = PacketSpec(
@@ -334,10 +336,10 @@ PACKET_SPECS[20] = PacketSpec(
     name="PACKET_RULESET_IMPR_FLAG",
     has_delta=True,
     fields=[
-        FieldSpec(name='id', type_name='UINT8', is_key=False),
-        FieldSpec(name='name', type_name='STRING', is_key=False),
-        FieldSpec(name='helptxt', type_name='STRING', is_key=False),
-    ]
+        FieldSpec(name="id", type_name="UINT8", is_key=False),
+        FieldSpec(name="name", type_name="STRING", is_key=False),
+        FieldSpec(name="helptxt", type_name="STRING", is_key=False),
+    ],
 )
 
 

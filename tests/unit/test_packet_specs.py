@@ -8,7 +8,6 @@ for the delta protocol decoder.
 import pytest
 from fc_client.packet_specs import FieldSpec, PacketSpec, get_packet_spec, PACKET_SPECS
 
-
 # ============================================================================
 # FieldSpec Tests
 # ============================================================================
@@ -98,12 +97,7 @@ def test_packet_spec_basic_initialization():
         FieldSpec(name="id", type_name="UINT32", is_key=True),
         FieldSpec(name="value", type_name="SINT32"),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST_PACKET",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST_PACKET", has_delta=True, fields=fields)
 
     assert spec.packet_type == 100
     assert spec.name == "TEST_PACKET"
@@ -119,12 +113,7 @@ def test_packet_spec_key_fields_property():
         FieldSpec(name="value", type_name="SINT32"),
         FieldSpec(name="name", type_name="STRING"),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     key_fields = spec.key_fields
 
@@ -140,12 +129,7 @@ def test_packet_spec_non_key_fields_property():
         FieldSpec(name="value", type_name="SINT32"),
         FieldSpec(name="name", type_name="STRING"),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     non_key_fields = spec.non_key_fields
 
@@ -161,12 +145,7 @@ def test_packet_spec_all_key_fields():
         FieldSpec(name="id1", type_name="UINT32", is_key=True),
         FieldSpec(name="id2", type_name="UINT32", is_key=True),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=False,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=False, fields=fields)
 
     assert len(spec.key_fields) == 2
     assert len(spec.non_key_fields) == 0
@@ -179,12 +158,7 @@ def test_packet_spec_all_non_key_fields():
         FieldSpec(name="value1", type_name="SINT32"),
         FieldSpec(name="value2", type_name="SINT32"),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     assert len(spec.key_fields) == 0
     assert len(spec.non_key_fields) == 2
@@ -199,12 +173,7 @@ def test_packet_spec_num_bitvector_bits():
         FieldSpec(name="f2", type_name="SINT32"),
         FieldSpec(name="f3", type_name="SINT32"),
     ]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     assert spec.num_bitvector_bits == 3
 
@@ -214,12 +183,7 @@ def test_packet_spec_num_bitvector_bytes_exact():
     """num_bitvector_bytes should calculate exact bytes (no remainder)."""
     # 8 non-key fields = 8 bits = 1 byte
     fields = [FieldSpec(name=f"f{i}", type_name="SINT32") for i in range(8)]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     assert spec.num_bitvector_bits == 8
     assert spec.num_bitvector_bytes == 1
@@ -230,12 +194,7 @@ def test_packet_spec_num_bitvector_bytes_ceiling():
     """num_bitvector_bytes should round up (ceiling division)."""
     # 9 non-key fields = 9 bits = 2 bytes (ceil(9/8) = 2)
     fields = [FieldSpec(name=f"f{i}", type_name="SINT32") for i in range(9)]
-    spec = PacketSpec(
-        packet_type=100,
-        name="TEST",
-        has_delta=True,
-        fields=fields
-    )
+    spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
 
     assert spec.num_bitvector_bits == 9
     assert spec.num_bitvector_bytes == 2
@@ -245,10 +204,10 @@ def test_packet_spec_num_bitvector_bytes_ceiling():
 def test_packet_spec_num_bitvector_bytes_various_sizes():
     """Test bitvector byte calculation for various field counts."""
     test_cases = [
-        (1, 1),   # 1 bit -> 1 byte
-        (7, 1),   # 7 bits -> 1 byte
-        (8, 1),   # 8 bits -> 1 byte
-        (9, 2),   # 9 bits -> 2 bytes
+        (1, 1),  # 1 bit -> 1 byte
+        (7, 1),  # 7 bits -> 1 byte
+        (8, 1),  # 8 bits -> 1 byte
+        (9, 2),  # 9 bits -> 2 bytes
         (15, 2),  # 15 bits -> 2 bytes
         (16, 2),  # 16 bits -> 2 bytes
         (17, 3),  # 17 bits -> 3 bytes
@@ -256,14 +215,10 @@ def test_packet_spec_num_bitvector_bytes_various_sizes():
 
     for num_fields, expected_bytes in test_cases:
         fields = [FieldSpec(name=f"f{i}", type_name="SINT32") for i in range(num_fields)]
-        spec = PacketSpec(
-            packet_type=100,
-            name="TEST",
-            has_delta=True,
-            fields=fields
-        )
-        assert spec.num_bitvector_bytes == expected_bytes, \
-            f"Expected {expected_bytes} bytes for {num_fields} fields, got {spec.num_bitvector_bytes}"
+        spec = PacketSpec(packet_type=100, name="TEST", has_delta=True, fields=fields)
+        assert (
+            spec.num_bitvector_bytes == expected_bytes
+        ), f"Expected {expected_bytes} bytes for {num_fields} fields, got {spec.num_bitvector_bytes}"
 
 
 # ============================================================================
@@ -309,7 +264,7 @@ def test_chat_msg_spec_field_names():
     spec = PACKET_SPECS[25]
     field_names = [f.name for f in spec.fields]
 
-    expected_names = ['message', 'tile', 'event', 'turn', 'phase', 'conn_id']
+    expected_names = ["message", "tile", "event", "turn", "phase", "conn_id"]
     assert field_names == expected_names
 
 
@@ -335,12 +290,7 @@ def test_chat_msg_spec_field_types():
 @pytest.mark.unit
 def test_packet_spec_empty_fields():
     """Should handle packet with no fields (edge case)."""
-    spec = PacketSpec(
-        packet_type=100,
-        name="EMPTY_PACKET",
-        has_delta=False,
-        fields=[]
-    )
+    spec = PacketSpec(packet_type=100, name="EMPTY_PACKET", has_delta=False, fields=[])
 
     assert len(spec.fields) == 0
     assert len(spec.key_fields) == 0

@@ -14,7 +14,6 @@ from fc_client.client import FreeCivClient
 from fc_client.game_state import GameState
 from fc_client import protocol, handlers
 
-
 # ============================================================================
 # Initialization Tests
 # ============================================================================
@@ -31,7 +30,7 @@ async def test_client_init_default():
     assert not client._join_successful.is_set()
     # Handlers are registered in __init__, so should have default handlers
     # this wastes time, add this back in when we're done building this library
-    #assert len(client._packet_handlers) == 8  # Default handlers registered
+    # assert len(client._packet_handlers) == 8  # Default handlers registered
     assert client._packet_reader_task is None
     assert client.game_state is None
     assert client._use_two_byte_type is False
@@ -128,6 +127,7 @@ async def test_connect_success(monkeypatch):
 @pytest.mark.async_test
 async def test_connect_failure(monkeypatch):
     """connect should raise exception on connection failure."""
+
     async def mock_open_connection(host, port):
         raise ConnectionRefusedError("Connection refused")
 
@@ -215,7 +215,7 @@ async def test_start_packet_reader_creates_task():
     shutdown_event = asyncio.Event()
 
     # Mock the reading loop to prevent it from running
-    with patch.object(client, '_packet_reading_loop', new_callable=AsyncMock):
+    with patch.object(client, "_packet_reading_loop", new_callable=AsyncMock):
         await client.start_packet_reader(shutdown_event)
 
         assert client._shutdown_event is shutdown_event
@@ -252,6 +252,7 @@ async def test_packet_reading_loop_reads_and_dispatches(mock_stream_pair):
     raw_packet = b"\x00\x03\x00"  # Length=3, Type=0
 
     call_count = 0
+
     async def mock_read_packet(reader, use_two_byte_type, validate=False):
         nonlocal call_count
         call_count += 1
@@ -263,7 +264,7 @@ async def test_packet_reading_loop_reads_and_dispatches(mock_stream_pair):
             await asyncio.sleep(0.1)  # Let loop check event
             return packet_type, payload, raw_packet
 
-    with patch('fc_client.client.protocol.read_packet', side_effect=mock_read_packet):
+    with patch("fc_client.client.protocol.read_packet", side_effect=mock_read_packet):
         # Run loop briefly
         task = asyncio.create_task(client._packet_reading_loop())
         await asyncio.sleep(0.2)
@@ -293,7 +294,7 @@ async def test_packet_reading_loop_handles_incomplete_read(mock_stream_pair):
     async def mock_read_packet(reader, use_two_byte_type):
         raise asyncio.IncompleteReadError(b"", 10)
 
-    with patch('fc_client.client.protocol.read_packet', side_effect=mock_read_packet):
+    with patch("fc_client.client.protocol.read_packet", side_effect=mock_read_packet):
         await client._packet_reading_loop()
 
         # Should have set shutdown event
@@ -314,7 +315,7 @@ async def test_packet_reading_loop_handles_connection_error(mock_stream_pair):
     async def mock_read_packet(reader, use_two_byte_type):
         raise ConnectionError("Connection lost")
 
-    with patch('fc_client.client.protocol.read_packet', side_effect=mock_read_packet):
+    with patch("fc_client.client.protocol.read_packet", side_effect=mock_read_packet):
         await client._packet_reading_loop()
 
         # Should have set shutdown event
@@ -353,7 +354,9 @@ async def test_dispatch_packet_calls_unknown_handler():
     client.game_state = GameState()
     client._shutdown_event = asyncio.Event()
 
-    with patch('fc_client.client.handlers.handle_unknown_packet', new_callable=AsyncMock) as mock_unknown:
+    with patch(
+        "fc_client.client.handlers.handle_unknown_packet", new_callable=AsyncMock
+    ) as mock_unknown:
         await client._dispatch_packet(999, b"test")
 
         # Should have called unknown packet handler
@@ -532,6 +535,7 @@ async def test_packet_reading_loop_uses_two_byte_type():
     client._use_two_byte_type = True
 
     call_count = 0
+
     async def mock_read_packet(reader, use_two_byte_type, validate=False):
         nonlocal call_count
         call_count += 1
@@ -540,7 +544,7 @@ async def test_packet_reading_loop_uses_two_byte_type():
         client._shutdown_event.set()  # Stop loop
         return 0, b"", b"\x00\x03\x00"
 
-    with patch('fc_client.client.protocol.read_packet', side_effect=mock_read_packet):
+    with patch("fc_client.client.protocol.read_packet", side_effect=mock_read_packet):
         await client._packet_reading_loop()
 
         assert call_count >= 1

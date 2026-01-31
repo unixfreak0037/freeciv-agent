@@ -7,7 +7,6 @@ Tests the cache that stores previous packet values for bandwidth optimization.
 import pytest
 from fc_client.delta_cache import DeltaCache
 
-
 # ============================================================================
 # Initialization Tests
 # ============================================================================

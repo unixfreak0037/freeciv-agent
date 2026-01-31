@@ -64,7 +64,7 @@ class PacketValidator:
         actual_size = filepath.stat().st_size
 
         # Read packet header
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             if actual_size < 2:
                 # File too small to contain length header
                 return PacketValidationResult(
@@ -73,14 +73,14 @@ class PacketValidator:
 
             # Read length header (2 bytes, big-endian UINT16)
             length_bytes = f.read(2)
-            claimed_size = struct.unpack('!H', length_bytes)[0]
+            claimed_size = struct.unpack("!H", length_bytes)[0]
 
             # Read packet type if available (2 bytes for protocol version 2)
             # Note: Version 1 uses 1 byte, but we assume version 2 for most packets
             packet_type = -1
             if actual_size >= 4:
                 type_bytes = f.read(2)
-                packet_type = struct.unpack('<H', type_bytes)[0]  # Little-endian UINT16
+                packet_type = struct.unpack("<H", type_bytes)[0]  # Little-endian UINT16
 
         return PacketValidationResult(filepath.name, packet_type, claimed_size, actual_size)
 
@@ -129,8 +129,12 @@ class PacketValidator:
         invalid_packets = total_packets - valid_packets
 
         print(f"Total packets validated: {total_packets}")
-        print(f"Valid packets:           {valid_packets} ({100 * valid_packets / total_packets:.1f}%)")
-        print(f"Invalid packets:         {invalid_packets} ({100 * invalid_packets / total_packets:.1f}%)")
+        print(
+            f"Valid packets:           {valid_packets} ({100 * valid_packets / total_packets:.1f}%)"
+        )
+        print(
+            f"Invalid packets:         {invalid_packets} ({100 * invalid_packets / total_packets:.1f}%)"
+        )
 
         # Packet type distribution
         print(f"\nPacket type distribution:")
@@ -181,5 +185,5 @@ def main():
     sys.exit(validator.get_exit_code())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

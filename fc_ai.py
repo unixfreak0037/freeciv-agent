@@ -13,17 +13,17 @@ def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="FreeCiv AI client")
     parser.add_argument(
-        '--debug-packets',
-        metavar='DIR',
-        nargs='?',
-        const='packets',  # Default when --debug-packets provided without arg
-        default=None,     # Default when --debug-packets not provided
-        help='Enable packet debugging to DIR (default: packets)'
+        "--debug-packets",
+        metavar="DIR",
+        nargs="?",
+        const="packets",  # Default when --debug-packets provided without arg
+        default=None,  # Default when --debug-packets not provided
+        help="Enable packet debugging to DIR (default: packets)",
     )
     parser.add_argument(
-        '--validate-packets',
-        action='store_true',
-        help='Enable packet validation mode with integrity checks and logging'
+        "--validate-packets",
+        action="store_true",
+        help="Enable packet validation mode with integrity checks and logging",
     )
     return parser.parse_args()
 
@@ -45,8 +45,7 @@ async def main() -> int:
     # Create client with optional packet debugging and validation
     try:
         client = FreeCivClient(
-            debug_packets_dir=args.debug_packets,
-            validate_packets=args.validate_packets
+            debug_packets_dir=args.debug_packets, validate_packets=args.validate_packets
         )
     except FileExistsError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -65,7 +64,7 @@ async def main() -> int:
     # Register signal handlers with the event loop
     # Handle SIGTERM availability for cross-platform compatibility
     signals = [signal.SIGINT]
-    if hasattr(signal, 'SIGTERM'):
+    if hasattr(signal, "SIGTERM"):
         signals.append(signal.SIGTERM)
 
     for sig in signals:

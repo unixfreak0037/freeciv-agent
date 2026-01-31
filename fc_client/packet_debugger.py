@@ -1,6 +1,7 @@
 """
 Packet debugging utility for capturing FreeCiv network packets.
 """
+
 import os
 import shutil
 
@@ -53,7 +54,7 @@ class PacketDebugger:
 
         expected_size = len(raw_packet)
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             f.write(raw_packet)
 
         # Verify write completed successfully
@@ -82,7 +83,7 @@ class PacketDebugger:
 
         expected_size = len(raw_packet)
 
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             f.write(raw_packet)
 
         # Verify write completed successfully

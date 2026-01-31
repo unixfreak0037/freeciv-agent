@@ -14,7 +14,6 @@ from fc_client import handlers, protocol
 from fc_client.game_state import GameState, RulesetControl
 from fc_client.delta_cache import DeltaCache
 
-
 # ============================================================================
 # Helper Fixtures
 # ============================================================================
@@ -78,13 +77,13 @@ async def test_handle_server_join_reply_success(mock_client, game_state):
     payload = b"\x00\x00"  # Dummy payload
 
     # Mock decode to return success
-    with patch('fc_client.handlers.protocol.decode_server_join_reply') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_server_join_reply") as mock_decode:
         mock_decode.return_value = {
-            'you_can_join': True,
-            'message': 'Welcome!',
-            'capability': '+Freeciv-3.0',
-            'challenge_file': '',
-            'conn_id': 1,
+            "you_can_join": True,
+            "message": "Welcome!",
+            "capability": "+Freeciv-3.0",
+            "challenge_file": "",
+            "conn_id": 1,
         }
 
         await handlers.handle_server_join_reply(mock_client, game_state, payload)
@@ -105,13 +104,13 @@ async def test_handle_server_join_reply_failure(mock_client, game_state):
     payload = b"\x00\x00"  # Dummy payload
 
     # Mock decode to return failure
-    with patch('fc_client.handlers.protocol.decode_server_join_reply') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_server_join_reply") as mock_decode:
         mock_decode.return_value = {
-            'you_can_join': False,
-            'message': 'Server full',
-            'capability': '+Freeciv-3.0',
-            'challenge_file': '',
-            'conn_id': 0,
+            "you_can_join": False,
+            "message": "Server full",
+            "capability": "+Freeciv-3.0",
+            "challenge_file": "",
+            "conn_id": 0,
         }
 
         await handlers.handle_server_join_reply(mock_client, game_state, payload)
@@ -131,13 +130,13 @@ async def test_handle_server_join_reply_calls_decode(mock_client, game_state):
     """Handler should call decode_server_join_reply with payload."""
     payload = b"\x01\x02\x03\x04"
 
-    with patch('fc_client.handlers.protocol.decode_server_join_reply') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_server_join_reply") as mock_decode:
         mock_decode.return_value = {
-            'you_can_join': True,
-            'message': 'OK',
-            'capability': '',
-            'challenge_file': '',
-            'conn_id': 1,
+            "you_can_join": True,
+            "message": "OK",
+            "capability": "",
+            "challenge_file": "",
+            "conn_id": 1,
         }
 
         await handlers.handle_server_join_reply(mock_client, game_state, payload)
@@ -157,14 +156,14 @@ async def test_handle_server_info_updates_game_state(mock_client, game_state):
     payload = b"\x00" * 100
 
     server_info_data = {
-        'version_label': 'Freeciv 3.0.0',
-        'major_version': 3,
-        'minor_version': 0,
-        'patch_version': 0,
-        'emerg_version': 0,
+        "version_label": "Freeciv 3.0.0",
+        "major_version": 3,
+        "minor_version": 0,
+        "patch_version": 0,
+        "emerg_version": 0,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = server_info_data
 
         await handlers.handle_server_info(mock_client, game_state, payload)
@@ -178,13 +177,13 @@ async def test_handle_server_info_calls_decode(mock_client, game_state):
     """Handler should call decode_delta_packet with payload, packet spec, and delta cache."""
     payload = b"\x01\x02\x03"
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = {
-            'version_label': 'Test',
-            'major_version': 1,
-            'minor_version': 0,
-            'patch_version': 0,
-            'emerg_version': 0,
+            "version_label": "Test",
+            "major_version": 1,
+            "minor_version": 0,
+            "patch_version": 0,
+            "emerg_version": 0,
         }
 
         await handlers.handle_server_info(mock_client, game_state, payload)
@@ -208,15 +207,15 @@ async def test_handle_chat_msg_uses_delta_protocol(mock_client, game_state):
     payload = b"\x00" * 50
 
     chat_data = {
-        'message': 'Hello world!',
-        'tile': -1,
-        'event': 0,
-        'turn': 1,
-        'phase': 0,
-        'conn_id': -1,
+        "message": "Hello world!",
+        "tile": -1,
+        "event": 0,
+        "turn": 1,
+        "phase": 0,
+        "conn_id": -1,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = chat_data
 
         await handlers.handle_chat_msg(mock_client, game_state, payload)
@@ -235,15 +234,15 @@ async def test_handle_chat_msg_appends_to_history(mock_client, game_state):
     payload = b"\x00" * 50
 
     chat_data = {
-        'message': 'Test message',
-        'tile': 100,
-        'event': 5,
-        'turn': 42,
-        'phase': 1,
-        'conn_id': 10,
+        "message": "Test message",
+        "tile": 100,
+        "event": 5,
+        "turn": 42,
+        "phase": 1,
+        "conn_id": 10,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = chat_data
 
         await handlers.handle_chat_msg(mock_client, game_state, payload)
@@ -252,13 +251,13 @@ async def test_handle_chat_msg_appends_to_history(mock_client, game_state):
     assert len(game_state.chat_history) == 1
 
     entry = game_state.chat_history[0]
-    assert entry['message'] == 'Test message'
-    assert entry['tile'] == 100
-    assert entry['event'] == 5
-    assert entry['turn'] == 42
-    assert entry['phase'] == 1
-    assert entry['conn_id'] == 10
-    assert 'timestamp' in entry  # Should add timestamp
+    assert entry["message"] == "Test message"
+    assert entry["tile"] == 100
+    assert entry["event"] == 5
+    assert entry["turn"] == 42
+    assert entry["phase"] == 1
+    assert entry["conn_id"] == 10
+    assert "timestamp" in entry  # Should add timestamp
 
 
 @pytest.mark.async_test
@@ -267,39 +266,40 @@ async def test_handle_chat_msg_multiple_messages(mock_client, game_state):
     payload = b"\x00" * 50
 
     messages = [
-        {'message': 'msg1', 'tile': -1, 'event': 0, 'turn': 1, 'phase': 0, 'conn_id': 1},
-        {'message': 'msg2', 'tile': -1, 'event': 0, 'turn': 2, 'phase': 0, 'conn_id': 2},
-        {'message': 'msg3', 'tile': -1, 'event': 0, 'turn': 3, 'phase': 0, 'conn_id': 3},
+        {"message": "msg1", "tile": -1, "event": 0, "turn": 1, "phase": 0, "conn_id": 1},
+        {"message": "msg2", "tile": -1, "event": 0, "turn": 2, "phase": 0, "conn_id": 2},
+        {"message": "msg3", "tile": -1, "event": 0, "turn": 3, "phase": 0, "conn_id": 3},
     ]
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         for msg in messages:
             mock_decode.return_value = msg
             await handlers.handle_chat_msg(mock_client, game_state, payload)
 
     # Should have all three messages
     assert len(game_state.chat_history) == 3
-    assert game_state.chat_history[0]['message'] == 'msg1'
-    assert game_state.chat_history[1]['message'] == 'msg2'
-    assert game_state.chat_history[2]['message'] == 'msg3'
+    assert game_state.chat_history[0]["message"] == "msg1"
+    assert game_state.chat_history[1]["message"] == "msg2"
+    assert game_state.chat_history[2]["message"] == "msg3"
 
 
 @pytest.mark.async_test
 async def test_handle_chat_msg_adds_timestamp(mock_client, game_state):
     """Handler should add ISO format timestamp to each message."""
     from datetime import datetime
+
     payload = b"\x00" * 50
 
     chat_data = {
-        'message': 'timestamped',
-        'tile': -1,
-        'event': 0,
-        'turn': 1,
-        'phase': 0,
-        'conn_id': -1,
+        "message": "timestamped",
+        "tile": -1,
+        "event": 0,
+        "turn": 1,
+        "phase": 0,
+        "conn_id": -1,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = chat_data
 
         # Capture timestamp before and after
@@ -310,10 +310,10 @@ async def test_handle_chat_msg_adds_timestamp(mock_client, game_state):
     entry = game_state.chat_history[0]
 
     # Should have timestamp field
-    assert 'timestamp' in entry
+    assert "timestamp" in entry
 
     # Timestamp should be ISO format and parseable
-    ts = datetime.fromisoformat(entry['timestamp'])
+    ts = datetime.fromisoformat(entry["timestamp"])
 
     # Timestamp should be between before and after
     assert before <= ts <= after
@@ -373,13 +373,13 @@ async def test_handlers_dont_modify_payload(mock_client, game_state):
     original_payload = b"\x01\x02\x03\x04"
     payload = bytearray(original_payload)  # Mutable copy
 
-    with patch('fc_client.handlers.protocol.decode_server_join_reply') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_server_join_reply") as mock_decode:
         mock_decode.return_value = {
-            'you_can_join': True,
-            'message': 'OK',
-            'capability': '',
-            'challenge_file': '',
-            'conn_id': 1,
+            "you_can_join": True,
+            "message": "OK",
+            "capability": "",
+            "challenge_file": "",
+            "conn_id": 1,
         }
 
         await handlers.handle_server_join_reply(mock_client, game_state, payload)
@@ -398,58 +398,58 @@ async def test_handle_chat_msg_with_delta_cache(mock_client, game_state):
         protocol.PACKET_CHAT_MSG,
         (),
         {
-            'message': 'old message',
-            'tile': 50,
-            'event': 1,
-            'turn': 10,
-            'phase': 0,
-            'conn_id': 5,
-        }
+            "message": "old message",
+            "tile": 50,
+            "event": 1,
+            "turn": 10,
+            "phase": 0,
+            "conn_id": 5,
+        },
     )
 
     new_chat_data = {
-        'message': 'new message',
-        'tile': 50,  # Same as cache
-        'event': 2,  # Changed
-        'turn': 11,  # Changed
-        'phase': 0,  # Same as cache
-        'conn_id': 5,  # Same as cache
+        "message": "new message",
+        "tile": 50,  # Same as cache
+        "event": 2,  # Changed
+        "turn": 11,  # Changed
+        "phase": 0,  # Same as cache
+        "conn_id": 5,  # Same as cache
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = new_chat_data
 
         await handlers.handle_chat_msg(mock_client, game_state, payload)
 
     # Should append new message
     assert len(game_state.chat_history) == 1
-    assert game_state.chat_history[0]['message'] == 'new message'
+    assert game_state.chat_history[0]["message"] == "new message"
 
 
 @pytest.mark.async_test
 async def test_server_info_replaces_previous_state(mock_client, game_state):
     """handle_server_info should replace previous server_info, not merge."""
     # Set initial server_info
-    game_state.server_info = {'old_key': 'old_value'}
+    game_state.server_info = {"old_key": "old_value"}
 
     payload = b"\x00" * 100
 
     new_server_info = {
-        'version_label': 'New Version',
-        'major_version': 2,
-        'minor_version': 0,
-        'patch_version': 0,
-        'emerg_version': 0,
+        "version_label": "New Version",
+        "major_version": 2,
+        "minor_version": 0,
+        "patch_version": 0,
+        "emerg_version": 0,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = new_server_info
 
         await handlers.handle_server_info(mock_client, game_state, payload)
 
     # Should completely replace, not merge
     assert game_state.server_info == new_server_info
-    assert 'old_key' not in game_state.server_info
+    assert "old_key" not in game_state.server_info
 
 
 # ============================================================================
@@ -463,21 +463,40 @@ async def test_handle_ruleset_control_stores_dataclass(mock_client, game_state):
     payload = b"\x00" * 200
 
     ruleset_data = {
-        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
-        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
-        'num_base_types': 8, 'num_road_types': 6,
-        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
-        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
-        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
-        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
-        'num_nation_groups': 15, 'num_nation_sets': 10,
-        'preferred_tileset': 'amplio2', 'preferred_soundset': 'stdmusic',
-        'preferred_musicset': 'stdmusic', 'popup_tech_help': True,
-        'name': 'TestRuleset', 'version': '3.0', 'alt_dir': '',
-        'desc_length': 1024, 'num_counters': 5,
+        "num_unit_classes": 10,
+        "num_unit_types": 50,
+        "num_impr_types": 40,
+        "num_tech_classes": 5,
+        "num_tech_types": 88,
+        "num_extra_types": 20,
+        "num_base_types": 8,
+        "num_road_types": 6,
+        "num_resource_types": 25,
+        "num_goods_types": 4,
+        "num_disaster_types": 7,
+        "num_achievement_types": 12,
+        "num_multipliers": 3,
+        "num_styles": 5,
+        "num_music_styles": 3,
+        "government_count": 8,
+        "nation_count": 200,
+        "num_city_styles": 10,
+        "terrain_count": 30,
+        "num_specialist_types": 5,
+        "num_nation_groups": 15,
+        "num_nation_sets": 10,
+        "preferred_tileset": "amplio2",
+        "preferred_soundset": "stdmusic",
+        "preferred_musicset": "stdmusic",
+        "popup_tech_help": True,
+        "name": "TestRuleset",
+        "version": "3.0",
+        "alt_dir": "",
+        "desc_length": 1024,
+        "num_counters": 5,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = ruleset_data
         await handlers.handle_ruleset_control(mock_client, game_state, payload)
 
@@ -493,39 +512,77 @@ async def test_handle_ruleset_control_replaces_previous(mock_client, game_state)
     """Handler should completely replace previous ruleset_control."""
     # Set initial
     old_data = {
-        'num_unit_classes': 5, 'num_unit_types': 25, 'num_impr_types': 20,
-        'num_tech_classes': 3, 'num_tech_types': 44, 'num_extra_types': 10,
-        'num_base_types': 4, 'num_road_types': 3,
-        'num_resource_types': 12, 'num_goods_types': 2, 'num_disaster_types': 3,
-        'num_achievement_types': 6, 'num_multipliers': 2, 'num_styles': 3,
-        'num_music_styles': 2, 'government_count': 4, 'nation_count': 100,
-        'num_city_styles': 5, 'terrain_count': 15, 'num_specialist_types': 3,
-        'num_nation_groups': 8, 'num_nation_sets': 5,
-        'preferred_tileset': 'old', 'preferred_soundset': 'old',
-        'preferred_musicset': 'old', 'popup_tech_help': False,
-        'name': 'Old', 'version': '1.0', 'alt_dir': '',
-        'desc_length': 512, 'num_counters': 2,
+        "num_unit_classes": 5,
+        "num_unit_types": 25,
+        "num_impr_types": 20,
+        "num_tech_classes": 3,
+        "num_tech_types": 44,
+        "num_extra_types": 10,
+        "num_base_types": 4,
+        "num_road_types": 3,
+        "num_resource_types": 12,
+        "num_goods_types": 2,
+        "num_disaster_types": 3,
+        "num_achievement_types": 6,
+        "num_multipliers": 2,
+        "num_styles": 3,
+        "num_music_styles": 2,
+        "government_count": 4,
+        "nation_count": 100,
+        "num_city_styles": 5,
+        "terrain_count": 15,
+        "num_specialist_types": 3,
+        "num_nation_groups": 8,
+        "num_nation_sets": 5,
+        "preferred_tileset": "old",
+        "preferred_soundset": "old",
+        "preferred_musicset": "old",
+        "popup_tech_help": False,
+        "name": "Old",
+        "version": "1.0",
+        "alt_dir": "",
+        "desc_length": 512,
+        "num_counters": 2,
     }
     game_state.ruleset_control = RulesetControl(**old_data)
 
     # Receive new
     payload = b"\x00" * 200
     new_data = {
-        'num_unit_classes': 10, 'num_unit_types': 50, 'num_impr_types': 40,
-        'num_tech_classes': 5, 'num_tech_types': 88, 'num_extra_types': 20,
-        'num_base_types': 8, 'num_road_types': 6,
-        'num_resource_types': 25, 'num_goods_types': 4, 'num_disaster_types': 7,
-        'num_achievement_types': 12, 'num_multipliers': 3, 'num_styles': 5,
-        'num_music_styles': 3, 'government_count': 8, 'nation_count': 200,
-        'num_city_styles': 10, 'terrain_count': 30, 'num_specialist_types': 5,
-        'num_nation_groups': 15, 'num_nation_sets': 10,
-        'preferred_tileset': 'new', 'preferred_soundset': 'new',
-        'preferred_musicset': 'new', 'popup_tech_help': True,
-        'name': 'New', 'version': '2.0', 'alt_dir': '',
-        'desc_length': 1024, 'num_counters': 5,
+        "num_unit_classes": 10,
+        "num_unit_types": 50,
+        "num_impr_types": 40,
+        "num_tech_classes": 5,
+        "num_tech_types": 88,
+        "num_extra_types": 20,
+        "num_base_types": 8,
+        "num_road_types": 6,
+        "num_resource_types": 25,
+        "num_goods_types": 4,
+        "num_disaster_types": 7,
+        "num_achievement_types": 12,
+        "num_multipliers": 3,
+        "num_styles": 5,
+        "num_music_styles": 3,
+        "government_count": 8,
+        "nation_count": 200,
+        "num_city_styles": 10,
+        "terrain_count": 30,
+        "num_specialist_types": 5,
+        "num_nation_groups": 15,
+        "num_nation_sets": 10,
+        "preferred_tileset": "new",
+        "preferred_soundset": "new",
+        "preferred_musicset": "new",
+        "popup_tech_help": True,
+        "name": "New",
+        "version": "2.0",
+        "alt_dir": "",
+        "desc_length": 1024,
+        "num_counters": 5,
     }
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = new_data
         await handlers.handle_ruleset_control(mock_client, game_state, payload)
 
@@ -546,8 +603,8 @@ async def test_handle_ruleset_summary_stores_text(mock_client, game_state):
 
     summary_text = "Test ruleset summary text"
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
-        mock_decode.return_value = {'text': summary_text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_summary") as mock_decode:
+        mock_decode.return_value = {"text": summary_text}
 
         await handlers.handle_ruleset_summary(mock_client, game_state, payload)
 
@@ -564,8 +621,8 @@ async def test_handle_ruleset_summary_replaces_previous(mock_client, game_state)
     payload = b"New summary text\x00"
     new_text = "New summary text"
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
-        mock_decode.return_value = {'text': new_text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_summary") as mock_decode:
+        mock_decode.return_value = {"text": new_text}
 
         await handlers.handle_ruleset_summary(mock_client, game_state, payload)
 
@@ -579,8 +636,8 @@ async def test_handle_ruleset_summary_empty(mock_client, game_state):
     """Handler should handle empty string without error."""
     payload = b"\x00"  # Empty string
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
-        mock_decode.return_value = {'text': ''}
+    with patch("fc_client.handlers.protocol.decode_ruleset_summary") as mock_decode:
+        mock_decode.return_value = {"text": ""}
 
         await handlers.handle_ruleset_summary(mock_client, game_state, payload)
 
@@ -594,8 +651,8 @@ async def test_handle_ruleset_summary_multiline(mock_client, game_state):
     multiline_text = "Line 1\nLine 2\nLine 3"
     payload = b"Line 1\nLine 2\nLine 3\x00"
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_summary') as mock_decode:
-        mock_decode.return_value = {'text': multiline_text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_summary") as mock_decode:
+        mock_decode.return_value = {"text": multiline_text}
 
         await handlers.handle_ruleset_summary(mock_client, game_state, payload)
 
@@ -609,6 +666,7 @@ async def test_handle_ruleset_summary_multiline(mock_client, game_state):
 # PACKET_RULESET_DESCRIPTION_PART Handler Tests
 # ============================================================================
 
+
 @pytest.mark.async_test
 async def test_handle_ruleset_description_part_single_part(mock_client, game_state):
     """Handler should assemble complete description from single part."""
@@ -617,23 +675,43 @@ async def test_handle_ruleset_description_part_single_part(mock_client, game_sta
 
     # Setup ruleset_control with expected length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(text.encode('utf-8')),  # UTF-8 byte length
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(text.encode("utf-8")),  # UTF-8 byte length
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
 
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
@@ -653,36 +731,56 @@ async def test_handle_ruleset_description_part_multiple_parts(mock_client, game_
 
     # Setup ruleset_control with expected total length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(expected_total.encode('utf-8')),
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(expected_total.encode("utf-8")),
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
         # Send part 1
-        mock_decode.return_value = {'text': part1}
+        mock_decode.return_value = {"text": part1}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
         assert game_state.ruleset_description is None  # Not complete yet
         assert len(game_state.ruleset_description_parts) == 1
 
         # Send part 2
-        mock_decode.return_value = {'text': part2}
+        mock_decode.return_value = {"text": part2}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
         assert game_state.ruleset_description is None  # Still not complete
         assert len(game_state.ruleset_description_parts) == 2
 
         # Send part 3 (completes assembly)
-        mock_decode.return_value = {'text': part3}
+        mock_decode.return_value = {"text": part3}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should assemble all parts
@@ -700,24 +798,44 @@ async def test_handle_ruleset_description_part_incremental_accumulation(mock_cli
 
     # Setup ruleset_control with large expected length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
         desc_length=expected_total_length,
-        num_counters=0
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
         # Send part 1
-        mock_decode.return_value = {'text': part1}
+        mock_decode.return_value = {"text": part1}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
         # Should accumulate but not assemble
@@ -725,7 +843,7 @@ async def test_handle_ruleset_description_part_incremental_accumulation(mock_cli
         assert game_state.ruleset_description_parts == [part1]
 
         # Send part 2
-        mock_decode.return_value = {'text': part2}
+        mock_decode.return_value = {"text": part2}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
         # Should accumulate but still not assemble
@@ -737,28 +855,48 @@ async def test_handle_ruleset_description_part_incremental_accumulation(mock_cli
 async def test_handle_ruleset_description_part_exact_threshold(mock_client, game_state):
     """Handler should trigger assembly when total bytes exactly matches desc_length."""
     text = "Exactly 20 bytes !!!"  # Note the space for exactly 20 bytes
-    assert len(text.encode('utf-8')) == 20
+    assert len(text.encode("utf-8")) == 20
     payload = b"dummy"
 
     # Setup with exact expected length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
         desc_length=20,  # Exact match
-        num_counters=0
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should trigger assembly at exact threshold
@@ -775,8 +913,8 @@ async def test_handle_ruleset_description_part_missing_ruleset_control(mock_clie
     # No ruleset_control set (None)
     assert game_state.ruleset_control is None
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
 
         # Should not crash, just warn and accumulate
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
@@ -795,23 +933,43 @@ async def test_handle_ruleset_description_part_empty_string(mock_client, game_st
 
     # Setup with zero expected length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
         desc_length=0,  # Zero length expected
-        num_counters=0
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should assemble immediately (0 >= 0)
@@ -827,23 +985,43 @@ async def test_handle_ruleset_description_part_unicode_text(mock_client, game_st
 
     # Setup with UTF-8 byte length (not character count!)
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(text.encode('utf-8')),  # UTF-8 bytes, not character count
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(text.encode("utf-8")),  # UTF-8 bytes, not character count
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should assemble correctly with Unicode
@@ -859,23 +1037,43 @@ async def test_handle_ruleset_description_part_multiline_text(mock_client, game_
 
     # Setup with expected length
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(text.encode('utf-8')),
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(text.encode("utf-8")),
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should preserve newlines
@@ -891,34 +1089,54 @@ async def test_handle_ruleset_description_part_exceeds_expected_length(mock_clie
     part2 = "Part 2 text"
     expected_total = part1 + part2
     # Set expected length slightly less than actual total
-    expected_length = len(part1.encode('utf-8')) + 5  # Will be exceeded by part2
+    expected_length = len(part1.encode("utf-8")) + 5  # Will be exceeded by part2
     payload = b"dummy"
 
     # Setup ruleset_control
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
         desc_length=expected_length,
-        num_counters=0
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
         # Send part 1
-        mock_decode.return_value = {'text': part1}
+        mock_decode.return_value = {"text": part1}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
         assert game_state.ruleset_description is None  # Not yet
 
         # Send part 2 (exceeds expected length)
-        mock_decode.return_value = {'text': part2}
+        mock_decode.return_value = {"text": part2}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should assemble when threshold is exceeded (using >=)
@@ -938,23 +1156,43 @@ async def test_handle_ruleset_description_part_replaces_previous(mock_client, ga
 
     # Setup ruleset_control for new description
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(new_desc.encode('utf-8')),
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(new_desc.encode("utf-8")),
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': new_desc}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": new_desc}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should replace old with new
@@ -970,23 +1208,43 @@ async def test_handle_ruleset_description_part_calls_decode(mock_client, game_st
 
     # Setup ruleset_control
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
-        desc_length=len(text.encode('utf-8')),
-        num_counters=0
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
+        desc_length=len(text.encode("utf-8")),
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
-        mock_decode.return_value = {'text': text}
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
+        mock_decode.return_value = {"text": text}
 
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
@@ -999,43 +1257,63 @@ async def test_handle_ruleset_description_part_byte_calculation_accuracy(mock_cl
     """Handler should count UTF-8 bytes accurately, not characters."""
     # String with multi-byte characters
     part1 = "Hello"  # 5 bytes ASCII
-    part2 = " 世界"   # 1 space (1 byte) + 2 Chinese chars (6 bytes) = 7 bytes
+    part2 = " 世界"  # 1 space (1 byte) + 2 Chinese chars (6 bytes) = 7 bytes
     # Total: 5 + 7 = 12 bytes, but only 8 characters
-    expected_bytes = len((part1 + part2).encode('utf-8'))
+    expected_bytes = len((part1 + part2).encode("utf-8"))
     assert expected_bytes == 12  # Verify our calculation
     payload = b"dummy"
 
     # Setup with byte length (not character count)
     from fc_client.game_state import RulesetControl
+
     game_state.ruleset_control = RulesetControl(
-        num_unit_classes=0, num_unit_types=0, num_impr_types=0,
-        num_tech_classes=0, num_tech_types=0, num_extra_types=0,
-        num_base_types=0, num_road_types=0,
-        num_resource_types=0, num_goods_types=0, num_disaster_types=0,
-        num_achievement_types=0, num_multipliers=0, num_styles=0,
-        num_music_styles=0, government_count=0, nation_count=0,
-        num_city_styles=0, terrain_count=0, num_specialist_types=0,
-        num_nation_groups=0, num_nation_sets=0,
-        preferred_tileset="", preferred_soundset="", preferred_musicset="",
-        popup_tech_help=False, name="test", version="1.0", alt_dir="",
+        num_unit_classes=0,
+        num_unit_types=0,
+        num_impr_types=0,
+        num_tech_classes=0,
+        num_tech_types=0,
+        num_extra_types=0,
+        num_base_types=0,
+        num_road_types=0,
+        num_resource_types=0,
+        num_goods_types=0,
+        num_disaster_types=0,
+        num_achievement_types=0,
+        num_multipliers=0,
+        num_styles=0,
+        num_music_styles=0,
+        government_count=0,
+        nation_count=0,
+        num_city_styles=0,
+        terrain_count=0,
+        num_specialist_types=0,
+        num_nation_groups=0,
+        num_nation_sets=0,
+        preferred_tileset="",
+        preferred_soundset="",
+        preferred_musicset="",
+        popup_tech_help=False,
+        name="test",
+        version="1.0",
+        alt_dir="",
         desc_length=expected_bytes,  # 12 bytes, not 8 characters
-        num_counters=0
+        num_counters=0,
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_description_part') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_ruleset_description_part") as mock_decode:
         # Send part 1 (5 bytes)
-        mock_decode.return_value = {'text': part1}
+        mock_decode.return_value = {"text": part1}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
         assert game_state.ruleset_description is None  # Not complete (5 < 12)
 
         # Send part 2 (7 bytes, total 12)
-        mock_decode.return_value = {'text': part2}
+        mock_decode.return_value = {"text": part2}
         await handlers.handle_ruleset_description_part(mock_client, game_state, payload)
 
     # Should assemble when byte count (not char count) reaches threshold
     assert game_state.ruleset_description == part1 + part2
     assert len(game_state.ruleset_description) == 8  # 8 characters
-    assert len(game_state.ruleset_description.encode('utf-8')) == 12  # 12 bytes
+    assert len(game_state.ruleset_description.encode("utf-8")) == 12  # 12 bytes
 
 
 @pytest.mark.async_test
@@ -1047,23 +1325,43 @@ async def test_handle_ruleset_control_resets_accumulator(mock_client, game_state
 
     # Create sample RULESET_CONTROL packet data
     from fc_client.game_state import RulesetControl
+
     ruleset_data = {
-        'num_unit_classes': 5, 'num_unit_types': 10, 'num_impr_types': 15,
-        'num_tech_classes': 3, 'num_tech_types': 20, 'num_extra_types': 8,
-        'num_base_types': 6, 'num_road_types': 7,
-        'num_resource_types': 12, 'num_goods_types': 3, 'num_disaster_types': 5,
-        'num_achievement_types': 10, 'num_multipliers': 4, 'num_styles': 3,
-        'num_music_styles': 2, 'government_count': 8, 'nation_count': 50,
-        'num_city_styles': 5, 'terrain_count': 15, 'num_specialist_types': 4,
-        'num_nation_groups': 10, 'num_nation_sets': 5,
-        'preferred_tileset': "amplio2", 'preferred_soundset': "stdsounds",
-        'preferred_musicset': "stdmusic", 'popup_tech_help': True,
-        'name': "Civ2Civ3", 'version': "3.3", 'alt_dir': "",
-        'desc_length': 1000, 'num_counters': 2
+        "num_unit_classes": 5,
+        "num_unit_types": 10,
+        "num_impr_types": 15,
+        "num_tech_classes": 3,
+        "num_tech_types": 20,
+        "num_extra_types": 8,
+        "num_base_types": 6,
+        "num_road_types": 7,
+        "num_resource_types": 12,
+        "num_goods_types": 3,
+        "num_disaster_types": 5,
+        "num_achievement_types": 10,
+        "num_multipliers": 4,
+        "num_styles": 3,
+        "num_music_styles": 2,
+        "government_count": 8,
+        "nation_count": 50,
+        "num_city_styles": 5,
+        "terrain_count": 15,
+        "num_specialist_types": 4,
+        "num_nation_groups": 10,
+        "num_nation_sets": 5,
+        "preferred_tileset": "amplio2",
+        "preferred_soundset": "stdsounds",
+        "preferred_musicset": "stdmusic",
+        "popup_tech_help": True,
+        "name": "Civ2Civ3",
+        "version": "3.3",
+        "alt_dir": "",
+        "desc_length": 1000,
+        "num_counters": 2,
     }
     payload = b"dummy"
 
-    with patch('fc_client.handlers.protocol.decode_delta_packet') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_delta_packet") as mock_decode:
         mock_decode.return_value = ruleset_data
 
         await handlers.handle_ruleset_control(mock_client, game_state, payload)
@@ -1078,61 +1376,62 @@ async def test_handle_ruleset_control_resets_accumulator(mock_client, game_state
 
 # PACKET_RULESET_NATION_SETS Tests
 
+
 async def test_handle_ruleset_nation_sets_stores_in_game_state(mock_client, game_state):
     """Test handler stores nation sets in game state."""
     from fc_client.game_state import NationSet
 
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
-        b'\x02'  # nsets=2
+        b"\x0f"  # bitvector: all 4 fields present (bits 0-3 set)
+        b"\x02"  # nsets=2
         # names[2] - null-terminated variable-length strings
-        b'Core\x00'
-        b'Extended\x00'
+        b"Core\x00"
+        b"Extended\x00"
         # rule_names[2]
-        b'core\x00'
-        b'extended\x00'
+        b"core\x00"
+        b"extended\x00"
         # descriptions[2]
-        b'Default nations\x00'
-        b'Additional nations\x00'
+        b"Default nations\x00"
+        b"Additional nations\x00"
     )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
 
     assert len(game_state.nation_sets) == 2
-    assert game_state.nation_sets[0].name == 'Core'
-    assert game_state.nation_sets[0].rule_name == 'core'
-    assert game_state.nation_sets[0].description == 'Default nations'
-    assert game_state.nation_sets[1].name == 'Extended'
+    assert game_state.nation_sets[0].name == "Core"
+    assert game_state.nation_sets[0].rule_name == "core"
+    assert game_state.nation_sets[0].description == "Default nations"
+    assert game_state.nation_sets[1].name == "Extended"
 
 
 async def test_handle_ruleset_nation_sets_replaces_previous(mock_client, game_state):
     """Test handler replaces previous nation sets data."""
     from fc_client.game_state import NationSet
 
-    game_state.nation_sets = [NationSet('Old', 'old', 'Old data')]
+    game_state.nation_sets = [NationSet("Old", "old", "Old data")]
 
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
-        b'\x01'  # nsets=1
+        b"\x0f"  # bitvector: all 4 fields present (bits 0-3 set)
+        b"\x01"  # nsets=1
         # Null-terminated variable-length strings
-        b'Core\x00'  # names[0]
-        b'core\x00'  # rule_names[0]
-        b'New data\x00'  # descriptions[0]
+        b"Core\x00"  # names[0]
+        b"core\x00"  # rule_names[0]
+        b"New data\x00"  # descriptions[0]
     )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
 
     assert len(game_state.nation_sets) == 1
-    assert game_state.nation_sets[0].name == 'Core'
+    assert game_state.nation_sets[0].name == "Core"
 
 
 async def test_handle_ruleset_nation_sets_empty_list(mock_client, game_state):
     """Test handler handles nsets=0 correctly."""
     payload = (
-        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
-        b'\x00'  # nsets=0
+        b"\x0f"  # bitvector: all 4 fields present (bits 0-3 set)
+        b"\x00"  # nsets=0
     )
 
     await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
@@ -1144,20 +1443,20 @@ async def test_handle_ruleset_nation_sets_calls_decoder(mock_client, game_state)
     """Test handler calls decoder function."""
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x0F'  # bitvector: all 4 fields present (bits 0-3 set)
-        b'\x01'  # nsets=1
+        b"\x0f"  # bitvector: all 4 fields present (bits 0-3 set)
+        b"\x01"  # nsets=1
         # Null-terminated variable-length strings
-        b'Core\x00'  # names[0]
-        b'core\x00'  # rule_names[0]
-        b'Description\x00'  # descriptions[0]
+        b"Core\x00"  # names[0]
+        b"core\x00"  # rule_names[0]
+        b"Description\x00"  # descriptions[0]
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_nation_sets') as mock_decode:
+    with patch("fc_client.handlers.protocol.decode_ruleset_nation_sets") as mock_decode:
         mock_decode.return_value = {
-            'nsets': 1,
-            'names': ['Core'],
-            'rule_names': ['core'],
-            'descriptions': ['Description']
+            "nsets": 1,
+            "names": ["Core"],
+            "rule_names": ["core"],
+            "descriptions": ["Description"],
         }
 
         await handlers.handle_ruleset_nation_sets(mock_client, game_state, payload)
@@ -1169,32 +1468,33 @@ async def test_handle_ruleset_nation_sets_calls_decoder(mock_client, game_state)
 # PACKET_RULESET_NATION_GROUPS Handler Tests
 # ============================================================================
 
+
 async def test_handle_ruleset_nation_groups_stores_in_game_state(mock_client, game_state):
     """Test handler stores nation groups in game state."""
     from fc_client.game_state import NationGroup
 
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
-        b'\x03'  # ngroups=3
+        b"\x07"  # bitvector: all 3 fields present (bits 0-2 set)
+        b"\x03"  # ngroups=3
         # groups[3] - null-terminated variable-length strings
-        b'?nationgroup:Ancient\x00'
-        b'?nationgroup:Medieval\x00'
-        b'?nationgroup:Modern\x00'
+        b"?nationgroup:Ancient\x00"
+        b"?nationgroup:Medieval\x00"
+        b"?nationgroup:Modern\x00"
         # hidden[3] - boolean values (1 byte each)
-        b'\x00'  # hidden[0]=false (visible)
-        b'\x00'  # hidden[1]=false (visible)
-        b'\x01'  # hidden[2]=true (hidden)
+        b"\x00"  # hidden[0]=false (visible)
+        b"\x00"  # hidden[1]=false (visible)
+        b"\x01"  # hidden[2]=true (hidden)
     )
 
     await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
 
     assert len(game_state.nation_groups) == 3
-    assert game_state.nation_groups[0].name == '?nationgroup:Ancient'
+    assert game_state.nation_groups[0].name == "?nationgroup:Ancient"
     assert game_state.nation_groups[0].hidden == False
-    assert game_state.nation_groups[1].name == '?nationgroup:Medieval'
+    assert game_state.nation_groups[1].name == "?nationgroup:Medieval"
     assert game_state.nation_groups[1].hidden == False
-    assert game_state.nation_groups[2].name == '?nationgroup:Modern'
+    assert game_state.nation_groups[2].name == "?nationgroup:Modern"
     assert game_state.nation_groups[2].hidden == True
 
 
@@ -1202,28 +1502,28 @@ async def test_handle_ruleset_nation_groups_replaces_previous(mock_client, game_
     """Test handler replaces previous nation groups data."""
     from fc_client.game_state import NationGroup
 
-    game_state.nation_groups = [NationGroup('Old', False)]
+    game_state.nation_groups = [NationGroup("Old", False)]
 
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
-        b'\x01'  # ngroups=1
+        b"\x07"  # bitvector: all 3 fields present (bits 0-2 set)
+        b"\x01"  # ngroups=1
         # Null-terminated variable-length strings
-        b'?nationgroup:Ancient\x00'  # groups[0]
-        b'\x00'  # hidden[0]=false
+        b"?nationgroup:Ancient\x00"  # groups[0]
+        b"\x00"  # hidden[0]=false
     )
 
     await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
 
     assert len(game_state.nation_groups) == 1
-    assert game_state.nation_groups[0].name == '?nationgroup:Ancient'
+    assert game_state.nation_groups[0].name == "?nationgroup:Ancient"
 
 
 async def test_handle_ruleset_nation_groups_empty_list(mock_client, game_state):
     """Test handler handles ngroups=0 correctly."""
     payload = (
-        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
-        b'\x00'  # ngroups=0
+        b"\x07"  # bitvector: all 3 fields present (bits 0-2 set)
+        b"\x00"  # ngroups=0
     )
 
     await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
@@ -1235,19 +1535,15 @@ async def test_handle_ruleset_nation_groups_calls_decoder(mock_client, game_stat
     """Test handler calls decoder function."""
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
-        b'\x01'  # ngroups=1
+        b"\x07"  # bitvector: all 3 fields present (bits 0-2 set)
+        b"\x01"  # ngroups=1
         # Null-terminated variable-length strings
-        b'Ancient\x00'  # groups[0]
-        b'\x00'  # hidden[0]=false
+        b"Ancient\x00"  # groups[0]
+        b"\x00"  # hidden[0]=false
     )
 
-    with patch('fc_client.handlers.protocol.decode_ruleset_nation_groups') as mock_decode:
-        mock_decode.return_value = {
-            'ngroups': 1,
-            'groups': ['Ancient'],
-            'hidden': [False]
-        }
+    with patch("fc_client.handlers.protocol.decode_ruleset_nation_groups") as mock_decode:
+        mock_decode.return_value = {"ngroups": 1, "groups": ["Ancient"], "hidden": [False]}
 
         await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
 
@@ -1260,16 +1556,16 @@ async def test_handle_ruleset_nation_groups_transforms_parallel_arrays(mock_clie
 
     # Delta protocol format with bitvector and null-terminated strings
     payload = (
-        b'\x07'  # bitvector: all 3 fields present (bits 0-2 set)
-        b'\x04'  # ngroups=4
-        b'Ancient\x00'
-        b'Medieval\x00'
-        b'Modern\x00'
-        b'Barbarian\x00'
-        b'\x00'  # hidden[0]=false
-        b'\x00'  # hidden[1]=false
-        b'\x00'  # hidden[2]=false
-        b'\x01'  # hidden[3]=true
+        b"\x07"  # bitvector: all 3 fields present (bits 0-2 set)
+        b"\x04"  # ngroups=4
+        b"Ancient\x00"
+        b"Medieval\x00"
+        b"Modern\x00"
+        b"Barbarian\x00"
+        b"\x00"  # hidden[0]=false
+        b"\x00"  # hidden[1]=false
+        b"\x00"  # hidden[2]=false
+        b"\x01"  # hidden[3]=true
     )
 
     await handlers.handle_ruleset_nation_groups(mock_client, game_state, payload)
@@ -1279,13 +1575,13 @@ async def test_handle_ruleset_nation_groups_transforms_parallel_arrays(mock_clie
     assert all(isinstance(group, NationGroup) for group in game_state.nation_groups)
 
     # Verify each group has correct name and hidden status
-    assert game_state.nation_groups[0].name == 'Ancient'
+    assert game_state.nation_groups[0].name == "Ancient"
     assert game_state.nation_groups[0].hidden == False
-    assert game_state.nation_groups[1].name == 'Medieval'
+    assert game_state.nation_groups[1].name == "Medieval"
     assert game_state.nation_groups[1].hidden == False
-    assert game_state.nation_groups[2].name == 'Modern'
+    assert game_state.nation_groups[2].name == "Modern"
     assert game_state.nation_groups[2].hidden == False
-    assert game_state.nation_groups[3].name == 'Barbarian'
+    assert game_state.nation_groups[3].name == "Barbarian"
     assert game_state.nation_groups[3].hidden == True
 
 
@@ -1299,20 +1595,20 @@ async def test_handle_nation_availability_basic(mock_client, game_state):
     """Test handler updates game state with nation availability data (delta protocol)."""
     # Delta protocol packet with 3 nations
     payload = (
-        b'\x03'      # bitvector: bits 0,1 set (ncount and is_pickable present), bit 2 clear
-        b'\x00\x03'  # ncount=3 (UINT16, big-endian)
-        b'\x01'      # is_pickable[0]=True
-        b'\x00'      # is_pickable[1]=False
-        b'\x01'      # is_pickable[2]=True
+        b"\x03"  # bitvector: bits 0,1 set (ncount and is_pickable present), bit 2 clear
+        b"\x00\x03"  # ncount=3 (UINT16, big-endian)
+        b"\x01"  # is_pickable[0]=True
+        b"\x00"  # is_pickable[1]=False
+        b"\x01"  # is_pickable[2]=True
     )
 
     await handlers.handle_nation_availability(mock_client, game_state, payload)
 
     # Verify game state was updated
     assert game_state.nation_availability is not None
-    assert game_state.nation_availability['ncount'] == 3
-    assert game_state.nation_availability['is_pickable'] == [True, False, True]
-    assert game_state.nation_availability['nationset_change'] is False
+    assert game_state.nation_availability["ncount"] == 3
+    assert game_state.nation_availability["is_pickable"] == [True, False, True]
+    assert game_state.nation_availability["nationset_change"] is False
 
 
 @pytest.mark.async_test
@@ -1320,19 +1616,19 @@ async def test_handle_nation_availability_nationset_change(mock_client, game_sta
     """Test handler correctly detects nationset_change flag via boolean header folding."""
     # Delta protocol packet with nationset_change=True (folded in bitvector bit 2)
     payload = (
-        b'\x07'      # bitvector: bits 0,1,2 set (nationset_change=True via folding)
-        b'\x00\x02'  # ncount=2 (UINT16, big-endian)
-        b'\x01'      # is_pickable[0]=True
-        b'\x01'      # is_pickable[1]=True
+        b"\x07"  # bitvector: bits 0,1,2 set (nationset_change=True via folding)
+        b"\x00\x02"  # ncount=2 (UINT16, big-endian)
+        b"\x01"  # is_pickable[0]=True
+        b"\x01"  # is_pickable[1]=True
     )
 
     await handlers.handle_nation_availability(mock_client, game_state, payload)
 
     # Verify nationset_change flag is detected from bitvector
     assert game_state.nation_availability is not None
-    assert game_state.nation_availability['nationset_change'] is True
-    assert game_state.nation_availability['ncount'] == 2
-    assert game_state.nation_availability['is_pickable'] == [True, True]
+    assert game_state.nation_availability["nationset_change"] is True
+    assert game_state.nation_availability["ncount"] == 2
+    assert game_state.nation_availability["is_pickable"] == [True, True]
 
 
 @pytest.mark.async_test
@@ -1342,38 +1638,76 @@ async def test_handle_nation_availability_with_nations_loaded(mock_client, game_
 
     # Pre-populate game state with nation data
     nation0 = Nation(
-        id=0, translation_domain='', adjective='Roman', rule_name='roman',
-        noun_plural='Romans', graphic_str='', graphic_alt='', legend='',
-        style=0, leader_count=1, leader_name=['Caesar'], leader_is_male=[True],
-        is_playable=True, barbarian_type=0, nsets=0, sets=[], ngroups=0, groups=[],
-        init_government_id=-1, init_techs_count=0, init_techs=[],
-        init_units_count=0, init_units=[], init_buildings_count=0, init_buildings=[]
+        id=0,
+        translation_domain="",
+        adjective="Roman",
+        rule_name="roman",
+        noun_plural="Romans",
+        graphic_str="",
+        graphic_alt="",
+        legend="",
+        style=0,
+        leader_count=1,
+        leader_name=["Caesar"],
+        leader_is_male=[True],
+        is_playable=True,
+        barbarian_type=0,
+        nsets=0,
+        sets=[],
+        ngroups=0,
+        groups=[],
+        init_government_id=-1,
+        init_techs_count=0,
+        init_techs=[],
+        init_units_count=0,
+        init_units=[],
+        init_buildings_count=0,
+        init_buildings=[],
     )
     nation1 = Nation(
-        id=1, translation_domain='', adjective='Babylonian', rule_name='babylonian',
-        noun_plural='Babylonians', graphic_str='', graphic_alt='', legend='',
-        style=0, leader_count=1, leader_name=['Hammurabi'], leader_is_male=[True],
-        is_playable=True, barbarian_type=0, nsets=0, sets=[], ngroups=0, groups=[],
-        init_government_id=-1, init_techs_count=0, init_techs=[],
-        init_units_count=0, init_units=[], init_buildings_count=0, init_buildings=[]
+        id=1,
+        translation_domain="",
+        adjective="Babylonian",
+        rule_name="babylonian",
+        noun_plural="Babylonians",
+        graphic_str="",
+        graphic_alt="",
+        legend="",
+        style=0,
+        leader_count=1,
+        leader_name=["Hammurabi"],
+        leader_is_male=[True],
+        is_playable=True,
+        barbarian_type=0,
+        nsets=0,
+        sets=[],
+        ngroups=0,
+        groups=[],
+        init_government_id=-1,
+        init_techs_count=0,
+        init_techs=[],
+        init_units_count=0,
+        init_units=[],
+        init_buildings_count=0,
+        init_buildings=[],
     )
 
     game_state.nations = {0: nation0, 1: nation1}
 
     # Delta protocol packet indicating only nation 0 is available
     payload = (
-        b'\x03'      # bitvector: bits 0,1 set, bit 2 clear (nationset_change=False)
-        b'\x00\x02'  # ncount=2 (UINT16, big-endian)
-        b'\x01'      # is_pickable[0]=True
-        b'\x00'      # is_pickable[1]=False
+        b"\x03"  # bitvector: bits 0,1 set, bit 2 clear (nationset_change=False)
+        b"\x00\x02"  # ncount=2 (UINT16, big-endian)
+        b"\x01"  # is_pickable[0]=True
+        b"\x00"  # is_pickable[1]=False
     )
 
     await handlers.handle_nation_availability(mock_client, game_state, payload)
 
     # Verify game state was updated correctly
     assert game_state.nation_availability is not None
-    assert game_state.nation_availability['ncount'] == 2
-    assert game_state.nation_availability['is_pickable'] == [True, False]
+    assert game_state.nation_availability["ncount"] == 2
+    assert game_state.nation_availability["is_pickable"] == [True, False]
 
     # Handler should successfully cross-reference with nation data
     # (We can't directly test console output, but we verify no exceptions occur)
@@ -1384,38 +1718,38 @@ async def test_handle_ruleset_game(mock_client, game_state):
     """Test handle_ruleset_game with complete game configuration."""
     # Build payload with actual observed structure
     # 4 unknown bytes
-    payload = struct.pack('<BBBB', 248, 63, 1, 23)
+    payload = struct.pack("<BBBB", 248, 63, 1, 23)
 
     # 3 veteran levels
-    payload += struct.pack('<B', 3)  # veteran_levels
+    payload += struct.pack("<B", 3)  # veteran_levels
 
     # Veteran names
-    payload += b'Green\x00'
-    payload += b'Veteran\x00'
-    payload += b'Hardened\x00'
+    payload += b"Green\x00"
+    payload += b"Veteran\x00"
+    payload += b"Hardened\x00"
 
     # Power factors
-    payload += struct.pack('>H', 100)
-    payload += struct.pack('>H', 150)
-    payload += struct.pack('>H', 175)
+    payload += struct.pack(">H", 100)
+    payload += struct.pack(">H", 150)
+    payload += struct.pack(">H", 175)
 
     # Move bonuses
-    payload += struct.pack('>I', 0)
-    payload += struct.pack('>I', 3)
-    payload += struct.pack('>I', 6)
+    payload += struct.pack(">I", 0)
+    payload += struct.pack(">I", 3)
+    payload += struct.pack(">I", 6)
 
     # Base raise chances
-    payload += struct.pack('<B', 50)
-    payload += struct.pack('<B', 33)
-    payload += struct.pack('<B', 20)
+    payload += struct.pack("<B", 50)
+    payload += struct.pack("<B", 33)
+    payload += struct.pack("<B", 20)
 
     # Work raise chances
-    payload += struct.pack('<B', 0)
-    payload += struct.pack('<B', 5)
-    payload += struct.pack('<B', 10)
+    payload += struct.pack("<B", 0)
+    payload += struct.pack("<B", 5)
+    payload += struct.pack("<B", 10)
 
     # Background color (RGB)
-    payload += struct.pack('<BBB', 139, 140, 141)
+    payload += struct.pack("<BBB", 139, 140, 141)
 
     # Call handler
     await handlers.handle_ruleset_game(mock_client, game_state, payload)
@@ -1429,7 +1763,7 @@ async def test_handle_ruleset_game(mock_client, game_state):
     assert game_state.ruleset_game.global_init_buildings_count == 0
     assert game_state.ruleset_game.global_init_buildings == []
     assert game_state.ruleset_game.veteran_levels == 3
-    assert game_state.ruleset_game.veteran_name == ['Green', 'Veteran', 'Hardened']
+    assert game_state.ruleset_game.veteran_name == ["Green", "Veteran", "Hardened"]
     assert game_state.ruleset_game.power_fact == [100, 150, 175]
     assert game_state.ruleset_game.move_bonus == [0, 3, 6]
     assert game_state.ruleset_game.base_raise_chance == [50, 33, 20]
@@ -1443,17 +1777,49 @@ async def test_handle_ruleset_game(mock_client, game_state):
 async def test_handle_ruleset_achievement(mock_client, game_state):
     """Test RULESET_ACHIEVEMENT handler stores achievement correctly."""
     # Real captured packet data
-    payload = bytes([
-        0x26,  # id = 38
-        # name = "Spaceship Launch"
-        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
-        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
-        # rule_name = "Spaceship Launch"
-        0x53, 0x70, 0x61, 0x63, 0x65, 0x73, 0x68, 0x69, 0x70, 0x20,
-        0x4c, 0x61, 0x75, 0x6e, 0x63, 0x68, 0x00,
-        0x00,  # type = 0 (ACHIEVEMENT_SPACESHIP)
-        0x01   # unique = True
-    ])
+    payload = bytes(
+        [
+            0x26,  # id = 38
+            # name = "Spaceship Launch"
+            0x53,
+            0x70,
+            0x61,
+            0x63,
+            0x65,
+            0x73,
+            0x68,
+            0x69,
+            0x70,
+            0x20,
+            0x4C,
+            0x61,
+            0x75,
+            0x6E,
+            0x63,
+            0x68,
+            0x00,
+            # rule_name = "Spaceship Launch"
+            0x53,
+            0x70,
+            0x61,
+            0x63,
+            0x65,
+            0x73,
+            0x68,
+            0x69,
+            0x70,
+            0x20,
+            0x4C,
+            0x61,
+            0x75,
+            0x6E,
+            0x63,
+            0x68,
+            0x00,
+            0x00,  # type = 0 (ACHIEVEMENT_SPACESHIP)
+            0x01,  # unique = True
+        ]
+    )
 
     await handlers.handle_ruleset_achievement(mock_client, game_state, payload)
 
@@ -1485,22 +1851,27 @@ async def test_handle_ruleset_action_auto(mock_client, game_state):
     """Test RULESET_ACTION_AUTO handler stores auto performer correctly."""
     # Synthetic payload with all fields present (bitvector 0x3f)
     # id=5, cause=2 (POST_ACTION), reqs_count=1, alternatives_count=2
-    payload = bytes([
-        0x3f,  # Bitvector: all 6 bits set
-        0x05,  # id: 5
-        0x02,  # cause: 2 (POST_ACTION)
-        0x01,  # reqs_count: 1
-        # Requirement: type=3, value=42, range=1, survives=True, present=True, quiet=False
-        0x03,  # type
-        0x00, 0x00, 0x00, 0x2a,  # value: 42 (sint32 big-endian)
-        0x01,  # range
-        0x01,  # survives
-        0x01,  # present
-        0x00,  # quiet
-        0x02,  # alternatives_count: 2
-        0x0a,  # alternative[0]: 10
-        0x0b,  # alternative[1]: 11
-    ])
+    payload = bytes(
+        [
+            0x3F,  # Bitvector: all 6 bits set
+            0x05,  # id: 5
+            0x02,  # cause: 2 (POST_ACTION)
+            0x01,  # reqs_count: 1
+            # Requirement: type=3, value=42, range=1, survives=True, present=True, quiet=False
+            0x03,  # type
+            0x00,
+            0x00,
+            0x00,
+            0x2A,  # value: 42 (sint32 big-endian)
+            0x01,  # range
+            0x01,  # survives
+            0x01,  # present
+            0x00,  # quiet
+            0x02,  # alternatives_count: 2
+            0x0A,  # alternative[0]: 10
+            0x0B,  # alternative[1]: 11
+        ]
+    )
 
     await handlers.handle_ruleset_action_auto(mock_client, game_state, payload)
 
@@ -1535,29 +1906,96 @@ async def test_handle_ruleset_action_auto(mock_client, game_state):
 async def test_handle_ruleset_government_all_fields(mock_client, game_state):
     """Test handle_ruleset_government with all fields present."""
     # Bitvector: 0x07ff (all 11 bits set)
-    payload = bytes([
-        0xff, 0x07,  # All 11 bits set
-        0x00,  # id: 0 (SINT8)
-        0x00,  # reqs_count: 0
-        # name: "Anarchy"
-        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # rule_name: "Anarchy"
-        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # graphic_str: "gov.anarchy"
-        0x67, 0x6f, 0x76, 0x2e, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # graphic_alt: "-"
-        0x2d, 0x00,
-        # sound_str: "g_anarchy"
-        0x67, 0x5f, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # sound_alt: "-"
-        0x2d, 0x00,
-        # sound_alt2: "-"
-        0x2d, 0x00,
-        # helptext: "A chaotic form of government."
-        0x41, 0x20, 0x63, 0x68, 0x61, 0x6f, 0x74, 0x69, 0x63, 0x20,
-        0x66, 0x6f, 0x72, 0x6d, 0x20, 0x6f, 0x66, 0x20, 0x67, 0x6f,
-        0x76, 0x65, 0x72, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x00,
-    ])
+    payload = bytes(
+        [
+            0xFF,
+            0x07,  # All 11 bits set
+            0x00,  # id: 0 (SINT8)
+            0x00,  # reqs_count: 0
+            # name: "Anarchy"
+            0x41,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # rule_name: "Anarchy"
+            0x41,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # graphic_str: "gov.anarchy"
+            0x67,
+            0x6F,
+            0x76,
+            0x2E,
+            0x61,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # graphic_alt: "-"
+            0x2D,
+            0x00,
+            # sound_str: "g_anarchy"
+            0x67,
+            0x5F,
+            0x61,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # sound_alt: "-"
+            0x2D,
+            0x00,
+            # sound_alt2: "-"
+            0x2D,
+            0x00,
+            # helptext: "A chaotic form of government."
+            0x41,
+            0x20,
+            0x63,
+            0x68,
+            0x61,
+            0x6F,
+            0x74,
+            0x69,
+            0x63,
+            0x20,
+            0x66,
+            0x6F,
+            0x72,
+            0x6D,
+            0x20,
+            0x6F,
+            0x66,
+            0x20,
+            0x67,
+            0x6F,
+            0x76,
+            0x65,
+            0x72,
+            0x6E,
+            0x6D,
+            0x65,
+            0x6E,
+            0x74,
+            0x2E,
+            0x00,
+        ]
+    )
 
     await handlers.handle_ruleset_government(mock_client, game_state, payload)
 
@@ -1567,14 +2005,14 @@ async def test_handle_ruleset_government_all_fields(mock_client, game_state):
 
     # Verify fields
     assert gov.id == 0
-    assert gov.name == 'Anarchy'
-    assert gov.rule_name == 'Anarchy'
-    assert gov.graphic_str == 'gov.anarchy'
-    assert gov.graphic_alt == '-'
-    assert gov.sound_str == 'g_anarchy'
-    assert gov.sound_alt == '-'
-    assert gov.sound_alt2 == '-'
-    assert gov.helptext == 'A chaotic form of government.'
+    assert gov.name == "Anarchy"
+    assert gov.rule_name == "Anarchy"
+    assert gov.graphic_str == "gov.anarchy"
+    assert gov.graphic_alt == "-"
+    assert gov.sound_str == "g_anarchy"
+    assert gov.sound_alt == "-"
+    assert gov.sound_alt2 == "-"
+    assert gov.helptext == "A chaotic form of government."
     assert gov.reqs_count == 0
     assert gov.reqs == []
 
@@ -1583,36 +2021,105 @@ async def test_handle_ruleset_government_all_fields(mock_client, game_state):
 async def test_handle_ruleset_government_with_requirements(mock_client, game_state):
     """Test government with requirements array."""
     # Bitvector: 0x07ff (all 11 bits set)
-    payload = bytes([
-        0xff, 0x07,  # All bits set
-        0x01,  # id: 1 (SINT8)
-        0x01,  # reqs_count: 1
-        # Requirement: 10 bytes
-        0x03,  # type: 3
-        0x00, 0x00, 0x00, 0x05,  # value: 5 (sint32, big-endian)
-        0x02,  # range: 2
-        0x00,  # survives: false
-        0x01,  # present: true
-        0x00,  # quiet: false
-        # name: "Republic"
-        0x52, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
-        # rule_name: "Republic"
-        0x52, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
-        # graphic_str: "gov.republic"
-        0x67, 0x6f, 0x76, 0x2e, 0x72, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
-        # graphic_alt: "-"
-        0x2d, 0x00,
-        # sound_str: "g_republic"
-        0x67, 0x5f, 0x72, 0x65, 0x70, 0x75, 0x62, 0x6c, 0x69, 0x63, 0x00,
-        # sound_alt: "-"
-        0x2d, 0x00,
-        # sound_alt2: "-"
-        0x2d, 0x00,
-        # helptext: "A democratic government."
-        0x41, 0x20, 0x64, 0x65, 0x6d, 0x6f, 0x63, 0x72, 0x61, 0x74,
-        0x69, 0x63, 0x20, 0x67, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6d,
-        0x65, 0x6e, 0x74, 0x2e, 0x00,
-    ])
+    payload = bytes(
+        [
+            0xFF,
+            0x07,  # All bits set
+            0x01,  # id: 1 (SINT8)
+            0x01,  # reqs_count: 1
+            # Requirement: 10 bytes
+            0x03,  # type: 3
+            0x00,
+            0x00,
+            0x00,
+            0x05,  # value: 5 (sint32, big-endian)
+            0x02,  # range: 2
+            0x00,  # survives: false
+            0x01,  # present: true
+            0x00,  # quiet: false
+            # name: "Republic"
+            0x52,
+            0x65,
+            0x70,
+            0x75,
+            0x62,
+            0x6C,
+            0x69,
+            0x63,
+            0x00,
+            # rule_name: "Republic"
+            0x52,
+            0x65,
+            0x70,
+            0x75,
+            0x62,
+            0x6C,
+            0x69,
+            0x63,
+            0x00,
+            # graphic_str: "gov.republic"
+            0x67,
+            0x6F,
+            0x76,
+            0x2E,
+            0x72,
+            0x65,
+            0x70,
+            0x75,
+            0x62,
+            0x6C,
+            0x69,
+            0x63,
+            0x00,
+            # graphic_alt: "-"
+            0x2D,
+            0x00,
+            # sound_str: "g_republic"
+            0x67,
+            0x5F,
+            0x72,
+            0x65,
+            0x70,
+            0x75,
+            0x62,
+            0x6C,
+            0x69,
+            0x63,
+            0x00,
+            # sound_alt: "-"
+            0x2D,
+            0x00,
+            # sound_alt2: "-"
+            0x2D,
+            0x00,
+            # helptext: "A democratic government."
+            0x41,
+            0x20,
+            0x64,
+            0x65,
+            0x6D,
+            0x6F,
+            0x63,
+            0x72,
+            0x61,
+            0x74,
+            0x69,
+            0x63,
+            0x20,
+            0x67,
+            0x6F,
+            0x76,
+            0x65,
+            0x72,
+            0x6E,
+            0x6D,
+            0x65,
+            0x6E,
+            0x74,
+            0x2E,
+            0x00,
+        ]
+    )
 
     await handlers.handle_ruleset_government(mock_client, game_state, payload)
 
@@ -1622,7 +2129,7 @@ async def test_handle_ruleset_government_with_requirements(mock_client, game_sta
 
     # Verify fields
     assert gov.id == 1
-    assert gov.name == 'Republic'
+    assert gov.name == "Republic"
     assert gov.reqs_count == 1
     assert len(gov.reqs) == 1
 
@@ -1640,34 +2147,95 @@ async def test_handle_ruleset_government_with_requirements(mock_client, game_sta
 async def test_handle_ruleset_government_real_packet(mock_client, game_state):
     """Test with structure similar to captured packet inbound_0933_type145.packet."""
     # First packet: set id and reqs_count
-    payload1 = bytes([
-        0x03, 0x00,  # Bits 0, 1 set
-        0x00,  # id: 0
-        0x00,  # reqs_count: 0
-    ])
+    payload1 = bytes(
+        [
+            0x03,
+            0x00,  # Bits 0, 1 set
+            0x00,  # id: 0
+            0x00,  # reqs_count: 0
+        ]
+    )
     await handlers.handle_ruleset_government(mock_client, game_state, payload1)
 
     # Second packet: update strings only (like real captured packet)
-    payload2 = bytes([
-        0xf8, 0x07,  # Bits 3-10 set (0x07f8)
-        # name: "Anarchy"
-        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # rule_name: "Anarchy"
-        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # graphic_str: "gov.anarchy"
-        0x67, 0x6f, 0x76, 0x2e, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # graphic_alt: "-"
-        0x2d, 0x00,
-        # sound_str: "g_anarchy"
-        0x67, 0x5f, 0x61, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x00,
-        # sound_alt: "-"
-        0x2d, 0x00,
-        # sound_alt2: "-"
-        0x2d, 0x00,
-        # helptext: "Anarchy government."
-        0x41, 0x6e, 0x61, 0x72, 0x63, 0x68, 0x79, 0x20, 0x67, 0x6f,
-        0x76, 0x65, 0x72, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x00,
-    ])
+    payload2 = bytes(
+        [
+            0xF8,
+            0x07,  # Bits 3-10 set (0x07f8)
+            # name: "Anarchy"
+            0x41,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # rule_name: "Anarchy"
+            0x41,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # graphic_str: "gov.anarchy"
+            0x67,
+            0x6F,
+            0x76,
+            0x2E,
+            0x61,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # graphic_alt: "-"
+            0x2D,
+            0x00,
+            # sound_str: "g_anarchy"
+            0x67,
+            0x5F,
+            0x61,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x00,
+            # sound_alt: "-"
+            0x2D,
+            0x00,
+            # sound_alt2: "-"
+            0x2D,
+            0x00,
+            # helptext: "Anarchy government."
+            0x41,
+            0x6E,
+            0x61,
+            0x72,
+            0x63,
+            0x68,
+            0x79,
+            0x20,
+            0x67,
+            0x6F,
+            0x76,
+            0x65,
+            0x72,
+            0x6E,
+            0x6D,
+            0x65,
+            0x6E,
+            0x74,
+            0x2E,
+            0x00,
+        ]
+    )
     await handlers.handle_ruleset_government(mock_client, game_state, payload2)
 
     # Verify final state (should have both id from cache and new strings)
@@ -1675,24 +2243,36 @@ async def test_handle_ruleset_government_real_packet(mock_client, game_state):
     gov = game_state.governments[0]
     assert gov.id == 0  # From first packet
     assert gov.reqs_count == 0  # From first packet
-    assert gov.name == 'Anarchy'  # From second packet
-    assert gov.rule_name == 'Anarchy'  # From second packet
-    assert gov.graphic_str == 'gov.anarchy'  # From second packet
+    assert gov.name == "Anarchy"  # From second packet
+    assert gov.rule_name == "Anarchy"  # From second packet
+    assert gov.graphic_str == "gov.anarchy"  # From second packet
 
 
 @pytest.mark.async_test
 async def test_handle_ruleset_government_ruler_title(mock_client, game_state):
     """Test PACKET_RULESET_GOVERNMENT_RULER_TITLE handler."""
     # All fields present
-    payload = bytes([
-        0x0f,  # All 4 bits set
-        0x02,  # gov: 2
-        0x00, 0x05,  # nation: 5 (SINT16, big-endian)
-        # male_title: "King"
-        0x4b, 0x69, 0x6e, 0x67, 0x00,
-        # female_title: "Queen"
-        0x51, 0x75, 0x65, 0x65, 0x6e, 0x00,
-    ])
+    payload = bytes(
+        [
+            0x0F,  # All 4 bits set
+            0x02,  # gov: 2
+            0x00,
+            0x05,  # nation: 5 (SINT16, big-endian)
+            # male_title: "King"
+            0x4B,
+            0x69,
+            0x6E,
+            0x67,
+            0x00,
+            # female_title: "Queen"
+            0x51,
+            0x75,
+            0x65,
+            0x65,
+            0x6E,
+            0x00,
+        ]
+    )
 
     await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload)
 
@@ -1703,32 +2283,52 @@ async def test_handle_ruleset_government_ruler_title(mock_client, game_state):
     # Verify fields
     assert title.gov == 2
     assert title.nation == 5
-    assert title.male_title == 'King'
-    assert title.female_title == 'Queen'
+    assert title.male_title == "King"
+    assert title.female_title == "Queen"
 
 
 @pytest.mark.async_test
 async def test_handle_ruleset_government_ruler_title_multiple(mock_client, game_state):
     """Test multiple ruler titles."""
     # First title
-    payload1 = bytes([
-        0x0f,  # All 4 bits set
-        0x00,  # gov: 0
-        0x00, 0x00,  # nation: 0
-        # male_title: "Chief"
-        0x43, 0x68, 0x69, 0x65, 0x66, 0x00,
-        # female_title: "Chieftess"
-        0x43, 0x68, 0x69, 0x65, 0x66, 0x74, 0x65, 0x73, 0x73, 0x00,
-    ])
+    payload1 = bytes(
+        [
+            0x0F,  # All 4 bits set
+            0x00,  # gov: 0
+            0x00,
+            0x00,  # nation: 0
+            # male_title: "Chief"
+            0x43,
+            0x68,
+            0x69,
+            0x65,
+            0x66,
+            0x00,
+            # female_title: "Chieftess"
+            0x43,
+            0x68,
+            0x69,
+            0x65,
+            0x66,
+            0x74,
+            0x65,
+            0x73,
+            0x73,
+            0x00,
+        ]
+    )
 
     await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload1)
 
     # Second title (delta update - only gov and nation)
-    payload2 = bytes([
-        0x03,  # Bits 0, 1 set
-        0x01,  # gov: 1
-        0x00, 0x02,  # nation: 2
-    ])
+    payload2 = bytes(
+        [
+            0x03,  # Bits 0, 1 set
+            0x01,  # gov: 1
+            0x00,
+            0x02,  # nation: 2
+        ]
+    )
 
     await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload2)
 
@@ -1739,27 +2339,30 @@ async def test_handle_ruleset_government_ruler_title_multiple(mock_client, game_
     title1 = game_state.government_ruler_titles[0]
     assert title1.gov == 0
     assert title1.nation == 0
-    assert title1.male_title == 'Chief'
-    assert title1.female_title == 'Chieftess'
+    assert title1.male_title == "Chief"
+    assert title1.female_title == "Chieftess"
 
     # Second title (should have ids from packet, titles from cache)
     title2 = game_state.government_ruler_titles[1]
     assert title2.gov == 1
     assert title2.nation == 2
-    assert title2.male_title == 'Chief'  # From cache
-    assert title2.female_title == 'Chieftess'  # From cache
+    assert title2.male_title == "Chief"  # From cache
+    assert title2.female_title == "Chieftess"  # From cache
 
 
 @pytest.mark.async_test
 async def test_handle_ruleset_government_ruler_title_empty_strings(mock_client, game_state):
     """Test ruler title with empty string values."""
-    payload = bytes([
-        0x0f,  # All 4 bits set
-        0x01,  # gov: 1
-        0x00, 0x03,  # nation: 3
-        0x00,  # male_title: empty
-        0x00,  # female_title: empty
-    ])
+    payload = bytes(
+        [
+            0x0F,  # All 4 bits set
+            0x01,  # gov: 1
+            0x00,
+            0x03,  # nation: 3
+            0x00,  # male_title: empty
+            0x00,  # female_title: empty
+        ]
+    )
 
     await handlers.handle_ruleset_government_ruler_title(mock_client, game_state, payload)
 
@@ -1768,5 +2371,5 @@ async def test_handle_ruleset_government_ruler_title_empty_strings(mock_client, 
     title = game_state.government_ruler_titles[0]
     assert title.gov == 1
     assert title.nation == 3
-    assert title.male_title == ''
-    assert title.female_title == ''
+    assert title.male_title == ""
+    assert title.female_title == ""

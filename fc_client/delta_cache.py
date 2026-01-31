@@ -18,9 +18,7 @@ class DeltaCache:
         self._cache: Dict[int, Dict[Tuple, Dict[str, Any]]] = {}
 
     def get_cached_packet(
-        self,
-        packet_type: int,
-        key_values: Tuple = ()
+        self, packet_type: int, key_values: Tuple = ()
     ) -> Optional[Dict[str, Any]]:
         """Retrieve cached packet by type and key values.
 
@@ -36,12 +34,7 @@ class DeltaCache:
             return None
         return self._cache[packet_type].get(key_values)
 
-    def update_cache(
-        self,
-        packet_type: int,
-        key_values: Tuple,
-        fields: Dict[str, Any]
-    ) -> None:
+    def update_cache(self, packet_type: int, key_values: Tuple, fields: Dict[str, Any]) -> None:
         """Update cache with new packet data.
 
         Args:

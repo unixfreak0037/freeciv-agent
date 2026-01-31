@@ -6,7 +6,10 @@ from fc_client.game_state import GameState
 if TYPE_CHECKING:
     from fc_client.client import FreeCivClient
 
-async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameState, payload: bytes) -> None:
+
+async def handle_server_join_reply(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
     """
     Handle PACKET_SERVER_JOIN_REPLY.
 
@@ -16,7 +19,7 @@ async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameStat
     # Decode the join reply payload
     data = protocol.decode_server_join_reply(payload)
 
-    if data['you_can_join']:
+    if data["you_can_join"]:
         print(f"Join successful: {data['message']}")
 
         # CRITICAL: Switch to 2-byte packet type format after successful join
@@ -29,6 +32,7 @@ async def handle_server_join_reply(client: 'FreeCivClient', game_state: GameStat
         print(f"Join failed: {data['message']}")
         # Trigger shutdown on join failure
         client._shutdown_event.set()
+
 
 __all__ = [
     "handle_server_join_reply",
