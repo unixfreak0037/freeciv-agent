@@ -62,6 +62,7 @@ class FreeCivClient:
         )
         self.register_handler(protocol.PACKET_RULESET_IMPR_FLAG, handlers.handle_ruleset_impr_flag)
         self.register_handler(protocol.PACKET_RULESET_STYLE, handlers.handle_ruleset_style)
+        self.register_handler(protocol.PACKET_RULESET_MUSIC, handlers.handle_ruleset_music)
         self.register_handler(protocol.PACKET_RULESET_BUILDING, handlers.handle_ruleset_building)
         self.register_handler(protocol.PACKET_RULESET_CITY, handlers.handle_ruleset_city)
         self.register_handler(protocol.PACKET_RULESET_TERRAIN, handlers.handle_ruleset_terrain)

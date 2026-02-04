@@ -401,6 +401,22 @@ class Style:
 
 
 @dataclass
+class MusicStyle:
+    """Music style from PACKET_RULESET_MUSIC (240).
+
+    Music styles define soundtrack variations for nations/cities based on
+    cultural themes. Each style specifies separate tracks for peaceful
+    and combat gameplay, with requirements determining when the style applies.
+    """
+
+    id: int  # Music style identifier (UINT8)
+    music_peaceful: str  # Peaceful music track name (MAX_LEN_NAME)
+    music_combat: str  # Combat music track name (MAX_LEN_NAME)
+    reqs_count: int  # Number of requirements (UINT8)
+    reqs: List["Requirement"]  # Requirements for style activation
+
+
+@dataclass
 class Building:
     """Building/improvement type from PACKET_RULESET_BUILDING (150).
 
@@ -924,6 +940,7 @@ class GameState:
             {}
         )  # Improvement flags by ID (PACKET_RULESET_IMPR_FLAG)
         self.styles: Dict[int, Style] = {}  # Styles by ID (PACKET_RULESET_STYLE)
+        self.music_styles: Dict[int, MusicStyle] = {}  # Music styles by ID (PACKET_RULESET_MUSIC)
         self.buildings: Dict[int, Building] = (
             {}
         )  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)

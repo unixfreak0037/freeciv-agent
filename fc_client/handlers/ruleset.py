@@ -1008,6 +1008,43 @@ async def handle_ruleset_style(
     print(f"  Rule Name: {style.rule_name}")
 
 
+async def handle_ruleset_music(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESET_MUSIC (240).
+
+    Music styles define soundtrack variations for nations/cities based on
+    cultural themes. Updates game_state.music_styles dictionary.
+    """
+    from ..game_state import MusicStyle, Requirement
+
+    # Decode packet with delta cache support
+    data = protocol.decode_ruleset_music(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    requirements = [Requirement(**req) for req in data.get("reqs", [])]
+
+    # Create MusicStyle object
+    music_style = MusicStyle(
+        id=data["id"],
+        music_peaceful=data["music_peaceful"],
+        music_combat=data["music_combat"],
+        reqs_count=data["reqs_count"],
+        reqs=requirements,
+    )
+
+    # Store in game state
+    game_state.music_styles[music_style.id] = music_style
+
+    # Display summary
+    print(f"\n[MUSIC STYLE {music_style.id}]")
+    print(f"  Peaceful: {music_style.music_peaceful}")
+    print(f"  Combat: {music_style.music_combat}")
+    if music_style.reqs_count > 0:
+        print(f"  Requirements: {music_style.reqs_count}")
+
+
 async def handle_ruleset_unit_class(
     client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
@@ -2066,6 +2103,7 @@ __all__ = [
     "handle_ruleset_goods",
     "handle_ruleset_impr_flag",
     "handle_ruleset_style",
+    "handle_ruleset_music",
     "handle_ruleset_building",
     "handle_ruleset_city",
     "handle_ruleset_clause",

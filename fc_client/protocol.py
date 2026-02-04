@@ -54,6 +54,7 @@ PACKET_RULESET_IMPR_FLAG = 20
 PACKET_RULESET_BUILDING = 150
 PACKET_RULESET_CITY = 149
 PACKET_RULESET_STYLE = 239
+PACKET_RULESET_MUSIC = 240
 PACKET_RULESET_CLAUSE = 512
 
 # FreeCiv constants
@@ -2240,6 +2241,87 @@ def decode_ruleset_style(payload: bytes, delta_cache: "DeltaCache") -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_STYLE, (), result)
+
+    return result
+
+
+def decode_ruleset_music(payload: bytes, delta_cache: "DeltaCache") -> dict:
+    """
+    Decode PACKET_RULESET_MUSIC (240) - music style definition.
+
+    Music styles define soundtrack variations for nations/cities based on
+    cultural themes. Each style specifies separate tracks for peaceful and
+    combat gameplay, with requirements determining when the style applies.
+
+    Structure from freeciv-build/packets_gen.c:70792:
+    - 5-bit bitvector (1 byte)
+    - Bit 0: id (UINT8) - Music style ID
+    - Bit 1: music_peaceful (STRING) - Peaceful track filename
+    - Bit 2: music_combat (STRING) - Combat track filename
+    - Bit 3: reqs_count (UINT8) - Number of requirements
+    - Bit 4: reqs (REQUIREMENT array) - Variable-length requirement list
+    - Cache: hash_const (all packets share same cache entry)
+
+    Returns:
+        Dictionary with decoded fields: id, music_peaceful, music_combat,
+        reqs_count, reqs
+    """
+    offset = 0
+
+    # Read 5-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 5)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_MUSIC, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        music_id = cached.get("id", 0)
+        music_peaceful = cached.get("music_peaceful", "")
+        music_combat = cached.get("music_combat", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+    else:
+        music_id = 0
+        music_peaceful = ""
+        music_combat = ""
+        reqs_count = 0
+        reqs = []
+
+    # Bit 0: id
+    if is_bit_set(bitvector, 0):
+        music_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: music_peaceful
+    if is_bit_set(bitvector, 1):
+        music_peaceful, offset = decode_string(payload, offset)
+
+    # Bit 2: music_combat
+    if is_bit_set(bitvector, 2):
+        music_combat, offset = decode_string(payload, offset)
+
+    # Bit 3: reqs_count
+    if is_bit_set(bitvector, 3):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 4: reqs array (REQUIREMENT[], length from reqs_count)
+    if is_bit_set(bitvector, 4):
+        reqs = []
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Build result
+    result = {
+        "id": music_id,
+        "music_peaceful": music_peaceful,
+        "music_combat": music_combat,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_MUSIC, (), result)
 
     return result
 
