@@ -417,6 +417,22 @@ class MusicStyle:
 
 
 @dataclass
+class RulesetEffect:
+    """Effect definition from PACKET_RULESET_EFFECT (175).
+
+    Effects are modifiers that units, buildings, governments, and technologies
+    provide to affect gameplay mechanics (production, happiness, combat, etc.).
+    """
+
+    effect_type: int  # Effect type enum (EFT_*)
+    effect_value: int  # Signed value (meaning depends on effect_type)
+    has_multiplier: bool  # Whether this effect uses a multiplier
+    multiplier: int  # Multiplier ID (meaningful only if has_multiplier=True)
+    reqs_count: int  # Number of requirements
+    reqs: List["Requirement"]  # Requirements for effect activation
+
+
+@dataclass
 class Building:
     """Building/improvement type from PACKET_RULESET_BUILDING (150).
 
@@ -941,6 +957,7 @@ class GameState:
         )  # Improvement flags by ID (PACKET_RULESET_IMPR_FLAG)
         self.styles: Dict[int, Style] = {}  # Styles by ID (PACKET_RULESET_STYLE)
         self.music_styles: Dict[int, MusicStyle] = {}  # Music styles by ID (PACKET_RULESET_MUSIC)
+        self.effects: List[RulesetEffect] = []  # Effects list (PACKET_RULESET_EFFECT)
         self.buildings: Dict[int, Building] = (
             {}
         )  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)

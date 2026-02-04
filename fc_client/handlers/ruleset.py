@@ -1045,6 +1045,94 @@ async def handle_ruleset_music(
         print(f"  Requirements: {music_style.reqs_count}")
 
 
+async def handle_ruleset_effect(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_EFFECT (175) - effect definition."""
+    from ..game_state import RulesetEffect, Requirement
+
+    # Decode with delta cache
+    data = protocol.decode_ruleset_effect(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    requirements = [Requirement(**req) for req in data["reqs"]]
+
+    # Create RulesetEffect object
+    effect = RulesetEffect(
+        effect_type=data["effect_type"],
+        effect_value=data["effect_value"],
+        has_multiplier=data["has_multiplier"],
+        multiplier=data["multiplier"],
+        reqs_count=data["reqs_count"],
+        reqs=requirements,
+    )
+
+    # Append to game state
+    game_state.effects.append(effect)
+
+    # Display summary with effect name mapping
+    effect_names = {
+        0: "TechParasite",
+        1: "Airlift",
+        2: "AnyGovernment",
+        3: "Capital_City",
+        4: "Enable_Nuke",
+        5: "Enable_Space",
+        6: "Specialist_Output",
+        7: "Output_Bonus",
+        8: "Output_Bonus_2",
+        9: "Output_Add_Tile",
+        10: "Output_Inc_Tile",
+        11: "Output_Per_Tile",
+        12: "Output_Waste",
+        13: "Output_Waste_By_Distance",
+        14: "Output_Waste_Pct",
+        15: "Upkeep_Free",
+        16: "Pollu_Pop_Pct",
+        17: "Pollu_Pop_Pct_2",
+        18: "Pollu_Prod_Pct",
+        19: "Health_Pct",
+        20: "SS_Structural",
+        21: "SS_Component",
+        22: "SS_Module",
+        23: "Spy_Resistant",
+        24: "Move_Bonus",
+        25: "Unit_No_Lose_Pop",
+        26: "Unit_Recover",
+        27: "Upgrade_Unit",
+        28: "Enemy_Citizen_Unhappy_Pct",
+        29: "Make_Content_Mil_Per",
+        30: "Make_Content_Mil",
+        31: "Make_Content",
+        32: "Force_Content",
+        33: "Give_Imm_Tech",
+        34: "Growth_Food",
+        35: "Have_Embassies",
+        36: "Make_Happy",
+        37: "Unit_Bribe_Cost_Pct",
+        38: "No_Incite",
+        39: "Gain_AI_Love",
+        40: "Slow_Down_Timeline",
+        41: "Civil_War_Chance",
+        42: "Empire_Size_Mod",
+        43: "Empire_Size_Step",
+        44: "Max_Rates",
+        45: "Martial_Law_Each",
+        46: "Martial_Law_Max",
+        47: "Rapture_Grow",
+        48: "Revolution_Unhappiness",
+        49: "Has_Senate",
+        50: "Inspire_Partisans",
+    }
+    effect_name = effect_names.get(effect.effect_type, f"Unknown({effect.effect_type})")
+    multiplier_str = f", multiplier={effect.multiplier}" if effect.has_multiplier else ""
+
+    print(f"\n[EFFECT] {effect_name} (type {effect.effect_type})")
+    print(f"  Value: {effect.effect_value:+d}{multiplier_str}")
+    if effect.reqs_count > 0:
+        print(f"  Requirements: {effect.reqs_count}")
+
+
 async def handle_ruleset_unit_class(
     client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
@@ -2104,6 +2192,7 @@ __all__ = [
     "handle_ruleset_impr_flag",
     "handle_ruleset_style",
     "handle_ruleset_music",
+    "handle_ruleset_effect",
     "handle_ruleset_building",
     "handle_ruleset_city",
     "handle_ruleset_clause",

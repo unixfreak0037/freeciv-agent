@@ -55,6 +55,7 @@ PACKET_RULESET_BUILDING = 150
 PACKET_RULESET_CITY = 149
 PACKET_RULESET_STYLE = 239
 PACKET_RULESET_MUSIC = 240
+PACKET_RULESET_EFFECT = 175
 PACKET_RULESET_CLAUSE = 512
 
 # FreeCiv constants
@@ -2322,6 +2323,94 @@ def decode_ruleset_music(payload: bytes, delta_cache: "DeltaCache") -> dict:
 
     # Update cache
     delta_cache.update_cache(PACKET_RULESET_MUSIC, (), result)
+
+    return result
+
+
+def decode_ruleset_effect(payload: bytes, delta_cache: "DeltaCache") -> dict:
+    """
+    Decode PACKET_RULESET_EFFECT (175) - effect definition.
+
+    Effects are modifiers that buildings, technologies, governments, and other
+    game elements provide to affect gameplay mechanics (production, happiness,
+    combat, etc.).
+
+    Structure from freeciv-build/packets_gen.c:
+    - 6-bit bitvector (1 byte)
+    - Bit 0: effect_type (UINT8) - Effect type enum (EFT_*)
+    - Bit 1: effect_value (SINT32) - Signed integer value
+    - Bit 2: has_multiplier (BOOL) - Boolean header folding (no payload bytes)
+    - Bit 3: multiplier (UINT8) - Multiplier ID
+    - Bit 4: reqs_count (UINT8) - Number of requirements
+    - Bit 5: reqs (REQUIREMENT array) - Variable-length requirement list
+    - Cache: hash_const (all packets share same cache entry)
+
+    Returns:
+        Dictionary with decoded fields: effect_type, effect_value,
+        has_multiplier, multiplier, reqs_count, reqs
+    """
+    offset = 0
+
+    # Read 6-bit bitvector (1 byte)
+    bitvector, offset = read_bitvector(payload, offset, 6)
+
+    # Get cached packet (uses empty tuple for hash_const - no key fields)
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_EFFECT, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        effect_type = cached.get("effect_type", 0)
+        effect_value = cached.get("effect_value", 0)
+        has_multiplier = cached.get("has_multiplier", False)
+        multiplier = cached.get("multiplier", 0)
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+    else:
+        effect_type = 0
+        effect_value = 0
+        has_multiplier = False
+        multiplier = 0
+        reqs_count = 0
+        reqs = []
+
+    # Bit 0: effect_type
+    if is_bit_set(bitvector, 0):
+        effect_type, offset = decode_uint8(payload, offset)
+
+    # Bit 1: effect_value (SINT32 - signed integer)
+    if is_bit_set(bitvector, 1):
+        effect_value, offset = decode_sint32(payload, offset)
+
+    # Bit 2: has_multiplier (boolean header folding - NO payload bytes)
+    has_multiplier = is_bit_set(bitvector, 2)
+
+    # Bit 3: multiplier
+    if is_bit_set(bitvector, 3):
+        multiplier, offset = decode_uint8(payload, offset)
+
+    # Bit 4: reqs_count
+    if is_bit_set(bitvector, 4):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 5: reqs array (REQUIREMENT[], length from reqs_count)
+    if is_bit_set(bitvector, 5):
+        reqs = []
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Build result
+    result = {
+        "effect_type": effect_type,
+        "effect_value": effect_value,
+        "has_multiplier": has_multiplier,
+        "multiplier": multiplier,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+    }
+
+    # Update cache
+    delta_cache.update_cache(PACKET_RULESET_EFFECT, (), result)
 
     return result
 
