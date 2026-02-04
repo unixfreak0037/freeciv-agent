@@ -52,6 +52,7 @@ PACKET_RULESET_TERRAIN_FLAG = 231
 PACKET_RULESET_TERRAIN = 151
 PACKET_RULESET_IMPR_FLAG = 20
 PACKET_RULESET_BUILDING = 150
+PACKET_RULESET_CITY = 149
 PACKET_RULESET_STYLE = 239
 PACKET_RULESET_CLAUSE = 512
 
@@ -4087,6 +4088,99 @@ def decode_ruleset_building(payload: bytes, delta_cache: "DeltaCache") -> dict:
 
     # Update cache with empty tuple (hash_const packet)
     delta_cache.update_cache(PACKET_RULESET_BUILDING, (), result)
+
+    return result
+
+
+def decode_ruleset_city(payload: bytes, delta_cache: "DeltaCache") -> dict:
+    """
+    Decode PACKET_RULESET_CITY (149) - city style definition.
+
+    City style definition with graphical configuration and requirements.
+    Delta protocol with (style_id,) as key field.
+    Reference: freeciv-build/packets_gen.c:58284
+
+    8 conditional fields (bits 0-7), 1-byte bitvector.
+    """
+    offset = 0
+
+    # Read 1-byte bitvector (8 conditional fields)
+    bitvector, offset = read_bitvector(payload, offset, 8)
+
+    # Get cached packet (keyed by style_id)
+    # Note: We don't have style_id yet, so we use empty tuple for initial lookup
+    cached = delta_cache.get_cached_packet(PACKET_RULESET_CITY, ())
+
+    # Initialize from cache or defaults
+    if cached:
+        style_id = cached.get("style_id", 0)
+        name = cached.get("name", "")
+        rule_name = cached.get("rule_name", "")
+        citizens_graphic = cached.get("citizens_graphic", "")
+        reqs_count = cached.get("reqs_count", 0)
+        reqs = cached.get("reqs", []).copy()
+        graphic = cached.get("graphic", "")
+        graphic_alt = cached.get("graphic_alt", "")
+    else:
+        style_id = 0
+        name = ""
+        rule_name = ""
+        citizens_graphic = ""
+        reqs_count = 0
+        reqs = []
+        graphic = ""
+        graphic_alt = ""
+
+    # Decode conditional fields based on bitvector
+    # Bit 0: style_id (UINT8) - key field
+    if is_bit_set(bitvector, 0):
+        style_id, offset = decode_uint8(payload, offset)
+
+    # Bit 1: name (STRING)
+    if is_bit_set(bitvector, 1):
+        name, offset = decode_string(payload, offset)
+
+    # Bit 2: rule_name (STRING)
+    if is_bit_set(bitvector, 2):
+        rule_name, offset = decode_string(payload, offset)
+
+    # Bit 3: citizens_graphic (STRING)
+    if is_bit_set(bitvector, 3):
+        citizens_graphic, offset = decode_string(payload, offset)
+
+    # Bit 4: reqs_count (UINT8)
+    if is_bit_set(bitvector, 4):
+        reqs_count, offset = decode_uint8(payload, offset)
+
+    # Bit 5: reqs array (REQUIREMENT[], length from reqs_count)
+    if is_bit_set(bitvector, 5):
+        reqs = []
+        for i in range(reqs_count):
+            req, offset = decode_requirement(payload, offset)
+            reqs.append(req)
+
+    # Bit 6: graphic (STRING)
+    if is_bit_set(bitvector, 6):
+        graphic, offset = decode_string(payload, offset)
+
+    # Bit 7: graphic_alt (STRING)
+    if is_bit_set(bitvector, 7):
+        graphic_alt, offset = decode_string(payload, offset)
+
+    # Build result
+    result = {
+        "style_id": style_id,
+        "name": name,
+        "rule_name": rule_name,
+        "citizens_graphic": citizens_graphic,
+        "reqs_count": reqs_count,
+        "reqs": reqs,
+        "graphic": graphic,
+        "graphic_alt": graphic_alt,
+    }
+
+    # Update cache with empty tuple (hash_const packet)
+    delta_cache.update_cache(PACKET_RULESET_CITY, (), result)
 
     return result
 

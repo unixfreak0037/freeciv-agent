@@ -1862,6 +1862,57 @@ async def handle_ruleset_building(
         print(f"  Help: {help_preview}")
 
 
+async def handle_ruleset_city(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """Handle PACKET_RULESET_CITY (149) - city style definitions.
+
+    Defines city graphical styles with cultural themes (European, Classical, etc.)
+    including graphics, citizen graphics, and build requirements.
+    """
+    from ..game_state import CityStyle, Requirement
+    from .. import protocol
+
+    # Decode packet
+    data = protocol.decode_ruleset_city(payload, client._delta_cache)
+
+    # Convert requirement dicts to Requirement objects
+    requirements = []
+    for req_dict in data.get("reqs", []):
+        req = Requirement(
+            type=req_dict["type"],
+            value=req_dict["value"],
+            range=req_dict["range"],
+            survives=req_dict["survives"],
+            present=req_dict["present"],
+            quiet=req_dict["quiet"],
+        )
+        requirements.append(req)
+
+    # Create CityStyle object
+    city_style = CityStyle(
+        style_id=data["style_id"],
+        name=data["name"],
+        rule_name=data["rule_name"],
+        citizens_graphic=data["citizens_graphic"],
+        reqs_count=data["reqs_count"],
+        reqs=requirements,
+        graphic=data["graphic"],
+        graphic_alt=data["graphic_alt"],
+    )
+
+    # Store in game state
+    client.game_state.city_styles[city_style.style_id] = city_style
+
+    # Display summary
+    print(f"[CITY STYLE {city_style.style_id}] {city_style.name} ({city_style.rule_name})")
+    print(f"  Citizens Graphic: {city_style.citizens_graphic}")
+    print(f"  Graphic: {city_style.graphic}")
+    if city_style.graphic_alt:
+        print(f"  Alt Graphic: {city_style.graphic_alt}")
+    print(f"  Requirements: {city_style.reqs_count}")
+
+
 async def handle_ruleset_terrain(
     client: "FreeCivClient", game_state: GameState, payload: bytes
 ) -> None:
@@ -2016,5 +2067,6 @@ __all__ = [
     "handle_ruleset_impr_flag",
     "handle_ruleset_style",
     "handle_ruleset_building",
+    "handle_ruleset_city",
     "handle_ruleset_clause",
 ]

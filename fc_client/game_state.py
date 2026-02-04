@@ -431,6 +431,27 @@ class Building:
 
 
 @dataclass
+class CityStyle:
+    """City graphical style from PACKET_RULESET_CITY (149).
+
+    Defines city visual rendering configuration including graphics,
+    citizen graphics, and build requirements for different cultural styles.
+
+    Note: Different from PACKET_RULESET_STYLE (239) which defines general
+    thematic styles. This packet is specific to city rendering.
+    """
+
+    style_id: int  # City style ID (key field, UINT8)
+    name: str  # Display name (MAX_LEN_NAME)
+    rule_name: str  # Rule reference name (MAX_LEN_NAME)
+    citizens_graphic: str  # Citizens sprite tag (MAX_LEN_NAME)
+    reqs_count: int  # Number of requirements (UINT8)
+    reqs: List["Requirement"]  # Build requirements
+    graphic: str  # Primary city graphics tag (MAX_LEN_NAME)
+    graphic_alt: str  # Alternative graphics tag (MAX_LEN_NAME)
+
+
+@dataclass
 class ExtraType:
     """
     Extra type from PACKET_RULESET_EXTRA (232).
@@ -906,3 +927,4 @@ class GameState:
         self.buildings: Dict[int, Building] = (
             {}
         )  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)
+        self.city_styles: Dict[int, CityStyle] = {}  # City styles by ID (PACKET_RULESET_CITY)
