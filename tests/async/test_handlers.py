@@ -2415,3 +2415,33 @@ async def test_handle_ruleset_style_multiple(mock_client, game_state):
     assert len(game_state.styles) == 2
     assert game_state.styles[0].name == "European"
     assert game_state.styles[1].name == "Classical"
+
+
+# ============================================================================
+# handle_rulesets_ready Tests
+# ============================================================================
+
+
+async def test_handle_rulesets_ready_sets_flag(mock_client, game_state):
+    """handle_rulesets_ready should set rulesets_ready flag in game state."""
+    # Initially not ready
+    assert game_state.rulesets_ready is False
+
+    payload = b""  # Empty payload
+
+    await handlers.handle_rulesets_ready(mock_client, game_state, payload)
+
+    # Should now be marked as ready
+    assert game_state.rulesets_ready is True
+
+
+async def test_handle_rulesets_ready_idempotent(mock_client, game_state):
+    """handle_rulesets_ready should be idempotent when called multiple times."""
+    payload = b""
+
+    # Call multiple times
+    await handlers.handle_rulesets_ready(mock_client, game_state, payload)
+    await handlers.handle_rulesets_ready(mock_client, game_state, payload)
+
+    # Should still be marked as ready
+    assert game_state.rulesets_ready is True

@@ -124,6 +124,9 @@ class FreeCivClient:
         )
         self.register_handler(protocol.PACKET_RULESET_CLAUSE, handlers.handle_ruleset_clause)
         self.register_handler(
+            protocol.PACKET_RULESETS_READY, handlers.handle_rulesets_ready
+        )
+        self.register_handler(
             protocol.PACKET_NATION_AVAILABILITY, handlers.handle_nation_availability
         )
 

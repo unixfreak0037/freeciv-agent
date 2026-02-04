@@ -962,3 +962,4 @@ class GameState:
             {}
         )  # Buildings/improvements by ID (PACKET_RULESET_BUILDING)
         self.city_styles: Dict[int, CityStyle] = {}  # City styles by ID (PACKET_RULESET_CITY)
+        self.rulesets_ready: bool = False  # Whether PACKET_RULESETS_READY has been received

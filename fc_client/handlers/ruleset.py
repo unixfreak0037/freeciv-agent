@@ -2155,6 +2155,31 @@ async def handle_ruleset_clause(
         print(f"    Receiver must meet: {clause.receiver_reqs_count} requirement(s)")
 
 
+async def handle_rulesets_ready(
+    client: "FreeCivClient", game_state: GameState, payload: bytes
+) -> None:
+    """
+    Handle PACKET_RULESETS_READY (225) - signal that all ruleset data has been sent.
+
+    This packet contains no actual data - it's purely a synchronization signal
+    from the server indicating that all ruleset packets (nations, techs, units,
+    buildings, terrain, etc.) have been transmitted and the ruleset is complete.
+
+    The client can now proceed to the next phase of initialization.
+    """
+    # No payload to decode - this is a signaling packet only
+
+    # Update game state to mark rulesets as ready
+    game_state.rulesets_ready = True
+
+    # Display status message
+    print("\n" + "=" * 60)
+    print("[RULESETS READY]")
+    print("Server has finished transmitting ruleset data.")
+    print("Ruleset loading complete - ready for gameplay initialization.")
+    print("=" * 60)
+
+
 __all__ = [
     "handle_ruleset_control",
     "handle_ruleset_terrain_control",
@@ -2196,4 +2221,5 @@ __all__ = [
     "handle_ruleset_building",
     "handle_ruleset_city",
     "handle_ruleset_clause",
+    "handle_rulesets_ready",
 ]
